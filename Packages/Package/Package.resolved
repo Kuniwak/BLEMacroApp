@@ -1,5 +1,5 @@
 {
-  "originHash" : "29d1fb1751996d87a8e7f08745079a502cc218367f76a7a12aa14af60f6b54c3",
+  "originHash" : "c7a438fce98c7707be73a8dba60d429d3f0f1196b503261a59f2ec8208e11d79",
   "pins" : [
     {
       "identity" : "core-bluetooth-testable",
@@ -13,7 +13,7 @@
     {
       "identity" : "fuzi",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/cezheng/Fuzi",
+      "location" : "https://github.com/cezheng/Fuzi.git",
       "state" : {
         "revision" : "f08c8323da21e985f3772610753bcfc652c2103f",
         "version" : "3.1.3"
