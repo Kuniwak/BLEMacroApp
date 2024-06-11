@@ -1,0 +1,60 @@
+{
+  "originHash" : "29d1fb1751996d87a8e7f08745079a502cc218367f76a7a12aa14af60f6b54c3",
+  "pins" : [
+    {
+      "identity" : "core-bluetooth-testable",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Kuniwak/core-bluetooth-testable.git",
+      "state" : {
+        "revision" : "6ca4c86520e806ddf48a539c49c039276a279a8c",
+        "version" : "2.0.0"
+      }
+    },
+    {
+      "identity" : "fuzi",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/cezheng/Fuzi",
+      "state" : {
+        "revision" : "f08c8323da21e985f3772610753bcfc652c2103f",
+        "version" : "3.1.3"
+      }
+    },
+    {
+      "identity" : "mirrordiffkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Kuniwak/MirrorDiffKit.git",
+      "state" : {
+        "revision" : "6d721f86bbc91621b382f5a6a5a2ebd135c256e5",
+        "version" : "6.0.0"
+      }
+    },
+    {
+      "identity" : "swift-ble-assigned-numbers",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Kuniwak/swift-ble-assigned-numbers.git",
+      "state" : {
+        "revision" : "0ecdf9a49cf8ee9670eabc29825817202f7a2c8f",
+        "version" : "2.0.0"
+      }
+    },
+    {
+      "identity" : "swift-ble-macro",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Kuniwak/swift-ble-macro.git",
+      "state" : {
+        "revision" : "55bf8cb10c46669bbc83dfa7db777a615571e9a9",
+        "version" : "2.0.1"
+      }
+    },
+    {
+      "identity" : "swift-logger",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Kuniwak/swift-logger.git",
+      "state" : {
+        "revision" : "09ac53a6cb16c4ff254b63c02d5daa6795bc8530",
+        "version" : "1.1.0"
+      }
+    }
+  ],
+  "version" : 3
+}
