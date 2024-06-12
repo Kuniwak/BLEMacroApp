@@ -1,13 +1,12 @@
 {
-  "originHash" : "29d1fb1751996d87a8e7f08745079a502cc218367f76a7a12aa14af60f6b54c3",
   "pins" : [
     {
       "identity" : "core-bluetooth-testable",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/core-bluetooth-testable.git",
       "state" : {
-        "revision" : "6ca4c86520e806ddf48a539c49c039276a279a8c",
-        "version" : "2.0.0"
+        "revision" : "4fdf1bb829ec98c0e3a38ec9510d866428b06bbb",
+        "version" : "2.0.1"
       }
     },
     {
