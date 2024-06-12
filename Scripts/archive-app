@@ -1,0 +1,84 @@
+#!/bin/bash
+set -euo pipefail
+
+BASE_DIR="$(cd "$(dirname "$0")/.."; pwd)"
+LOG_DIR="${BASE_DIR}/Logs"
+BUILD_DIR="${BASE_DIR}/build"
+
+
+has() {
+	local cmd="$1"
+	which "$cmd" >/dev/null 2>&1
+}
+
+
+echo-stderr() {
+	local message="$*"
+	printf "%s\n" "$message" 1>&2
+}
+
+
+throw() {
+	local message="$*"
+	echo-stderr "error: $message"
+	false
+}
+
+
+usage() {
+	cat - 1>&2 <<EOS
+usage: archive-app [<options>] <out_dir>
+
+Archive the specified app
+
+OPTIONS
+	-h, --help    print this usage
+
+EXAMPLES
+	$ ./Scripts/archive-app path/to/dir
+EOS
+}
+
+
+usage-error() {
+	local message="$*"
+	echo-stderr "$message"
+	usage
+	false
+}
+
+
+main() {
+	local out_dir="${1:-}"
+	local xcarchive_path="${BUILD_DIR}/BLEMacroApp.xcarchive"
+
+	(cd "$BASE_DIR"
+		mkdir -p "$LOG_DIR"
+
+		xcodebuild archive \
+			-project BLEMacroApp.xcodeproj \
+			-scheme BLEMacroApp \
+			-destination "generic/platform=iOS" \
+			-allowProvisioningUpdates \
+			-skipPackagePluginValidation \
+			-skipMacroValidation \
+			-skipPackageSignatureValidation \
+			-archivePath "$xcarchive_path" | tee "${LOG_DIR}/xcodebuild-archive.log" | xcpretty
+
+		xcodebuild -exportArchive \
+			-archivePath "$xcarchive_path" \
+			-exportPath "$out_dir" \
+			-allowProvisioningUpdates \
+			-exportOptionsPlist ./ExportOptions.plist | tee "$LOG_DIR/xcodebuild-export.log" | xcpretty
+	)
+}
+
+
+case "$*" in
+	--help | -h)
+		usage
+		false ;;
+	*)
+		main "$@" ;;
+esac
+

@@ -5,7 +5,7 @@ import Views
 struct BLEMacroApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Text("Hello, World!")
         }
     }
 }

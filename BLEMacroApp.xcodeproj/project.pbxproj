@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		621C148C2C192226005A4520 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 621C148B2C192226005A4520 /* Preview Assets.xcassets */; };
 		624D162F2C18F9310013C1EA /* Models in Frameworks */ = {isa = PBXBuildFile; productRef = 624D162E2C18F9310013C1EA /* Models */; };
 		624D16312C18F9310013C1EA /* Views in Frameworks */ = {isa = PBXBuildFile; productRef = 624D16302C18F9310013C1EA /* Views */; };
 		62E4E3BD2C16629B00C41789 /* BLEMacroApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62E4E3BC2C16629B00C41789 /* BLEMacroApp.swift */; };
@@ -25,6 +26,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		621C148B2C192226005A4520 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		629474A12C171E3E0023B29F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		629474A62C18EF750023B29F /* Package */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = Package; sourceTree = "<group>"; };
 		62E4E3B92C16629B00C41789 /* BLEMacroApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BLEMacroApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -58,6 +60,7 @@
 		624D162C2C18F9160013C1EA /* Preview Content */ = {
 			isa = PBXGroup;
 			children = (
+				621C148B2C192226005A4520 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
 			sourceTree = "<group>";
@@ -204,6 +207,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				621C148C2C192226005A4520 /* Preview Assets.xcassets in Resources */,
 				62E4E3C12C16629C00C41789 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
