@@ -72,11 +72,37 @@ public enum ServiceDiscoveryState {
 }
 
 
+extension PeripheralModelState: CustomStringConvertible {
+    public var description: String {
+        switch discoveryState {
+        case .disconnected(.some(let services)):
+            return ".disconnected([\(services.map(\.state.description).joined(separator: ", "))])"
+        case .disconnected(nil):
+            return ".disconnected"
+        case .connecting:
+            return ".connecting"
+        case .connected:
+            return ".connected"
+        case .discovering:
+            return ".discovering"
+        case .discoverFailed(let error):
+            return ".discoverFailed(\(error))"
+        case .discovered(let services):
+            return ".discovered([\(services.map(\.state.description).joined(separator: ", "))])"
+        case .disconnecting:
+            return ".disconnecting"
+        case .notConnectable:
+            return ".notConnectable"
+        }
+    }
+}
+
+
 public struct PeripheralModelState {
     public var discoveryState: ServiceDiscoveryState
     public var rssi: Result<NSNumber, PeripheralModelFailure>
     public var name: Result<String?, PeripheralModelFailure>
-    public var manufacturerName: Result<String?, PeripheralModelFailure>
+    public var manufacturerData: ManufacturerData?
     
     
     public init(
@@ -84,12 +110,12 @@ public struct PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure>,
         name: Result<String?, PeripheralModelFailure>,
         isConnectable: Bool,
-        manufacturerName: Result<String?, PeripheralModelFailure>
+        manufacturerData: ManufacturerData?
     ) {
         self.discoveryState = discoveryState
         self.rssi = rssi
         self.name = name
-        self.manufacturerName = manufacturerName
+        self.manufacturerData = manufacturerData
     }
     
     
@@ -106,16 +132,11 @@ public struct PeripheralModelState {
             isConnectable = true
         }
         
-        let manufacturerName: Result<String?, PeripheralModelFailure>
-        if let manufacturerData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
-            if let manufacturer = ManufacturerCatalog.from(data: manufacturerData) {
-                manufacturerName = .success(manufacturer.name)
-            } else {
-                let hex = HexEncoding.lower.encode(data: manufacturerData)
-                manufacturerName = .failure(PeripheralModelFailure(description: "Unknown manufacturer: \(hex)"))
-            }
+        let manufacturerData: ManufacturerData?
+        if let manufacturerRawData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
+            manufacturerData = ManufacturerCatalog.from(data: manufacturerRawData)
         } else {
-            manufacturerName = .success(nil)
+            manufacturerData = nil
         }
         
         return PeripheralModelState(
@@ -123,7 +144,7 @@ public struct PeripheralModelState {
             rssi: .success(rssi),
             name: .success(name),
             isConnectable: isConnectable,
-            manufacturerName: manufacturerName
+            manufacturerData: manufacturerData
         )
     }
 }

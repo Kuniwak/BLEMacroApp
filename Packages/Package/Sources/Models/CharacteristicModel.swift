@@ -55,6 +55,22 @@ public enum DescriptorDiscoveryState {
 }
 
 
+extension DescriptorDiscoveryState: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .discovering:
+            return ".discovering"
+        case .discovered(.some(let descriptors)):
+            return ".discovered([\(descriptors.map(\.state.description).joined(separator: ", "))])"
+        case .discovered(nil):
+            return ".discovered(nil)"
+        case .discoverFailed(let error):
+            return ".discoverFailed(\(error.description))"
+        }
+    }
+}
+
+
 public struct CharacteristicModelState {
     public var discoveryState: DescriptorDiscoveryState
     public let uuid: CBUUID
@@ -74,6 +90,13 @@ public struct CharacteristicModelState {
             uuid: cbuuid,
             name: CharacteristicCatalog.from(cbuuid: cbuuid)?.name
         )
+    }
+}
+
+
+extension CharacteristicModelState: CustomStringConvertible {
+    public var description: String {
+        return "CharacteristicModelState(discoveryState: \(discoveryState.description), uuid: \(uuid), name: \(name ?? "nil"))"
     }
 }
 

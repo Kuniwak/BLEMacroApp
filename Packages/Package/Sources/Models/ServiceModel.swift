@@ -55,6 +55,21 @@ public enum CharacteristicDiscoveryState {
 }
 
 
+extension CharacteristicDiscoveryState: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .discovering:
+            return ".discovering"
+        case .discovered(.some(let characteristics)):
+            return ".discovered([\(characteristics.map(\.state.description).joined(separator: ", "))])"
+        case .discovered(.none):
+            return ".discovered(nil)"
+        case .discoverFailed(let error):
+            return ".discoverFailed(\(error.description))"
+        }
+    }
+}
+
 
 public struct ServiceModelState {
     public let discoveryState: CharacteristicDiscoveryState
@@ -79,12 +94,51 @@ public struct ServiceModelState {
 }
 
 
-public protocol ServiceModelProtocol: Identifiable {
+extension ServiceModelState: CustomStringConvertible {
+    public var description: String {
+        "ServiceModelState(discoveryState: \(discoveryState.description), uuid: \(uuid), name: \(name ?? "nil"))"
+    }
+}
+
+
+public protocol ServiceModelProtocol: Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
     var uuid: CBUUID { get }
-    var state: ServiceModelState { get set }
+    var state: ServiceModelState { get }
     var stateDidUpdate: AnyPublisher<ServiceModelState, Never> { get }
     func discoverCharacteristics()
     func refresh()
+}
+
+
+extension ServiceModelProtocol {
+    public func eraseToAny() -> AnyServiceModel {
+        AnyServiceModel(self)
+    }
+}
+
+
+public class AnyServiceModel: ServiceModelProtocol {
+    private let base: any ServiceModelProtocol
+    
+    public var uuid: CBUUID { base.uuid }
+    public var state: ServiceModelState { base.state }
+    public var stateDidUpdate: AnyPublisher<ServiceModelState, Never> { base.stateDidUpdate }
+    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+    
+    
+    public init(_ base: any ServiceModelProtocol) {
+        self.base = base
+    }
+    
+    
+    public func discoverCharacteristics() {
+        base.discoverCharacteristics()
+    }
+    
+    
+    public func refresh() {
+        base.refresh()
+    }
 }
 
 
@@ -102,10 +156,12 @@ public class ServiceModel: ServiceModelProtocol {
             stateDidUpdateSubject.value
         }
         set {
+            objectWillChange.send()
             stateDidUpdateSubject.value = newValue
         }
     }
     
+    public let objectWillChange = ObservableObjectPublisher()
     private var cancellables = Set<AnyCancellable>()
     
     

@@ -51,6 +51,20 @@ public struct DescriptorModelState {
 }
 
 
+extension DescriptorModelState: CustomStringConvertible {
+    public var description: String {
+        let valueDescription: String
+        switch value {
+        case .success(let value):
+            valueDescription = ".success(\(value ?? "nil"))"
+        case .failure(let error):
+            valueDescription = ".failure(\(error.description))"
+        }
+        return "DescriptorModelState(value: \(valueDescription), uuid: \(uuid), name: \(name ?? "nil"))"
+    }
+}
+
+
 public protocol DescriptorModelProtocol: Identifiable {
     var uuid: CBUUID { get }
     var state: DescriptorModelState { get set }

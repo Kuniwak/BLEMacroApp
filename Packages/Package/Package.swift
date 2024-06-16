@@ -33,6 +33,13 @@ let package = Package(
                 .bleAssignedNumbers,
             ]
         ),
+        .testTarget(
+            name: "CatalogTests",
+            dependencies: [
+                .catalogs,
+                .bleAssignedNumbers,
+            ]
+        ),
         .target(
             name: "Models",
             dependencies: [
@@ -53,6 +60,7 @@ let package = Package(
             dependencies: [
                 .models,
                 .bleModelStub,
+                .catalogs,
                 .coreBluetoothTestable,
                 .coreBluetoothStub,
                 .mirrorDiffKit,
@@ -64,6 +72,7 @@ let package = Package(
                 .logger,
                 .coreBluetoothStub,
                 .coreBluetoothTestable,
+                .catalogs,
                 .models,
                 .modelStubs,
                 .mirrorDiffKit,

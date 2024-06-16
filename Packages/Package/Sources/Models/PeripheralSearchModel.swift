@@ -1,4 +1,5 @@
 import Combine
+import BLEInternal
 import CoreBluetoothTestable
 
 
@@ -30,6 +31,13 @@ public struct PeripheralSearchModelState {
         case .discovered(let peripherals):
             return .init(discoveryState: .discovered(peripherals.filter(satisfy(searchQuery: searchQuery))), searchQuery: searchQuery)
         }
+    }
+}
+
+
+extension PeripheralSearchModelState: CustomStringConvertible {
+    public var description: String {
+        "PeripheralSearchModelState(discoveryState: \(discoveryState), searchQuery: \(searchQuery))"
     }
 }
 
@@ -152,12 +160,19 @@ public func satisfy(searchQuery: String) -> (any PeripheralModelProtocol) -> Boo
             break
         }
         
-        switch peripheral.state.manufacturerName {
-        case .success(.some(let manufacturer)):
+        switch peripheral.state.manufacturerData {
+        case .some(.knownName(let manufacturer, let data)):
             if manufacturer.uppercased().contains(searchQuery) {
                 return true
             }
-        case .failure, .success(.none):
+            if HexEncoding.upper.encode(data: data).contains(searchQuery) {
+                return true
+            }
+        case .some(.data(let data)):
+            if HexEncoding.upper.encode(data: data).contains(searchQuery) {
+                return true
+            }
+        case .none:
             break
         }
         

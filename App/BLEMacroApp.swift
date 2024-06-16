@@ -6,6 +6,17 @@ import Logger
 import Models
 import Views
 
+// NOTE: The app gets initialized even during testing, which can lead to performance overhead.
+#if canImport(XCTest)
+@main
+public struct BLEMacroApp: App {
+    var body: some Scene {
+        WindowGroup {
+            Text("Testing...")
+        }
+    }
+}
+#else
 @main
 public struct BLEMacroApp: App {
     @ObservedObject private var model: AnyPeripheralSearchModel
@@ -18,25 +29,17 @@ public struct BLEMacroApp: App {
 #else
         let severity: LogSeverity = .info
 #endif
-        let logger: any LoggerProtocol = Logger(
-            severity: severity,
-            writer: OSLogWriter(OSLog(
-                subsystem: "com.kuniwak.BLEMacroApp",
-                category: "BLE"
-            ))
-        )
+        let logger: any LoggerProtocol = Logger(severity: severity, writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacroApp", category: "BLE")))
         let centralManager = CentralManager(
-            options: [
-                CBCentralManagerOptionShowPowerAlertKey: true,
-            ],
-            loggingBy: logger
+            options: [CBCentralManagerOptionShowPowerAlertKey: true],
+            loggingBy: Logger(severity: severity, writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacro", category: "BLE")))
         )
         
         let model = PeripheralSearchModel(
             observing: PeripheralDiscoveryModel(observing: centralManager),
             initialSearchQuery: ""
-        ).eraseToAny()
-        self.model = model
+        )
+        self.model = model.eraseToAny()
 
         self.modelLogger = PeripheralSearchModelLogger(
             observing: model,
@@ -61,3 +64,4 @@ public struct BLEMacroApp: App {
         }
     }
 }
+#endif

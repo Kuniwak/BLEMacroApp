@@ -49,13 +49,13 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
     public var description: String {
         switch self {
         case .unauthorized:
-            return "Unauthorized"
+            return ".unauthorized"
         case .powerOff:
-            return "PowerOff"
+            return ".powerOff"
         case .unsupported:
-            return "Unsupported"
+            return ".unsupported"
         case .unspecified(let description):
-            return "Unspecified: \(description)"
+            return ".unspecified(\(description))"
         }
     }
 }
@@ -112,6 +112,24 @@ public enum PeripheralDiscoveryModelState {
             return false
         case .discovering:
             return true
+        }
+    }
+}
+
+
+extension PeripheralDiscoveryModelState: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .idle:
+            return ".idle"
+        case .ready:
+            return ".ready"
+        case .discovering(let peripherals):
+            return ".discovering([\(peripherals.map(\.state.description).joined(separator: ", "))])"
+        case .discovered(let peripherals):
+            return ".discovered([\(peripherals.map(\.state.description).joined(separator: ", "))])"
+        case .discoveryFailed(let error):
+            return ".discoveryFailed(\(error.description))"
         }
     }
 }

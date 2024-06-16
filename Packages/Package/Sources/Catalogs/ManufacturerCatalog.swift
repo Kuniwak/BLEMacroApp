@@ -2,10 +2,18 @@ import Foundation
 import BLEAssignedNumbers
 
 
+public enum ManufacturerData: Equatable {
+    case knownName(String, Data)
+    case data(Data)
+}
+
+
 public enum ManufacturerCatalog {
-    public static func from(data: Data) -> (any AssignedNumberProtocol)? {
-        guard data.count >= 2 else { return nil }
-        return manufacturerToName[ManufacturerID(data[0], data[1])]
+    public static func from(data: Data) -> ManufacturerData {
+        if let assignedNumber = manufacturerToName[ManufacturerID(data[0], data[1])] {
+            return .knownName(assignedNumber.name, data.dropFirst(2))
+        }
+        return .data(data)
     }
 
     

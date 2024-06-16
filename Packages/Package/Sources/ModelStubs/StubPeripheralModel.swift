@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import CoreBluetooth
 import CoreBluetoothStub
+import Catalogs
 import Models
 
 
@@ -46,7 +47,7 @@ extension PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         name: Result<String?, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         isConnectable: Bool = false,
-        manufacturerName: Result<String?, PeripheralModelFailure> = .failure(.init(description: "TEST")),
+        manufacturerData: ManufacturerData? = nil,
         services: Result<[any ServiceModelProtocol], PeripheralModelFailure> = .failure(.init(description: "TEST"))
     ) -> Self {
         .init(
@@ -54,7 +55,7 @@ extension PeripheralModelState {
             rssi: rssi,
             name: name,
             isConnectable: isConnectable,
-            manufacturerName: manufacturerName
+            manufacturerData: manufacturerData
         )
     }
     
@@ -64,7 +65,7 @@ extension PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
         name: Result<String?, PeripheralModelFailure> = .success("Example Device"),
         isConnectable: Bool = true,
-        manufacturerName: Result<String?, PeripheralModelFailure> = .success("Example Ltd."),
+        manufacturerData: ManufacturerData? = .knownName("Example Inc.", Data()),
         services: Result<[any ServiceModelProtocol], PeripheralModelFailure> = .success([])
     ) -> Self {
         .init(
@@ -72,7 +73,7 @@ extension PeripheralModelState {
             rssi: rssi,
             name: name,
             isConnectable: isConnectable,
-            manufacturerName: manufacturerName
+            manufacturerData: manufacturerData
         )
     }
 }
