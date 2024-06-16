@@ -9,12 +9,14 @@ public class StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
             stateDidUpdateSubject.value
         }
         set {
+            self.objectWillChange.send()
             stateDidUpdateSubject.value = newValue
         }
     }
-    public let stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never>
+    public let objectWillChange = ObjectWillChangePublisher()
     public let stateDidUpdateSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
-    
+    public let stateDidUpdate: AnyPublisher<Models.PeripheralDiscoveryModelState, Never>
+
     
     public init(state: PeripheralDiscoveryModelState = .makeStub()) {
         let stateDidUpdateSubject = CurrentValueSubject<PeripheralDiscoveryModelState, Never>(state)
@@ -23,7 +25,11 @@ public class StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
-    public func discover() {
+    public func startScan() {
+    }
+    
+    
+    public func stopScan() {
     }
 }
 

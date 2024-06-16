@@ -5,8 +5,7 @@ import PackageDescription
 let package = Package(
     name: "Package",
     platforms: [
-        .iOS(.v15),
-        .macOS(.v14),
+        .iOS(.v17),
     ],
     products: [
         .library(
@@ -25,6 +24,7 @@ let package = Package(
         .package(url: "https://github.com/Kuniwak/swift-ble-macro.git", .upToNextMajor(from: "2.1.1")),
         .package(url: "https://github.com/cezheng/Fuzi.git", .upToNextMajor(from: "3.1.3")),
         .package(url: "https://github.com/Kuniwak/MirrorDiffKit.git", .upToNextMajor(from: "6.0.0")),
+        .package(url: "https://github.com/Nirma/SFSymbol.git", .upToNextMajor(from: "2.3.0")),
     ],
     targets: [
         .target(
@@ -62,8 +62,10 @@ let package = Package(
             name: "ModelTests",
             dependencies: [
                 .logger,
+                .coreBluetoothStub,
                 .coreBluetoothTestable,
                 .models,
+                .modelStubs,
                 .mirrorDiffKit,
             ]
         ),
@@ -71,18 +73,22 @@ let package = Package(
             name: "Views",
             dependencies: [
                 .previewHelper,
+                .viewExtensions,
                 .models,
                 .modelStubs,
                 .coreBluetoothTestable,
                 .coreBluetoothStub,
+                .sfSymbol,
             ]
         ),
+        .target(name: "ViewExtensions"),
         .target(name: "PreviewHelper"),
     ]
 )
 
 private extension Target.Dependency {
     static let previewHelper: Self = "PreviewHelper"
+    static let viewExtensions: Self = "ViewExtensions"
     static let catalogs: Self = "Catalogs"
     static let models: Self = "Models"
     static let modelStubs: Self = "ModelStubs"
@@ -99,4 +105,5 @@ private extension Target.Dependency {
     static let bleInternal: Self = .product(name: "BLEInternal", package: "swift-ble-macro")
     static let mirrorDiffKit: Self = .product(name: "MirrorDiffKit", package: "MirrorDiffKit")
     static let fuzi: Self = .product(name: "Fuzi", package: "Fuzi")
+    static let sfSymbol: Self = "SFSymbol"
 }

@@ -73,10 +73,10 @@ public enum ServiceDiscoveryState {
 
 
 public struct PeripheralModelState {
-    public fileprivate(set) var discoveryState: ServiceDiscoveryState
-    public fileprivate(set) var rssi: Result<NSNumber, PeripheralModelFailure>
-    public fileprivate(set) var name: Result<String?, PeripheralModelFailure>
-    public fileprivate(set) var manufacturerName: Result<String?, PeripheralModelFailure>
+    public var discoveryState: ServiceDiscoveryState
+    public var rssi: Result<NSNumber, PeripheralModelFailure>
+    public var name: Result<String?, PeripheralModelFailure>
+    public var manufacturerName: Result<String?, PeripheralModelFailure>
     
     
     public init(
@@ -129,7 +129,7 @@ public struct PeripheralModelState {
 }
 
 
-public protocol PeripheralModelProtocol: Identifiable {
+public protocol PeripheralModelProtocol: Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
     var uuid: UUID { get }
     var state: PeripheralModelState { get }
     var stateDidUpdate: AnyPublisher<PeripheralModelState, Never> { get }
@@ -140,12 +140,52 @@ public protocol PeripheralModelProtocol: Identifiable {
 }
 
 
+extension PeripheralModelProtocol {
+    public func eraseToAny() -> AnyPeripheralModel {
+        AnyPeripheralModel(self)
+    }
+}
+
+
+public class AnyPeripheralModel: PeripheralModelProtocol {
+    private let base: any PeripheralModelProtocol
+    
+    
+    public var uuid: UUID { base.uuid }
+    public var state: PeripheralModelState { base.state }
+    public var stateDidUpdate: AnyPublisher<PeripheralModelState, Never> { base.stateDidUpdate }
+    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+    
+    
+    public init(_ base: any PeripheralModelProtocol) {
+        self.base = base
+    }
+    
+    
+    public func connect() {
+        base.connect()
+    }
+    
+    
+    public func cancelConnection() {
+        base.cancelConnection()
+    }
+    
+    
+    public func discoverServices() {
+        base.discoverServices()
+    }
+}
+
+
 public class PeripheralModel: PeripheralModelProtocol {
     private let peripheral: any PeripheralProtocol
     private let centralManager: any CentralManagerProtocol
     
     private let stateDidUpdateSubject: CurrentValueSubject<PeripheralModelState, Never>
     public let stateDidUpdate: AnyPublisher<PeripheralModelState, Never>
+    
+    public let objectWillChange = ObservableObjectPublisher()
     
     
     public var uuid: UUID { peripheral.identifier }
@@ -156,6 +196,7 @@ public class PeripheralModel: PeripheralModelProtocol {
             stateDidUpdateSubject.value
         }
         set {
+            objectWillChange.send()
             stateDidUpdateSubject.value = newValue
         }
     }

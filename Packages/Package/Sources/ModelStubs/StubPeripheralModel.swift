@@ -57,6 +57,24 @@ extension PeripheralModelState {
             manufacturerName: manufacturerName
         )
     }
+    
+    
+    public static func makeSuccessfulStub(
+        discoveryState: ServiceDiscoveryState = .makeSuccessfulStub(),
+        rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
+        name: Result<String?, PeripheralModelFailure> = .success("Example Device"),
+        isConnectable: Bool = true,
+        manufacturerName: Result<String?, PeripheralModelFailure> = .success("Example Ltd."),
+        services: Result<[any ServiceModelProtocol], PeripheralModelFailure> = .success([])
+    ) -> Self {
+        .init(
+            discoveryState: discoveryState,
+            rssi: rssi,
+            name: name,
+            isConnectable: isConnectable,
+            manufacturerName: manufacturerName
+        )
+    }
 }
 
 
@@ -67,5 +85,14 @@ extension ServiceDiscoveryState {
         name: String? = nil
     ) -> Self {
         .discoverFailed(.init(description: "TEST"))
+    }
+    
+    
+    public static func makeSuccessfulStub(
+        discoveryState: CharacteristicDiscoveryState = .discovered(nil),
+        uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
+        name: String? = "Example"
+    ) -> Self {
+        .disconnected(nil)
     }
 }

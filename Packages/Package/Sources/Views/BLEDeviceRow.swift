@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftUI
 import CoreBluetooth
 import CoreBluetoothTestable
@@ -9,42 +10,43 @@ import PreviewHelper
 
 
 public struct BLEDeviceRow: View {
-    private let model: any PeripheralModelProtocol
+    @ObservedObject public var model: AnyPeripheralModel
     
     
-    public init(_ model: any PeripheralModelProtocol) {
-        self.model = model
+    public init(model: any PeripheralModelProtocol) {
+        self.model = model.eraseToAny()
     }
-    
+
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            switch model.state.name {
-            case .success(let name):
-                if let name {
-                    Text(name).font(.headline)
-                } else {
-                    Text("(no name)").font(.headline).foregroundStyle(.gray)
-                }
-            case .failure(let error):
-                Text("\(error)")
-                    .font(.headline)
-                    .foregroundStyle(.red)
-            }
             HStack {
-                Text(model.uuid.uuidString)
-                    .font(.footnote)
-                    .foregroundStyle(.gray)
+                switch model.state.name {
+                case .success(let name):
+                    if let name {
+                        Text(name).font(.headline)
+                    } else {
+                        Text("(no name)").foregroundStyle(.primary)
+                    }
+                case .failure(let error):
+                    Text("E: \(error.description)")
+                        .font(.headline)
+                        .foregroundColor(Color(.error))
+                }
                 Spacer()
                 RSSIView(rssi: model.state.rssi)
             }
+            Text(model.uuid.uuidString)
+                .scaledToFit()
+                .minimumScaleFactor(0.01)
+                .foregroundColor(Color(.weak))
         }
         .padding(8)
     }
 }
 
 
-#Preview {
+#Preview("NavigationLink") {
     let rssiValues: [Result<NSNumber, PeripheralModelFailure>] = [
         .success(NSNumber(value: -50)),
         .success(NSNumber(value: -60)),
@@ -71,9 +73,50 @@ public struct BLEDeviceRow: View {
                 isConnectable: isConnectable,
                 manufacturerName: manufacturerName
             ))
+            .eraseToAny()
         }
-    List(models) { model in
-        BLEDeviceRow(model)
+    
+    NavigationView {
+        List(models) { model in
+            NavigationLink(destination: Text("TODO")) {
+                BLEDeviceRow(model: model)
+            }
+        }
     }
 }
 
+
+#Preview("No NavigationLink") {
+    let rssiValues: [Result<NSNumber, PeripheralModelFailure>] = [
+        .success(NSNumber(value: -50)),
+        .success(NSNumber(value: -60)),
+        .success(NSNumber(value: -70)),
+        .success(NSNumber(value: -80)),
+        .failure(.init(description: "TEST")),
+    ]
+    let names: [Result<String?, PeripheralModelFailure>] = [
+        .success("Device Name"),
+        .success(nil),
+        .failure(.init(description: "TEST")),
+    ]
+    let manufacturerNames: [Result<String?, PeripheralModelFailure>] = [
+        .success("Manufacturer Name"),
+        .success(nil),
+        .failure(.init(description: "TEST")),
+    ]
+    let models = cartesianProduct4(rssiValues, names, [true, false], manufacturerNames)
+        .map { rssi, name, isConnectable, manufacturerName in
+            StubPeripheralModel(state: .makeStub(
+                discoveryState: .makeStub(),
+                rssi: rssi,
+                name: name,
+                isConnectable: isConnectable,
+                manufacturerName: manufacturerName
+            ))
+            .eraseToAny()
+        }
+    
+    List(models) { model in
+        BLEDeviceRow(model: model)
+    }
+}

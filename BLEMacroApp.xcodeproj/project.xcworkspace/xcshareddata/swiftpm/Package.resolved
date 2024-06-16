@@ -28,6 +28,15 @@
       }
     },
     {
+      "identity" : "sfsymbol",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Nirma/SFSymbol.git",
+      "state" : {
+        "revision" : "1b127194b976a58ea460a2cbe10f00fa994b1ece",
+        "version" : "2.3.0"
+      }
+    },
+    {
       "identity" : "swift-ble-assigned-numbers",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/swift-ble-assigned-numbers.git",

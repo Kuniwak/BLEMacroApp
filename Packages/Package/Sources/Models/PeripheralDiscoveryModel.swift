@@ -63,34 +63,101 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
 
 public enum PeripheralDiscoveryModelState {
     case idle
-    case awaitingReady
     case ready
-    case discovering([any PeripheralModelProtocol])
-    case discovered([any PeripheralModelProtocol])
+    case discovering([AnyPeripheralModel])
+    case discovered([AnyPeripheralModel])
     case discoveryFailed(PeripheralDiscoveryModelFailure)
 
+    
+    public static func initialState() -> Self {
+        .idle
+    }
 
-    public var models: Result<[any PeripheralModelProtocol], PeripheralDiscoveryModelFailure> {
+
+    public var models: Result<[AnyPeripheralModel], PeripheralDiscoveryModelFailure> {
         switch self {
         case .discovering(let peripherals), .discovered(let peripherals):
             return .success(peripherals)
-        case .idle, .awaitingReady, .ready:
+        case .idle, .ready:
             return .success([])
         case .discoveryFailed(let error):
             return .failure(error)
         }
     }
+    
+    
+    public var isScanning: Bool {
+        switch self {
+        case .discovering:
+            return true
+        case .idle, .ready, .discoveryFailed, .discovered:
+            return false
+        }
+    }
+    
+    
+    public var canStartScan: Bool {
+        switch self {
+        case .ready, .discovered, .discoveryFailed(.unspecified):
+            return true
+        case .idle, .discovering, .discoveryFailed(.powerOff), .discoveryFailed(.unauthorized), .discoveryFailed(.unsupported):
+            return false
+        }
+    }
+    
+    
+    public var canStopScan: Bool {
+        switch self {
+        case .idle, .ready, .discoveryFailed, .discovered:
+            return false
+        case .discovering:
+            return true
+        }
+    }
 }
 
 
-public protocol PeripheralDiscoveryModelProtocol {
+public protocol PeripheralDiscoveryModelProtocol: ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
     var state: PeripheralDiscoveryModelState { get }
     var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { get }
-    func discover()
+    func startScan()
+    func stopScan()
 }
 
 
-public class PeripheralsDiscoveryModel: PeripheralDiscoveryModelProtocol {
+extension PeripheralDiscoveryModelProtocol {
+    public func eraseToAny() -> AnyPeripheralDiscoveryModel {
+        AnyPeripheralDiscoveryModel(self)
+    }
+}
+
+
+public class AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
+    private let base: any PeripheralDiscoveryModelProtocol
+    
+    public var state: PeripheralDiscoveryModelState { base.state }
+    public var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { base.stateDidUpdate }
+    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+
+    
+    public init(_ base: any PeripheralDiscoveryModelProtocol) {
+        self.base = base
+    }
+    
+    
+    public func startScan() {
+        base.startScan()
+    }
+    
+    
+    public func stopScan() {
+        base.stopScan()
+    }
+}
+
+
+
+public class PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let centralManager: any CentralManagerProtocol
     
     public private(set) var state: PeripheralDiscoveryModelState {
@@ -98,12 +165,15 @@ public class PeripheralsDiscoveryModel: PeripheralDiscoveryModelProtocol {
             stateDidUpdateSubject.value
         }
         set {
+            objectWillChange.send()
             stateDidUpdateSubject.value = newValue
         }
     }
     
     private let stateDidUpdateSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
     public let stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never>
+    public let objectWillChange = ObservableObjectPublisher()
+    
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -122,8 +192,6 @@ public class PeripheralsDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 switch (state, self.state) {
                 case (.poweredOn, .idle):
                     self.state = .ready
-                case (.poweredOn, .awaitingReady):
-                    self.centralManager.scanForPeripherals(withServices: nil)
                 case (.poweredOn, _):
                     break
                 case (.poweredOff, _):
@@ -147,7 +215,7 @@ public class PeripheralsDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 switch self.state {
                 case .idle, .ready, .discoveryFailed:
                     break
-                case .awaitingReady, .discovering, .discovered:
+                case .discovering, .discovered:
                     let newModel = PeripheralModel(
                         startsWith: .initialState(name: resp.peripheral.name, rssi: resp.rssi, advertisementData: resp.advertisementData),
                         centralManager: centralManager,
@@ -155,7 +223,7 @@ public class PeripheralsDiscoveryModel: PeripheralDiscoveryModelProtocol {
                     )
                     switch self.state.models {
                     case .success(let models):
-                        self.state = .discovering(models + [newModel])
+                        self.state = .discovering(models + [newModel.eraseToAny()])
                     case .failure(let error):
                         self.state = .discoveryFailed(.unspecified("\(error)"))
                         break
@@ -166,15 +234,24 @@ public class PeripheralsDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
-    public func discover() {
+    public func startScan() {
         switch self.state {
-        case .idle:
-            self.state = .awaitingReady
         case .ready, .discovered, .discoveryFailed:
             self.state = .discovering([])
             centralManager.scanForPeripherals(withServices: nil)
-        case .discovering, .awaitingReady:
+        case .idle, .discovering:
             break
+        }
+    }
+    
+    
+    public func stopScan() {
+        switch self.state {
+        case .idle, .ready, .discoveryFailed, .discovered:
+            break
+        case .discovering(let models):
+            centralManager.stopScan()
+            self.state = .discovered(models)
         }
     }
 }

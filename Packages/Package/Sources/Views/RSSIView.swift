@@ -1,4 +1,5 @@
 import SwiftUI
+import SFSymbol
 import Models
 
 
@@ -15,19 +16,22 @@ public struct RSSIView: View {
         switch rssi {
         case .success(let rssi):
             if rssi.compare(-70) == .orderedAscending {
-                Image(systemName: "wifi.slash")
-                    .foregroundStyle(.red)
+                Image(systemName: SFSymbol5.wifi.rawValue)
+                    .foregroundStyle(Color(.error))
             } else if rssi.compare(-50) == .orderedAscending {
-                Image(systemName: "wifi")
-                    .foregroundStyle(.yellow)
+                Image(systemName: SFSymbol5.wifi.rawValue)
+                    .foregroundStyle(Color(.warning))
             } else {
-                Image(systemName: "wifi")
-                    .foregroundStyle(.green)
+                Image(systemName: SFSymbol5.wifi.rawValue)
+                    .foregroundStyle(Color(.success))
             }
         case .failure(let error):
-            Text(error.description)
-                .font(.footnote)
-                .foregroundStyle(.red)
+            HStack {
+                Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
+                Text(error.description)
+                    .font(.footnote)
+            }
+                .foregroundStyle(Color(.error))
         }
     }
 }

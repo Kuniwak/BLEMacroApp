@@ -1,12 +1,109 @@
 import XCTest
+import CoreBluetoothStub
+import ModelStubs
 @testable import Models
 
-final class ModelTests: XCTestCase {
-    func testExample() throws {
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
 
-        // Defining Test Cases and Test Methods
-        // https://developer.apple.com/documentation/xctest/defining_test_cases_and_test_methods
+final class PeripheralSearchModelTests: XCTestCase {
+    private struct TestCase {
+        public let description: String
+        public let peripheral: StubPeripheralModel
+        public let searchQuery: String
+        public let expected: Bool
+    }
+    
+    
+    func testSatisfy() {
+        let testCases: [UInt: TestCase] = [
+            #line: .init(
+                description: "No match",
+                peripheral: .init(
+                    state: .makeStub(
+                        name: .success(nil),
+                        manufacturerName: .success(nil)
+                    ),
+                    identifiedBy: StubUUID.zero
+                ),
+                searchQuery: "a",
+                expected: false
+            ),
+            #line: .init(
+                description: "Empty search query match by UUID",
+                peripheral: .init(
+                    state: .makeStub(
+                        name: .success(nil),
+                        manufacturerName: .success(nil)
+                    ),
+                    identifiedBy: StubUUID.zero
+                ),
+                searchQuery: "",
+                expected: true
+            ),
+            #line: .init(
+                description: "Empty search query match by name",
+                peripheral: .init(
+                    state: .makeStub(
+                        name: .success("EXAMPLE"),
+                        manufacturerName: .success(nil)
+                    ),
+                    identifiedBy: StubUUID.zero
+                ),
+                searchQuery: "",
+                expected: true
+            ),
+            #line: .init(
+                description: "Empty search query match by manufacturer name",
+                peripheral: .init(
+                    state: .makeStub(
+                        name: .success(nil),
+                        manufacturerName: .success("EXAMPLE")
+                    ),
+                    identifiedBy: StubUUID.zero
+                ),
+                searchQuery: "",
+                expected: true
+            ),
+            #line: .init(
+                description: "Match by UUID",
+                peripheral: .init(
+                    state: .makeStub(
+                        name: .success(nil),
+                        manufacturerName: .success("EXAMPLE")
+                    ),
+                    identifiedBy: StubUUID.zero
+                ),
+                searchQuery: "0000",
+                expected: true
+            ),
+            #line: .init(
+                description: "Match by Name",
+                peripheral: .init(
+                    state: .makeStub(
+                        name: .success("__NAME__"),
+                        manufacturerName: .success(nil)
+                    ),
+                    identifiedBy: StubUUID.zero
+                ),
+                searchQuery: "NAME",
+                expected: true
+            ),
+            #line: .init(
+                description: "Match by Manufacture Name",
+                peripheral: .init(
+                    state: .makeStub(
+                        name: .success(nil),
+                        manufacturerName: .success("__MANUFACTURER__")
+                    ),
+                    identifiedBy: StubUUID.zero
+                ),
+                searchQuery: "MANUFACTURER",
+                expected: true
+            ),
+        ]
+        
+        for (line, testCase) in testCases {
+            let result = satisfy(searchQuery: testCase.searchQuery)(testCase.peripheral)
+            XCTAssertEqual(result, testCase.expected, line: line)
+        }
     }
 }
