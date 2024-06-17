@@ -20,7 +20,7 @@ public struct BLEMacroApp: App {
 @main
 public struct BLEMacroApp: App {
     @ObservedObject private var model: AnyPeripheralSearchModel
-    private let modelLogger: PeripheralSearchModelLogger
+    private let logger: any LoggerProtocol
     
     
     public init() {
@@ -30,9 +30,11 @@ public struct BLEMacroApp: App {
         let severity: LogSeverity = .info
 #endif
         let logger: any LoggerProtocol = Logger(severity: severity, writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacroApp", category: "BLE")))
+        self.logger = logger
+        
         let centralManager = CentralManager(
             options: [CBCentralManagerOptionShowPowerAlertKey: true],
-            loggingBy: Logger(severity: severity, writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacro", category: "BLE")))
+            loggingBy: Logger(severity: severity, writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacroLibrary", category: "BLE")))
         )
         
         let model = PeripheralSearchModel(
@@ -40,27 +42,18 @@ public struct BLEMacroApp: App {
             initialSearchQuery: ""
         )
         self.model = model.eraseToAny()
-
-        self.modelLogger = PeripheralSearchModelLogger(
-            observing: model,
-            loggingBy: logger
-        )
     }
     
     
     public init(model: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
         self.model = model.eraseToAny()
-
-        self.modelLogger = PeripheralSearchModelLogger(
-            observing: model,
-            loggingBy: logger
-        )
+        self.logger = logger
     }
     
     
     public var body: some Scene {
         WindowGroup {
-            BLEDevicesView(model: model)
+            PeripheralsView(observing: model, loggingBy: logger)
         }
     }
 }

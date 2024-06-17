@@ -101,12 +101,36 @@ extension CharacteristicModelState: CustomStringConvertible {
 }
 
 
-public protocol CharacteristicModelProtocol: Identifiable {
+public protocol CharacteristicModelProtocol: Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
     var uuid: CBUUID { get }
-    var state: CharacteristicModelState { get set }
+    var state: CharacteristicModelState { get }
     var stateDidUpdate: AnyPublisher<CharacteristicModelState, Never> { get }
     func discoverDescriptors()
     func refresh()
+}
+
+
+extension CharacteristicModelProtocol {
+    public func eraseToAny() -> AnyCharacteristicModel {
+        AnyCharacteristicModel(self)
+    }
+}
+
+
+public class AnyCharacteristicModel: CharacteristicModelProtocol {
+    private let base: any CharacteristicModelProtocol
+    
+    public var uuid: CBUUID { base.uuid }
+    public var state: CharacteristicModelState { base.state }
+    public var stateDidUpdate: AnyPublisher<CharacteristicModelState, Never> { base.stateDidUpdate }
+    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+    
+    public init(_ base: any CharacteristicModelProtocol) {
+        self.base = base
+    }
+    
+    public func discoverDescriptors() { base.discoverDescriptors() }
+    public func refresh() { base.refresh() }
 }
 
 
@@ -121,12 +145,15 @@ public class CharacteristicModel: CharacteristicModelProtocol {
             stateDidUpdateSubject.value
         }
         set {
+            objectWillChange.send()
             stateDidUpdateSubject.value = newValue
         }
     }
     
     private let stateDidUpdateSubject: CurrentValueSubject<CharacteristicModelState, Never>
     public let stateDidUpdate: AnyPublisher<CharacteristicModelState, Never>
+    
+    public let objectWillChange: ObservableObjectPublisher = ObservableObjectPublisher()
     
     private var cancellables = Set<AnyCancellable>()
     

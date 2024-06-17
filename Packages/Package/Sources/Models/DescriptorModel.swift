@@ -65,11 +65,36 @@ extension DescriptorModelState: CustomStringConvertible {
 }
 
 
-public protocol DescriptorModelProtocol: Identifiable {
+public protocol DescriptorModelProtocol: Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
     var uuid: CBUUID { get }
-    var state: DescriptorModelState { get set }
+    var state: DescriptorModelState { get }
     var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> { get }
     func refresh()
+}
+
+
+extension DescriptorModelProtocol {
+    public func eraseToAny() -> AnyDescriptorModel {
+        AnyDescriptorModel(self)
+    }
+}
+
+
+public class AnyDescriptorModel: DescriptorModelProtocol {
+    private let base: any DescriptorModelProtocol
+    
+    public var uuid: CBUUID { base.uuid }
+    public var state: DescriptorModelState { base.state }
+    public var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> { base.stateDidUpdate }
+    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+    
+    
+    public init(_ base: any DescriptorModelProtocol) {
+        self.base = base
+    }
+    
+    
+    public func refresh() { base.refresh() }
 }
 
 
@@ -91,6 +116,7 @@ public class DescriptorModel: DescriptorModelProtocol {
     private let stateDidUpdateSubject: CurrentValueSubject<DescriptorModelState, Never>
     public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
     
+    public let objectWillChange = ObservableObjectPublisher()
     private var cancellables = Set<AnyCancellable>()
     
     

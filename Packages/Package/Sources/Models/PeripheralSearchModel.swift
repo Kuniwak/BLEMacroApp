@@ -37,7 +37,14 @@ public struct PeripheralSearchModelState {
 
 extension PeripheralSearchModelState: CustomStringConvertible {
     public var description: String {
-        "PeripheralSearchModelState(discoveryState: \(discoveryState), searchQuery: \(searchQuery))"
+        "PeripheralSearchModelState(discoveryState: \(discoveryState.description), searchQuery: \(searchQuery))"
+    }
+}
+
+
+extension PeripheralSearchModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        "PeripheralSearchModelState(discoveryState: \(discoveryState.debugDescription), searchQuery: \(searchQuery))"
     }
 }
 
@@ -147,7 +154,7 @@ public func satisfy(searchQuery: String) -> (any PeripheralModelProtocol) -> Boo
     return { peripheral in
         let searchQuery = searchQuery.uppercased()
         
-        if peripheral.uuid.uuidString.contains(searchQuery) {
+        if peripheral.state.uuid.uuidString.contains(searchQuery) {
             return true
         }
         

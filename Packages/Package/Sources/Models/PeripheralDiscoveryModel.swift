@@ -135,6 +135,24 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
 }
 
 
+extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .idle:
+            return ".idle"
+        case .ready:
+            return ".ready"
+        case .discovering(let peripherals):
+            return ".discovering([\(peripherals.count) peripherals])"
+        case .discovered(let peripherals):
+            return ".discovered([\(peripherals.count) peripherals])"
+        case .discoveryFailed(let error):
+            return ".discoveryFailed(\(error.description))"
+        }
+    }
+}
+
+
 public protocol PeripheralDiscoveryModelProtocol: ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
     var state: PeripheralDiscoveryModelState { get }
     var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { get }
@@ -235,7 +253,12 @@ public class PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                     break
                 case .discovering, .discovered:
                     let newModel = PeripheralModel(
-                        startsWith: .initialState(name: resp.peripheral.name, rssi: resp.rssi, advertisementData: resp.advertisementData),
+                        startsWith: .initialState(
+                            uuid: resp.peripheral.identifier,
+                            name: resp.peripheral.name,
+                            rssi: resp.rssi,
+                            advertisementData: resp.advertisementData
+                        ),
                         centralManager: centralManager,
                         peripheral: resp.peripheral
                     )

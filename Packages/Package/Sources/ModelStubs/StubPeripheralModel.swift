@@ -7,7 +7,6 @@ import Models
 
 
 public class StubPeripheralModel: PeripheralModelProtocol {
-    public let uuid: UUID
     public var state: PeripheralModelState {
         get {
             stateDidUpdateSubject.value
@@ -20,11 +19,10 @@ public class StubPeripheralModel: PeripheralModelProtocol {
     public let stateDidUpdateSubject: CurrentValueSubject<PeripheralModelState, Never>
     
     
-    public init(state: PeripheralModelState = .makeStub(), identifiedBy uuid: UUID = StubUUID.zero) {
+    public init(state: PeripheralModelState = .makeStub()) {
         let stateDidUpdateSubject = CurrentValueSubject<PeripheralModelState, Never>(state)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-        self.uuid = uuid
     }
     
     
@@ -32,7 +30,7 @@ public class StubPeripheralModel: PeripheralModelProtocol {
     }
     
     
-    public func cancelConnection() {
+    public func disconnect() {
     }
     
     
@@ -51,6 +49,7 @@ extension PeripheralModelState {
         services: Result<[any ServiceModelProtocol], PeripheralModelFailure> = .failure(.init(description: "TEST"))
     ) -> Self {
         .init(
+            uuid: StubUUID.zero,
             discoveryState: discoveryState,
             rssi: rssi,
             name: name,
@@ -69,6 +68,7 @@ extension PeripheralModelState {
         services: Result<[any ServiceModelProtocol], PeripheralModelFailure> = .success([])
     ) -> Self {
         .init(
+            uuid: StubUUID.zero,
             discoveryState: discoveryState,
             rssi: rssi,
             name: name,
@@ -80,20 +80,15 @@ extension PeripheralModelState {
 
 
 extension ServiceDiscoveryState {
-    public static func makeStub(
-        discoveryState: CharacteristicDiscoveryState = .discoverFailed(.init(description: "TEST")),
-        uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
-        name: String? = nil
-    ) -> Self {
+    public static func makeStub() -> Self {
         .discoverFailed(.init(description: "TEST"))
     }
     
     
-    public static func makeSuccessfulStub(
-        discoveryState: CharacteristicDiscoveryState = .discovered(nil),
-        uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
-        name: String? = "Example"
-    ) -> Self {
-        .disconnected(nil)
+    public static func makeSuccessfulStub() -> Self {
+        .discovered([
+            StubServiceModel().eraseToAny(),
+            StubServiceModel().eraseToAny(),
+        ])
     }
 }

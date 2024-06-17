@@ -47,3 +47,18 @@ extension ServiceModelState {
         .init(discoveryState: discoveryState, uuid: uuid, name: name)
     }
 }
+
+
+extension CharacteristicDiscoveryState {
+    public static func makeStub() -> Self {
+        .discoverFailed(.init(description: "TEST"))
+    }
+    
+    
+    public static func makeSuccessfulStub() -> Self {
+        .discovered([
+            StubCharacteristicModel().eraseToAny(),
+            StubCharacteristicModel().eraseToAny(),
+        ])
+    }
+}

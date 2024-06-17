@@ -1,10 +1,35 @@
 import Foundation
+import BLEInternal
 import BLEAssignedNumbers
 
 
 public enum ManufacturerData: Equatable {
     case knownName(String, Data)
     case data(Data)
+}
+
+
+extension ManufacturerData: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .knownName(let name, let data):
+            return ".knownName(\(name), \(data.count) bytes)"
+        case .data(let data):
+            return ".data(\(data.count) bytes)"
+        }
+    }
+}
+
+
+extension ManufacturerData: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .knownName(let name, let data):
+            return ".knownName(\(name), \(HexEncoding.upper.encode(data: data))"
+        case .data(let data):
+            return ".data(\(HexEncoding.upper.encode(data: data)))"
+        }
+    }
 }
 
 

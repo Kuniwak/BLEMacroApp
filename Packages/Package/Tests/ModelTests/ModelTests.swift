@@ -20,7 +20,7 @@ final class PeripheralSearchModelTests: XCTestCase {
                 peripheral: .init(
                     state: .makeStub(
                         name: .success(nil),
-                        manufacturerName: .success(nil)
+                        manufacturerData: nil
                     ),
                     identifiedBy: StubUUID.zero
                 ),
@@ -32,7 +32,7 @@ final class PeripheralSearchModelTests: XCTestCase {
                 peripheral: .init(
                     state: .makeStub(
                         name: .success(nil),
-                        manufacturerName: .success(nil)
+                        manufacturerData: nil
                     ),
                     identifiedBy: StubUUID.zero
                 ),
@@ -44,7 +44,7 @@ final class PeripheralSearchModelTests: XCTestCase {
                 peripheral: .init(
                     state: .makeStub(
                         name: .success("EXAMPLE"),
-                        manufacturerName: .success(nil)
+                        manufacturerData: nil
                     ),
                     identifiedBy: StubUUID.zero
                 ),
@@ -56,7 +56,7 @@ final class PeripheralSearchModelTests: XCTestCase {
                 peripheral: .init(
                     state: .makeStub(
                         name: .success(nil),
-                        manufacturerName: .success("EXAMPLE")
+                        manufacturerData: .knownName("EXAMPLE", Data())
                     ),
                     identifiedBy: StubUUID.zero
                 ),
@@ -68,7 +68,7 @@ final class PeripheralSearchModelTests: XCTestCase {
                 peripheral: .init(
                     state: .makeStub(
                         name: .success(nil),
-                        manufacturerName: .success("EXAMPLE")
+                        manufacturerData: nil
                     ),
                     identifiedBy: StubUUID.zero
                 ),
@@ -80,7 +80,7 @@ final class PeripheralSearchModelTests: XCTestCase {
                 peripheral: .init(
                     state: .makeStub(
                         name: .success("__NAME__"),
-                        manufacturerName: .success(nil)
+                        manufacturerData: nil
                     ),
                     identifiedBy: StubUUID.zero
                 ),
@@ -92,7 +92,7 @@ final class PeripheralSearchModelTests: XCTestCase {
                 peripheral: .init(
                     state: .makeStub(
                         name: .success(nil),
-                        manufacturerName: .success("__MANUFACTURER__")
+                        manufacturerData: .knownName("__MANUFACTURER__", Data())
                     ),
                     identifiedBy: StubUUID.zero
                 ),

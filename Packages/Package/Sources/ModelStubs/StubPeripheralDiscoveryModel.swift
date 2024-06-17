@@ -38,4 +38,11 @@ extension PeripheralDiscoveryModelState {
     public static func makeStub() -> Self {
         .discoveryFailed(.init(description: "TEST"))
     }
+    
+    public static func makeSuccessfulStub() -> Self {
+        .discovered([
+            StubPeripheralModel().eraseToAny(),
+            StubPeripheralModel().eraseToAny()
+        ])
+    }
 }

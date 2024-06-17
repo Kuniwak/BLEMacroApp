@@ -1,16 +1,25 @@
 import SwiftUI
+import Logger
 import Models
 import ModelStubs
 import SFSymbol
 import ViewExtensions
+import PreviewHelper
 
 
-public struct BLEDevicesView: View {
+public struct PeripheralsView: View {
     @ObservedObject private var model: AnyPeripheralSearchModel
+    private let logger: any LoggerProtocol
+    private let modelLogger: PeripheralSearchModelLogger
     
     
-    public init(model: AnyPeripheralSearchModel) {
-        self.model = model
+    public init(observing model: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
+        self.model = model.eraseToAny()
+        self.logger = logger
+        self.modelLogger = PeripheralSearchModelLogger(
+            observing: model,
+            loggingBy: logger
+        )
     }
     
     
@@ -49,8 +58,12 @@ public struct BLEDevicesView: View {
                     .foregroundStyle(Color(.weak))
                 } else {
                     ForEach(peripherals) { peripheral in
-                        NavigationLink(destination: Text("TODO")) {
-                            BLEDeviceRow(model: peripheral)
+                        if peripheral.state.discoveryState.canConnect {
+                            NavigationLink(destination: servicesView(peripheral)) {
+                                PeripheralRow(observing: peripheral)
+                            }
+                        } else {
+                            PeripheralRow(observing: peripheral)
                         }
                     }
                 }
@@ -99,58 +112,59 @@ public struct BLEDevicesView: View {
             }
         }
     }
+    
+    
+    private func servicesView(_ peripheral: any PeripheralModelProtocol) -> some View {
+        let model = self.model
+        return ServicesView(observing: peripheral, loggingBy: logger)
+            .onAppear() {
+                model.stopScan()
+                peripheral.discoverServices()
+            }
+            .onDisappear() {
+                peripheral.disconnect()
+            }
+    }
 }
 
-#Preview("Idle") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .idle)
-    ).eraseToAny())
-}
 
-#Preview("Ready") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .ready)
-    ).eraseToAny())
-}
-
-#Preview("Discovering (empty)") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .discovering([]))
-    ).eraseToAny())
-}
-
-#Preview("Discovering (not empty)") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .discovering([
-            StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-        ]))
-    ).eraseToAny())
-}
-
-#Preview("Discovered") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .discovered([
-            StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-        ]))
-    ).eraseToAny())
-}
-
-#Preview("Unauthorized") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .discoveryFailed(.unauthorized))
-    ).eraseToAny())
-}
-
-#Preview("Unsupported") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .discoveryFailed(.unsupported))
-    ).eraseToAny())
-}
-
-#Preview("Unspecified Error") {
-    BLEDevicesView(model: StubPeripheralSearchModel(
-        state: .makeStub(discoveryState: .discoveryFailed(.unspecified("Something went wrong")))
-    ).eraseToAny())
+internal struct PeripheralsView_Previews: PreviewProvider {
+    internal static var previews: some View {
+        let discoveryStates: [PeripheralDiscoveryModelState] = [
+            .idle,
+            .ready,
+            .discovering([]),
+            .discovering([
+                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
+                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
+            ]),
+            .discovered([]),
+            .discovered([
+                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
+                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
+            ]),
+            .discoveryFailed(.unsupported),
+            .discoveryFailed(.unsupported),
+            .discoveryFailed(.unspecified("Something went wrong"))
+        ]
+        
+        let wrappers: [Previewable] = discoveryStates.map {
+            Previewable(
+                PeripheralSearchModelState(discoveryState: $0, searchQuery: "Example"),
+                describing: $0.description
+            )
+        }
+        
+        Group {
+            ForEach(wrappers) { wrapper in
+                NavigationStack {
+                    PeripheralsView(
+                        observing: StubPeripheralSearchModel(state: wrapper.value).eraseToAny(),
+                        loggingBy: NullLogger()
+                    )
+                }
+                .previewDisplayName(wrapper.description)
+            }
+        }
+    }
 }

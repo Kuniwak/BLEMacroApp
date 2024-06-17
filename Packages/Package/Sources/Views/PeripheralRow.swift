@@ -11,11 +11,11 @@ import ModelStubs
 import PreviewHelper
 
 
-public struct BLEDeviceRow: View {
+public struct PeripheralRow: View {
     @ObservedObject public var model: AnyPeripheralModel
     
     
-    public init(model: any PeripheralModelProtocol) {
+    public init(observing model: any PeripheralModelProtocol) {
         self.model = model.eraseToAny()
     }
 
@@ -42,7 +42,7 @@ public struct BLEDeviceRow: View {
                 Spacer()
                 RSSIView(rssi: model.state.rssi)
             }
-            Text(model.uuid.uuidString)
+            Text(model.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
@@ -97,7 +97,7 @@ public struct BLEDeviceRow: View {
     NavigationView {
         List(models) { model in
             NavigationLink(destination: Text("TODO")) {
-                BLEDeviceRow(model: model)
+                PeripheralRow(observing: model)
             }
         }
     }
@@ -135,6 +135,6 @@ public struct BLEDeviceRow: View {
         }
     
     List(models) { model in
-        BLEDeviceRow(model: model)
+        PeripheralRow(observing: model)
     }
 }

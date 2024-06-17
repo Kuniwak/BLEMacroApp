@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/swift-logger.git",
       "state" : {
-        "revision" : "09ac53a6cb16c4ff254b63c02d5daa6795bc8530",
-        "version" : "1.1.0"
+        "revision" : "32a0540858a4ad6d719045f459e019aba6d69f22",
+        "version" : "1.1.1"
       }
     }
   ],

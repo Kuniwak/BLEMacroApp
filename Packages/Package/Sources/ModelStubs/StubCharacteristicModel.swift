@@ -4,7 +4,7 @@ import CoreBluetoothStub
 import Models
 
 
-class StubCharacteristicModel: CharacteristicModelProtocol {
+public class StubCharacteristicModel: CharacteristicModelProtocol {
     public let uuid: CBUUID
     
     public var state: Models.CharacteristicModelState {
@@ -28,18 +28,30 @@ class StubCharacteristicModel: CharacteristicModelProtocol {
     }
     
     
-    func discoverDescriptors() {
+    public func discoverDescriptors() {
     }
     
     
-    func refresh() {
+    public func refresh() {
     }
 }
 
 
-extension Models.CharacteristicModelState {
+extension CharacteristicModelState {
     public static func makeStub(
         discoveryState: DescriptorDiscoveryState = .discoverFailed(.init(description: "TEST")),
+        uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
+        name: String? = nil
+    ) -> Self {
+        .init(discoveryState: discoveryState, uuid: uuid, name: name)
+    }
+    
+    
+    public static func makeSuccessfulStub(
+        discoveryState: DescriptorDiscoveryState = .discovered([
+            StubDescriptorModel().eraseToAny(),
+            StubDescriptorModel().eraseToAny(),
+        ]),
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = nil
     ) -> Self {

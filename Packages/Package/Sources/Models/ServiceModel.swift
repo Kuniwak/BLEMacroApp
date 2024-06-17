@@ -29,16 +29,17 @@ public struct ServiceModelFailure: Error {
 
 
 public enum CharacteristicDiscoveryState {
+    case notDiscoveredYet
     case discovering
-    case discovered([any CharacteristicModelProtocol]?)
+    case discovered([any CharacteristicModelProtocol])
     case discoverFailed(ServiceModelFailure)
     
     
     public var characteristics: [any CharacteristicModelProtocol] {
         switch self {
-        case .discovered(.some(let characteristics)):
+        case .discovered(let characteristics):
             return characteristics
-        case .discovering, .discovered(nil), .discoverFailed:
+        case .discovering, .notDiscoveredYet, .discoverFailed:
             return []
         }
     }
@@ -48,7 +49,7 @@ public enum CharacteristicDiscoveryState {
         switch self {
         case .discovering:
             return true
-        case .discovered, .discoverFailed:
+        case .discovered, .notDiscoveredYet, .discoverFailed:
             return false
         }
     }
@@ -60,10 +61,10 @@ extension CharacteristicDiscoveryState: CustomStringConvertible {
         switch self {
         case .discovering:
             return ".discovering"
-        case .discovered(.some(let characteristics)):
+        case .discovered(let characteristics):
             return ".discovered([\(characteristics.map(\.state.description).joined(separator: ", "))])"
-        case .discovered(.none):
-            return ".discovered(nil)"
+        case .notDiscoveredYet:
+            return ".notDiscoveredYet"
         case .discoverFailed(let error):
             return ".discoverFailed(\(error.description))"
         }
@@ -86,7 +87,7 @@ public struct ServiceModelState {
     
     public static func initialState(fromServiceUUID uuid: CBUUID) -> Self {
         ServiceModelState(
-            discoveryState: .discovered(nil),
+            discoveryState: .notDiscoveredYet,
             uuid: uuid,
             name: ServiceCatalog.from(cbuuid: uuid)?.name
         )
