@@ -28,68 +28,42 @@ public struct ServiceModelFailure: Error {
 }
 
 
-public enum CharacteristicDiscoveryState {
-    case notDiscoveredYet
-    case discovering
-    case discovered([any CharacteristicModelProtocol])
-    case discoverFailed(ServiceModelFailure)
-    
-    
-    public var characteristics: [any CharacteristicModelProtocol] {
-        switch self {
-        case .discovered(let characteristics):
-            return characteristics
-        case .discovering, .notDiscoveredYet, .discoverFailed:
-            return []
-        }
-    }
-    
-    
-    public var isDiscovering: Bool {
-        switch self {
-        case .discovering:
-            return true
-        case .discovered, .notDiscoveredYet, .discoverFailed:
-            return false
-        }
-    }
-}
-
-
-extension CharacteristicDiscoveryState: CustomStringConvertible {
-    public var description: String {
-        switch self {
-        case .discovering:
-            return ".discovering"
-        case .discovered(let characteristics):
-            return ".discovered([\(characteristics.map(\.state.description).joined(separator: ", "))])"
-        case .notDiscoveredYet:
-            return ".notDiscoveredYet"
-        case .discoverFailed(let error):
-            return ".discoverFailed(\(error.description))"
-        }
-    }
-}
-
-
 public struct ServiceModelState {
-    public let discoveryState: CharacteristicDiscoveryState
-    public let uuid: CBUUID
-    public let name: String?
+    public var uuid: CBUUID
+    public var name: String?
+    public var discoveryState: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>
+    public var peripheralState: PeripheralModelState
+    public var discoveryRequested: Bool
     
     
-    public init(discoveryState: CharacteristicDiscoveryState, uuid: CBUUID, name: String?) {
-        self.discoveryState = discoveryState
+    public init(
+        uuid: CBUUID,
+        name: String?,
+        discoveryState: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>,
+        peripheralState: PeripheralModelState,
+        discoveryRequested: Bool
+    ) {
         self.uuid = uuid
         self.name = name
+        self.discoveryState = discoveryState
+        self.peripheralState = peripheralState
+        self.discoveryRequested = discoveryRequested
     }
+
     
     
-    public static func initialState(fromServiceUUID uuid: CBUUID) -> Self {
+    public static func initialState(
+        uuid: CBUUID,
+        name: String?,
+        discoveryState: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>,
+        peripheralState: PeripheralModelState
+    ) -> Self {
         ServiceModelState(
-            discoveryState: .notDiscoveredYet,
             uuid: uuid,
-            name: ServiceCatalog.from(cbuuid: uuid)?.name
+            name: name,
+            discoveryState: discoveryState,
+            peripheralState: peripheralState,
+            discoveryRequested: false
         )
     }
 }
@@ -97,17 +71,24 @@ public struct ServiceModelState {
 
 extension ServiceModelState: CustomStringConvertible {
     public var description: String {
-        "ServiceModelState(discoveryState: \(discoveryState.description), uuid: \(uuid), name: \(name ?? "nil"))"
+        return "ServiceModelState(uuid: \(uuid.uuidString), name: \(name ?? "nil"), discoveryState: \(discoveryState.description), peripheralState: \(peripheralState.description), discoveryRequested: \(discoveryRequested))"
     }
 }
 
 
-public protocol ServiceModelProtocol: Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
-    var uuid: CBUUID { get }
-    var state: ServiceModelState { get }
-    var stateDidUpdate: AnyPublisher<ServiceModelState, Never> { get }
+extension ServiceModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        return "ServiceModelState(uuid: \(uuid.uuidString), name: \(name ?? "nil"), discoveryState: \(discoveryState.debugDescription), peripheralState: \(peripheralState.debugDescription), discoveryRequested: \(discoveryRequested))"
+    }
+}
+
+
+public protocol ServiceModelProtocol: Actor, Identifiable<CBUUID>, CustomStringConvertible, CustomDebugStringConvertible, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
+    nonisolated var state: ServiceModelState { get }
+    nonisolated var stateDidUpdate: AnyPublisher<ServiceModelState, Never> { get }
     func discoverCharacteristics()
-    func refresh()
+    func connect()
+    func disconnect()
 }
 
 
@@ -118,13 +99,15 @@ extension ServiceModelProtocol {
 }
 
 
-public class AnyServiceModel: ServiceModelProtocol {
+public actor AnyServiceModel: ServiceModelProtocol {
     private let base: any ServiceModelProtocol
     
-    public var uuid: CBUUID { base.uuid }
-    public var state: ServiceModelState { base.state }
-    public var stateDidUpdate: AnyPublisher<ServiceModelState, Never> { base.stateDidUpdate }
-    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+    nonisolated public var state: ServiceModelState { base.state }
+    nonisolated public var stateDidUpdate: AnyPublisher<ServiceModelState, Never> { base.stateDidUpdate }
+    nonisolated public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+    nonisolated public var id: CBUUID { base.id }
+    nonisolated public var description: String { base.description }
+    nonisolated public var debugDescription: String { base.debugDescription }
     
     
     public init(_ base: any ServiceModelProtocol) {
@@ -133,24 +116,29 @@ public class AnyServiceModel: ServiceModelProtocol {
     
     
     public func discoverCharacteristics() {
-        base.discoverCharacteristics()
+        Task { await base.discoverCharacteristics() }
     }
     
     
-    public func refresh() {
-        base.refresh()
+    public func connect() {
+        Task { await base.connect() }
+    }
+    
+    
+    public func disconnect() {
+        Task { await base.disconnect() }
     }
 }
 
 
-public class ServiceModel: ServiceModelProtocol {
+public actor ServiceModel: ServiceModelProtocol {
     private let peripheral: any PeripheralProtocol
+    private let peripheralModel: any PeripheralModelProtocol
     private let service: any ServiceProtocol
     
     private let stateDidUpdateSubject: CurrentValueSubject<ServiceModelState, Never>
     public let stateDidUpdate: AnyPublisher<ServiceModelState, Never>
     
-    public var uuid: CBUUID { service.uuid }
     
     public var state: ServiceModelState {
         get {
@@ -166,8 +154,14 @@ public class ServiceModel: ServiceModelProtocol {
     private var cancellables = Set<AnyCancellable>()
     
     
-    public init(startsWith initialState: ServiceModelState, peripheral: any PeripheralProtocol, service: any ServiceProtocol) {
+    public init(
+        startsWith initialState: ServiceModelState,
+        connectingBy peripheralModel: any PeripheralModelProtocol,
+        discoveringServicesBy peripheral: any PeripheralProtocol,
+        forService service: any ServiceProtocol
+    ) {
         self.peripheral = peripheral
+        self.peripheralModel = peripheralModel
         self.service = service
         
         let stateDidUpdateSubject = CurrentValueSubject<ServiceModelState, Never>(initialState)
@@ -175,37 +169,53 @@ public class ServiceModel: ServiceModelProtocol {
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
         
         self.peripheral.didDiscoverCharacteristicsForService
-            .sink { [weak self] resp in
+            .combineLatest(peripheralModel.stateDidUpdate)
+            .sink { [weak self] pair in
                 guard let self else { return }
+                let (resp, peripheralModelState) = pair
                 guard resp.service.uuid == self.service.uuid else { return }
                 
-                if let characteristics = resp.characteristics {
-                    let characteristics = characteristics.map {
-                        CharacteristicModel(
-                            startsWith: .initialState(fromCharacteristicUUID: $0.uuid),
-                            peripheral: self.peripheral,
-                            characteristic: $0
-                        )
+                switch (self.state.discoveryState, peripheralModelState.discoveryState) {
+                case (.discovering(let characteristics), .connected), (.discovering(let characteristics), .discovered), (.discovering(let characteristics), .discoveryFailed):
+                    if self.state.shouldDiscover {
+                        if let characteristics {
+                            self.state.discoveryState = .discovered(characteristics)
+                        } else {
+                            self.state.discoveryState = .notDiscoveredYet
+                        }
+                        self.discoverCharacteristics()
                     }
-                    self.state = ServiceModelState(
-                        discoveryState: .discovered(characteristics),
-                        uuid: self.service.uuid,
-                        name: self.state.name
-                    )
                 }
+                
             }
             .store(in: &cancellables)
     }
     
     
     public func discoverCharacteristics() {
-        peripheral.discoverCharacteristics(nil, for: service)
+        if self.peripheralModel.state.discoveryState.isConnected {
+            switch state.discoveryState {
+            case .notDiscoveredYet, .discovered, .discoverFailed:
+                state.discoveryState = .discovering(state.discoveryState.characteristics)
+                peripheral.discoverCharacteristics(nil, for: service)
+            case .discovering:
+                break
+            }
+        } else if self.peripheralModel.state.discoveryState.canConnect {
+            peripheralModel.connect()
+            state.discoveryState = .discovering(state.discoveryState.characteristics)
+            state.shouldDiscover = true
+        }
     }
     
     
-    public func refresh() {
-        self.state = .initialState(fromServiceUUID: service.uuid)
-        discoverCharacteristics()
+    public func connect() {
+        peripheralModel.connect()
+    }
+    
+    
+    public func disconnect() {
+        peripheralModel.disconnect()
     }
 }
 

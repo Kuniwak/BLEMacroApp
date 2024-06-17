@@ -6,8 +6,8 @@ import Catalogs
 import Models
 
 
-public class StubPeripheralModel: PeripheralModelProtocol {
-    public var state: PeripheralModelState {
+public actor StubPeripheralModel: PeripheralModelProtocol {
+    nonisolated public var state: PeripheralModelState {
         get {
             stateDidUpdateSubject.value
         }
@@ -15,8 +15,8 @@ public class StubPeripheralModel: PeripheralModelProtocol {
             stateDidUpdateSubject.value = newValue
         }
     }
-    public let stateDidUpdate: AnyPublisher<PeripheralModelState, Never>
-    public let stateDidUpdateSubject: CurrentValueSubject<PeripheralModelState, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<PeripheralModelState, Never>
+    nonisolated public let stateDidUpdateSubject: CurrentValueSubject<PeripheralModelState, Never>
     
     
     public init(state: PeripheralModelState = .makeStub()) {
@@ -41,54 +41,45 @@ public class StubPeripheralModel: PeripheralModelProtocol {
 
 extension PeripheralModelState {
     public static func makeStub(
-        discoveryState: ServiceDiscoveryState = .discoverFailed(.init(description: "TEST")),
-        rssi: Result<NSNumber, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         name: Result<String?, PeripheralModelFailure> = .failure(.init(description: "TEST")),
-        isConnectable: Bool = false,
+        rssi: Result<NSNumber, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         manufacturerData: ManufacturerData? = nil,
-        services: Result<[any ServiceModelProtocol], PeripheralModelFailure> = .failure(.init(description: "TEST"))
+        connectionState: ConnectionState = .connectionFailed(.init(description: "TEST"))
     ) -> Self {
         .init(
             uuid: StubUUID.zero,
-            discoveryState: discoveryState,
-            rssi: rssi,
             name: name,
-            isConnectable: isConnectable,
-            manufacturerData: manufacturerData
+            rssi: rssi,
+            manufacturerData: manufacturerData,
+            connectionState: connectionState
         )
     }
     
     
     public static func makeSuccessfulStub(
-        discoveryState: ServiceDiscoveryState = .makeSuccessfulStub(),
-        rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
         name: Result<String?, PeripheralModelFailure> = .success("Example Device"),
-        isConnectable: Bool = true,
+        rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
         manufacturerData: ManufacturerData? = .knownName("Example Inc.", Data()),
-        services: Result<[any ServiceModelProtocol], PeripheralModelFailure> = .success([])
+        connectionState: ConnectionState = .makeSuccessfulStub()
     ) -> Self {
         .init(
             uuid: StubUUID.zero,
-            discoveryState: discoveryState,
-            rssi: rssi,
             name: name,
-            isConnectable: isConnectable,
-            manufacturerData: manufacturerData
+            rssi: rssi,
+            manufacturerData: manufacturerData,
+            connectionState: connectionState
         )
     }
 }
 
 
-extension ServiceDiscoveryState {
+extension ConnectionState {
     public static func makeStub() -> Self {
-        .discoverFailed(.init(description: "TEST"))
+        .connectionFailed(.init(description: "TEST"))
     }
     
     
     public static func makeSuccessfulStub() -> Self {
-        .discovered([
-            StubServiceModel().eraseToAny(),
-            StubServiceModel().eraseToAny(),
-        ])
+        .connected
     }
 }

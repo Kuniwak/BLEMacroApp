@@ -28,185 +28,45 @@ public struct CharacteristicModelFailure: Error, CustomStringConvertible {
 }
 
 
-public enum DescriptorDiscoveryState {
-    case discovering
-    case discovered([any DescriptorModelProtocol]?)
-    case discoverFailed(CharacteristicModelFailure)
-    
-    
-    public var descriptors: [any DescriptorModelProtocol] {
-        switch self {
-        case .discovered(.some(let descriptors)):
-            return descriptors
-        case .discovering, .discovered(nil), .discoverFailed:
-            return []
-        }
-    }
-    
-    
-    public var isDiscovering: Bool {
-        switch self {
-        case .discovering:
-            return true
-        case .discovered, .discoverFailed:
-            return false
-        }
-    }
-}
-
-
-extension DescriptorDiscoveryState: CustomStringConvertible {
-    public var description: String {
-        switch self {
-        case .discovering:
-            return ".discovering"
-        case .discovered(.some(let descriptors)):
-            return ".discovered([\(descriptors.map(\.state.description).joined(separator: ", "))])"
-        case .discovered(nil):
-            return ".discovered(nil)"
-        case .discoverFailed(let error):
-            return ".discoverFailed(\(error.description))"
-        }
-    }
-}
-
-
-public struct CharacteristicModelState {
-    public var discoveryState: DescriptorDiscoveryState
-    public let uuid: CBUUID
-    public let name: String?
-    
-    
-    public init(discoveryState: DescriptorDiscoveryState, uuid: CBUUID, name: String?) {
-        self.discoveryState = discoveryState
-        self.uuid = uuid
-        self.name = name
-    }
-    
-    
-    public static func initialState(fromCharacteristicUUID cbuuid: CBUUID) -> Self {
-        CharacteristicModelState(
-            discoveryState: .discovered(nil),
-            uuid: cbuuid,
-            name: CharacteristicCatalog.from(cbuuid: cbuuid)?.name
+extension AttributeDiscoveryModel {
+    public static func forCharacteristic(
+        characteristic: any CharacteristicProtocol,
+        onPeripheral peripheral: any PeripheralProtocol,
+        controlledBy peripheralModel: any PeripheralModelProtocol
+    ) -> some AttributeDiscoveryModel<AnyDescriptorModel, DescriptorModelFailure> {
+        let discoveryModel = DiscoveryModel<AnyDescriptorModel, DescriptorModelFailure>(
+            identifiedBy: characteristic.uuid,
+            discoveringBy: { peripheral async in
+                await withCheckedContinuation { continuation in
+                    var cancellable:  AnyCancellable?
+                    cancellable = peripheral.didDiscoverDescriptorsForCharacteristic
+                        .sink { resp in
+                            guard resp.characteristic.uuid == characteristic.uuid else { return }
+                            defer { cancellable?.cancel() }
+                            
+                            if let descriptors = resp.descriptors {
+                                let models = descriptors.map {
+                                    DescriptorModel(
+                                        startsWith: .initialState(fromDescriptorUUID: $0.uuid),
+                                        descriptor: $0,
+                                        peripheral: peripheral
+                                    ).eraseToAny()
+                                }
+                                continuation.resume(returning: .success(models))
+                            } else {
+                                continuation.resume(returning: .failure(DescriptorModelFailure(wrapping: resp.error)))
+                            }
+                        }
+                        
+                    peripheral.discoverDescriptors(for: characteristic)
+                }
+            },
+            thatTakes: peripheral
+        )
+        return AttributeDiscoveryModel<AnyDescriptorModel, DescriptorModelFailure>(
+            identifiedBy: characteristic.uuid,
+            discoveringBy: discoveryModel,
+            connectingBy: peripheralModel
         )
     }
-}
-
-
-extension CharacteristicModelState: CustomStringConvertible {
-    public var description: String {
-        return "CharacteristicModelState(discoveryState: \(discoveryState.description), uuid: \(uuid), name: \(name ?? "nil"))"
-    }
-}
-
-
-public protocol CharacteristicModelProtocol: Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
-    var uuid: CBUUID { get }
-    var state: CharacteristicModelState { get }
-    var stateDidUpdate: AnyPublisher<CharacteristicModelState, Never> { get }
-    func discoverDescriptors()
-    func refresh()
-}
-
-
-extension CharacteristicModelProtocol {
-    public func eraseToAny() -> AnyCharacteristicModel {
-        AnyCharacteristicModel(self)
-    }
-}
-
-
-public class AnyCharacteristicModel: CharacteristicModelProtocol {
-    private let base: any CharacteristicModelProtocol
-    
-    public var uuid: CBUUID { base.uuid }
-    public var state: CharacteristicModelState { base.state }
-    public var stateDidUpdate: AnyPublisher<CharacteristicModelState, Never> { base.stateDidUpdate }
-    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
-    
-    public init(_ base: any CharacteristicModelProtocol) {
-        self.base = base
-    }
-    
-    public func discoverDescriptors() { base.discoverDescriptors() }
-    public func refresh() { base.refresh() }
-}
-
-
-public class CharacteristicModel: CharacteristicModelProtocol {
-    private let peripheral: any PeripheralProtocol
-    private let characteristic: any CharacteristicProtocol
-    
-    public var uuid: CBUUID { characteristic.uuid }
-    
-    public var state: CharacteristicModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            objectWillChange.send()
-            stateDidUpdateSubject.value = newValue
-        }
-    }
-    
-    private let stateDidUpdateSubject: CurrentValueSubject<CharacteristicModelState, Never>
-    public let stateDidUpdate: AnyPublisher<CharacteristicModelState, Never>
-    
-    public let objectWillChange: ObservableObjectPublisher = ObservableObjectPublisher()
-    
-    private var cancellables = Set<AnyCancellable>()
-    
-    
-    public init(
-        startsWith initialState: CharacteristicModelState,
-        peripheral: any PeripheralProtocol,
-        characteristic: any CharacteristicProtocol
-    ) {
-        self.peripheral = peripheral
-        self.characteristic = characteristic
-        
-        let stateDidUpdateSubject = CurrentValueSubject<CharacteristicModelState, Never>(initialState)
-        self.stateDidUpdateSubject = stateDidUpdateSubject
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-        
-        self.peripheral.didDiscoverDescriptorsForCharacteristic
-            .sink { [weak self] resp in
-                guard let self else { return }
-                guard resp.characteristic.uuid == self.characteristic.uuid else { return }
-                
-                if let descriptors = resp.descriptors {
-                    let descriptors = descriptors.map {
-                        DescriptorModel(
-                            startsWith: .initialState(fromDescriptorUUID: $0.uuid),
-                            peripheral: peripheral,
-                            descriptor: $0
-                        )
-                    }
-                    self.state.discoveryState = .discovered(descriptors)
-                } else {
-                    self.state.discoveryState = .discoverFailed(.init(wrapping: resp.error))
-                }
-            }
-            .store(in: &cancellables)
-    }
-    
-    
-    public func discoverDescriptors() {
-        guard !state.discoveryState.isDiscovering else { return }
-        state.discoveryState = .discovering
-        peripheral.discoverDescriptors(for: characteristic)
-    }
-    
-    
-    public func refresh() {
-        guard !state.discoveryState.isDiscovering else { return }
-        state = .initialState(fromCharacteristicUUID: characteristic.uuid)
-        discoverDescriptors()
-    }
-}
-
-
-extension CharacteristicModel: Identifiable {
-    public var id: Data { state.uuid.data }
 }

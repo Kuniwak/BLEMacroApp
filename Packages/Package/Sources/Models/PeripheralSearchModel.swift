@@ -1,164 +1,32 @@
 import Combine
+import ConcurrentCombine
 import BLEInternal
 import CoreBluetoothTestable
 
 
-public struct PeripheralSearchModelState {
-    public var discoveryState: PeripheralDiscoveryModelState
-    public var searchQuery: String
+public struct SearchQuery: RawRepresentable {
+    public var rawValue: String
     
     
-    public init(discoveryState: PeripheralDiscoveryModelState, searchQuery: String) {
-        self.discoveryState = discoveryState
-        self.searchQuery = searchQuery
+    public init(rawValue: String) {
+        self.rawValue = rawValue.uppercased()
     }
     
     
-    public static func initialState(searchQuery: String) -> Self {
-        .init(
-            discoveryState: .initialState(),
-            searchQuery: searchQuery
-        )
-    }
-    
-    
-    public static func from(discoveryState: PeripheralDiscoveryModelState, searchQuery: String) -> Self {
-        switch discoveryState {
-        case .idle, .ready, .discoveryFailed:
-            return .init(discoveryState: discoveryState, searchQuery: searchQuery)
-        case .discovering(let peripherals):
-            return .init(discoveryState: .discovering(peripherals.filter(satisfy(searchQuery: searchQuery))), searchQuery: searchQuery)
-        case .discovered(let peripherals):
-            return .init(discoveryState: .discovered(peripherals.filter(satisfy(searchQuery: searchQuery))), searchQuery: searchQuery)
-        }
-    }
-}
-
-
-extension PeripheralSearchModelState: CustomStringConvertible {
-    public var description: String {
-        "PeripheralSearchModelState(discoveryState: \(discoveryState.description), searchQuery: \(searchQuery))"
-    }
-}
-
-
-extension PeripheralSearchModelState: CustomDebugStringConvertible {
-    public var debugDescription: String {
-        "PeripheralSearchModelState(discoveryState: \(discoveryState.debugDescription), searchQuery: \(searchQuery))"
-    }
-}
-
-
-public protocol PeripheralSearchModelProtocol: ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
-    var state: PeripheralSearchModelState { get }
-    var stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never> { get }
-    var searchQuery: CurrentValueSubject<String, Never> { get }
-    func startScan()
-    func stopScan()
-}
-
-
-extension PeripheralSearchModelProtocol {
-    public func eraseToAny() -> AnyPeripheralSearchModel {
-        AnyPeripheralSearchModel(self)
-    }
-}
-
-
-public class AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
-    private let base: any PeripheralSearchModelProtocol
-    
-    public var state: PeripheralSearchModelState { base.state }
-    public var stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never> { base.stateDidUpdate }
-    
-    public var searchQuery: CurrentValueSubject<String, Never> { base.searchQuery }
-    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
-    
-    public func startScan() {
-        base.startScan()
-    }
-    
-    public func stopScan() {
-        base.stopScan()
-    }
-    
-    
-    public init(_ base: any PeripheralSearchModelProtocol) {
-        self.base = base
-    }
-}
-
-
-public class PeripheralSearchModel: PeripheralSearchModelProtocol {
-    public var state: PeripheralSearchModelState {
-        get {
-            .from(discoveryState: discoveryModel.state, searchQuery: searchQuery.value)
-        }
-    }
-    
-    
-    public let stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never>
-    
-    public let searchQuery: CurrentValueSubject<String, Never>
-    
-    public let objectWillChange = ObservableObjectPublisher()
-    private let discoveryModel: any PeripheralDiscoveryModelProtocol
-    
-    private var cancellables = Set<AnyCancellable>()
-    
-    
-    public init(observing discoveryModel: any PeripheralDiscoveryModelProtocol, initialSearchQuery: String) {
-        self.searchQuery = CurrentValueSubject<String, Never>(initialSearchQuery)
+    public static func filter(state: PeripheralDiscoveryModelState, bySearchQuery searchQuery: SearchQuery) -> PeripheralDiscoveryModelState {
         
-        self.discoveryModel = discoveryModel
-        
-        self.stateDidUpdate = discoveryModel
-            .stateDidUpdate
-            .combineLatest(searchQuery)
-            .map { pair -> PeripheralSearchModelState in
-                .from(discoveryState: pair.0, searchQuery: pair.1)
-            }
-            .eraseToAnyPublisher()
-        
-        searchQuery
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-        
-        discoveryModel.objectWillChange
-            .sink { [weak self] in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-    }
-   
-    
-    
-    public func startScan() {
-        discoveryModel.startScan()
     }
     
     
-    public func stopScan() {
-        discoveryModel.stopScan()
-    }
-}
-
-
-public func satisfy(searchQuery: String) -> (any PeripheralModelProtocol) -> Bool {
-    if searchQuery.isEmpty {
-        return { _ in true }
-    }
-    
-    return { peripheral in
-        let searchQuery = searchQuery.uppercased()
+    public static func match(searchQuery: SearchQuery, state: PeripheralModelState) -> Bool {
+        let searchQuery = searchQuery.rawValue
+        if searchQuery.isEmpty { return true }
         
-        if peripheral.state.uuid.uuidString.contains(searchQuery) {
+        if state.uuid.uuidString.contains(searchQuery) {
             return true
         }
         
-        switch peripheral.state.name {
+        switch state.name {
         case .success(.some(let name)):
             if name.uppercased().contains(searchQuery) {
                 return true
@@ -167,7 +35,7 @@ public func satisfy(searchQuery: String) -> (any PeripheralModelProtocol) -> Boo
             break
         }
         
-        switch peripheral.state.manufacturerData {
+        switch state.manufacturerData {
         case .some(.knownName(let manufacturer, let data)):
             if manufacturer.uppercased().contains(searchQuery) {
                 return true
@@ -184,5 +52,185 @@ public func satisfy(searchQuery: String) -> (any PeripheralModelProtocol) -> Boo
         }
         
         return false
+    }
+}
+
+
+public enum PeripheralSearchModelDiscoveryState {
+    case idle
+    case ready
+    case discovering([SearchablePeripheralModel])
+    case discovered([SearchablePeripheralModel])
+    case discoveryFailed(PeripheralDiscoveryModelFailure)
+
+    
+    public static func initialState() -> Self {
+        .idle
+    }
+
+
+    public var models: Result<[SearchablePeripheralModel], PeripheralDiscoveryModelFailure> {
+        switch self {
+        case .discovering(let peripherals), .discovered(let peripherals):
+            return .success(peripherals)
+        case .idle, .ready:
+            return .success([])
+        case .discoveryFailed(let error):
+            return .failure(error)
+        }
+    }
+    
+    
+    public var isScanning: Bool {
+        switch self {
+        case .discovering:
+            return true
+        case .idle, .ready, .discoveryFailed, .discovered:
+            return false
+        }
+    }
+    
+    
+    public var canStartScan: Bool {
+        switch self {
+        case .ready, .discovered, .discoveryFailed(.unspecified):
+            return true
+        case .idle, .discovering, .discoveryFailed(.powerOff), .discoveryFailed(.unauthorized), .discoveryFailed(.unsupported):
+            return false
+        }
+    }
+    
+    
+    public var canStopScan: Bool {
+        switch self {
+        case .idle, .ready, .discoveryFailed, .discovered:
+            return false
+        case .discovering:
+            return true
+        }
+    }
+}
+
+
+extension PeripheralSearchModelDiscoveryState: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .idle:
+            return ".idle"
+        case .ready:
+            return ".ready"
+        case .discovering(let peripherals):
+            return ".discovering([\(peripherals.count) peripherals])"
+        case .discovered(let peripherals):
+            return ".discovered([\(peripherals.count) peripherals])"
+        case .discoveryFailed(let error):
+            return ".discoveryFailed(\(error))"
+        }
+    }
+}
+
+
+public struct PeripheralSearchModelState {
+    public var discovery: PeripheralSearchModelDiscoveryState
+    public var searchQuery: String
+    
+    
+    public init(discovery: PeripheralSearchModelDiscoveryState, searchQuery: String) {
+        self.discovery = discovery
+        self.searchQuery = searchQuery
+    }
+    
+    
+    public static func initialState(searchQuery: String) -> Self {
+        .init(
+            discovery: .initialState(),
+            searchQuery: searchQuery
+        )
+    }
+}
+
+
+extension PeripheralSearchModelState: CustomStringConvertible {
+    public var description: String {
+        "PeripheralSearchModelState(discoveryState: \(discovery.description), searchQuery: \(searchQuery))"
+    }
+}
+
+
+public protocol PeripheralSearchModelProtocol: Actor, ObservableObject where ObjectWillChangePublisher == AnyPublisher<Void, Never> {
+    nonisolated var stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never> { get }
+    nonisolated var searchQuery: ConcurrentValueSubject<String, Never> { get }
+    func startScan()
+    func stopScan()
+}
+
+
+extension PeripheralSearchModelProtocol {
+    public func eraseToAny() -> AnyPeripheralSearchModel {
+        AnyPeripheralSearchModel(self)
+    }
+}
+
+
+public actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
+    nonisolated private let base: any PeripheralSearchModelProtocol
+    
+    nonisolated public var stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never> { base.stateDidUpdate }
+    nonisolated public var objectWillChange: AnyPublisher<Void, Never> { base.objectWillChange }
+    nonisolated public var searchQuery: ConcurrentValueSubject<String, Never> { base.searchQuery }
+    
+    
+    public init(_ base: any PeripheralSearchModelProtocol) {
+        self.base = base
+    }
+    
+    
+    public func startScan() {
+        Task { await base.startScan() }
+    }
+    
+    public func stopScan() {
+        Task { await base.stopScan() }
+    }
+}
+
+
+public actor PeripheralSearchModel: PeripheralSearchModelProtocol {
+    nonisolated public let stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never>
+    nonisolated public let searchQuery: ConcurrentValueSubject<String, Never>
+    
+    nonisolated public let objectWillChange: AnyPublisher<Void, Never>
+    
+    private let discoveryModel: any PeripheralDiscoveryModelProtocol
+    
+    
+    public init(observing discoveryModel: any PeripheralDiscoveryModelProtocol, initialSearchQuery: String) {
+        self.searchQuery = ConcurrentValueSubject<String, Never>(initialSearchQuery)
+        
+        self.discoveryModel = discoveryModel
+        
+        let stateDidUpdate = discoveryModel
+            .stateDidUpdate
+            .combineLatest(searchQuery)
+            .map { pair -> PeripheralSearchModelState in
+                .from(discovery: pair.0, searchQuery: pair.1)
+            }
+            .eraseToAnyPublisher()
+        
+        self.objectWillChange = discoveryModel.stateDidUpdate
+            .map { _ in () }
+            .merge(with: searchQuery.map { _ in () })
+            .eraseToAnyPublisher()
+    }
+   
+    
+    
+    public func startScan() {
+        Task { await discoveryModel.startScan() }
+    }
+    
+    
+    public func stopScan() {
+        Task { await discoveryModel.stopScan() }
     }
 }

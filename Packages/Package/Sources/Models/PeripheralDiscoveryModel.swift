@@ -125,24 +125,6 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
         case .ready:
             return ".ready"
         case .discovering(let peripherals):
-            return ".discovering([\(peripherals.map(\.state.description).joined(separator: ", "))])"
-        case .discovered(let peripherals):
-            return ".discovered([\(peripherals.map(\.state.description).joined(separator: ", "))])"
-        case .discoveryFailed(let error):
-            return ".discoveryFailed(\(error.description))"
-        }
-    }
-}
-
-
-extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
-    public var debugDescription: String {
-        switch self {
-        case .idle:
-            return ".idle"
-        case .ready:
-            return ".ready"
-        case .discovering(let peripherals):
             return ".discovering([\(peripherals.count) peripherals])"
         case .discovered(let peripherals):
             return ".discovered([\(peripherals.count) peripherals])"
@@ -153,27 +135,25 @@ extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
 }
 
 
-public protocol PeripheralDiscoveryModelProtocol: ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
-    var state: PeripheralDiscoveryModelState { get }
-    var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { get }
+public protocol PeripheralDiscoveryModelProtocol: Actor, ObservableObject where ObjectWillChangePublisher == AnyPublisher<Void, Never> {
+    nonisolated var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { get }
     func startScan()
     func stopScan()
 }
 
 
 extension PeripheralDiscoveryModelProtocol {
-    public func eraseToAny() -> AnyPeripheralDiscoveryModel {
+    nonisolated public func eraseToAny() -> AnyPeripheralDiscoveryModel {
         AnyPeripheralDiscoveryModel(self)
     }
 }
 
 
-public class AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
+public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let base: any PeripheralDiscoveryModelProtocol
     
-    public var state: PeripheralDiscoveryModelState { base.state }
-    public var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { base.stateDidUpdate }
-    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
+    nonisolated public var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { base.stateDidUpdate }
+    nonisolated public var objectWillChange: AnyPublisher<Void, Never> { base.objectWillChange }
 
     
     public init(_ base: any PeripheralDiscoveryModelProtocol) {
@@ -182,33 +162,23 @@ public class AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     
     
     public func startScan() {
-        base.startScan()
+        Task { await base.startScan() }
     }
     
     
     public func stopScan() {
-        base.stopScan()
+        Task { await base.stopScan() }
     }
 }
 
 
 
-public class PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
+public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let centralManager: any CentralManagerProtocol
     
-    public private(set) var state: PeripheralDiscoveryModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            objectWillChange.send()
-            stateDidUpdateSubject.value = newValue
-        }
-    }
-    
-    private let stateDidUpdateSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
-    public let stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never>
-    public let objectWillChange = ObservableObjectPublisher()
+    private let stateDidUpdateSubject: ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never>
+    nonisolated public let objectWillChange: AnyPublisher<Void, Never>
     
     
     private var cancellables = Set<AnyCancellable>()
@@ -217,82 +187,108 @@ public class PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     public init(observing centralManager: any CentralManagerProtocol) {
         self.centralManager = centralManager
         
-        let stateDidUpdateSubject = CurrentValueSubject<PeripheralDiscoveryModelState, Never>(.idle)
+        let stateDidUpdateSubject = ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>(.idle)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        self.objectWillChange = stateDidUpdateSubject.map { _ in () }.eraseToAnyPublisher()
         
-        self.centralManager.didUpdateState
+        var mutableCancellables = Set<AnyCancellable>()
+        
+        centralManager.didUpdateState
             .sink { [weak self] state in
                 guard let self else { return }
                 
-                switch (state, self.state) {
-                case (.poweredOn, .idle):
-                    self.state = .ready
-                case (.poweredOn, _):
-                    break
-                case (.poweredOff, _):
-                    self.state = .discoveryFailed(.powerOff)
-                case (.unknown, _), (.resetting, _):
-                    self.state = .idle
-                case (.unauthorized, _):
-                    self.state = .discoveryFailed(.unauthorized)
-                case (.unsupported, _):
-                    self.state = .discoveryFailed(.unsupported)
-                default:
-                    break
-                }
-            }
-            .store(in: &cancellables)
-        
-        self.centralManager.didDiscoverPeripheral
-            .sink { [weak self] resp in
-                guard let self else { return }
-                
-                switch self.state {
-                case .idle, .ready, .discoveryFailed:
-                    break
-                case .discovering, .discovered:
-                    let newModel = PeripheralModel(
-                        startsWith: .initialState(
-                            uuid: resp.peripheral.identifier,
-                            name: resp.peripheral.name,
-                            rssi: resp.rssi,
-                            advertisementData: resp.advertisementData
-                        ),
-                        centralManager: centralManager,
-                        peripheral: resp.peripheral
-                    )
-                    switch self.state.models {
-                    case .success(let models):
-                        self.state = .discovering(models + [newModel.eraseToAny()])
-                    case .failure(let error):
-                        self.state = .discoveryFailed(.unspecified("\(error)"))
-                        break
+                Task {
+                    await self.stateDidUpdateSubject.change { prev in
+                        switch (state, prev) {
+                        case (.poweredOn, .idle):
+                            return .ready
+                        case (.poweredOn, _):
+                            return prev
+                        case (.poweredOff, _):
+                            return .discoveryFailed(.powerOff)
+                        case (.unknown, _), (.resetting, _):
+                            return .idle
+                        case (.unauthorized, _):
+                            return .discoveryFailed(.unauthorized)
+                        case (.unsupported, _):
+                            return .discoveryFailed(.unsupported)
+                        default:
+                            return prev
+                        }
                     }
                 }
             }
-            .store(in: &cancellables)
+            .store(in: &mutableCancellables)
+        
+        centralManager.didDiscoverPeripheral
+            .sink { [weak self] resp in
+                guard let self else { return }
+                
+                Task {
+                    await self.stateDidUpdateSubject.change { prev in
+                        switch prev {
+                        case .idle, .ready, .discoveryFailed:
+                            return prev
+                        case .discovering, .discovered:
+                            let newModel = PeripheralModel(
+                                startsWith: .initialState(
+                                    uuid: resp.peripheral.identifier,
+                                    name: resp.peripheral.name,
+                                    rssi: resp.rssi,
+                                    advertisementData: resp.advertisementData
+                                ),
+                                centralManager: centralManager,
+                                peripheral: resp.peripheral
+                            )
+                            switch prev.models {
+                            case .success(let models):
+                                return .discovering(models + [newModel.eraseToAny()])
+                            case .failure(let error):
+                                return .discoveryFailed(.unspecified("\(error)"))
+                            }
+                        }
+                    }
+                }
+            }
+            .store(in: &mutableCancellables)
+        
+        let cancellables = mutableCancellables
+        Task { await self.store(cancellables: cancellables) }
+    }
+    
+    
+    private func store(cancellables: Set<AnyCancellable>) {
+        self.cancellables.formUnion(cancellables)
     }
     
     
     public func startScan() {
-        switch self.state {
-        case .ready, .discovered, .discoveryFailed:
-            self.state = .discovering([])
-            centralManager.scanForPeripherals(withServices: nil)
-        case .idle, .discovering:
-            break
+        Task {
+            await stateDidUpdateSubject.change { prev in
+                switch prev {
+                case .ready, .discovered, .discoveryFailed:
+                    centralManager.scanForPeripherals(withServices: nil)
+                    return .discovering([])
+                case .idle, .discovering:
+                    return prev
+                }
+            }
         }
     }
     
     
     public func stopScan() {
-        switch self.state {
-        case .idle, .ready, .discoveryFailed, .discovered:
-            break
-        case .discovering(let models):
-            centralManager.stopScan()
-            self.state = .discovered(models)
+        Task {
+            await stateDidUpdateSubject.change { prev in
+                switch prev {
+                case .idle, .ready, .discoveryFailed, .discovered:
+                    return prev
+                case .discovering(let models):
+                    centralManager.stopScan()
+                    return .discovered(models)
+                }
+            }
         }
     }
 }

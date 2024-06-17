@@ -43,7 +43,7 @@ public struct ServicesView: View {
                         ServiceRow(observing: service)
                     }
                 }
-            case .discoverFailed(let error):
+            case .discoveryFailed(let error):
                 HStack {
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
                         .foregroundStyle(Color(.error))
@@ -129,7 +129,7 @@ internal struct ServicesView_Previews: PreviewProvider {
                 StubServiceModel(state: .makeStub(name: "Example Service")).eraseToAny(),
                 StubServiceModel(state: .makeStub(name: nil)).eraseToAny(),
             ])),
-            .discoverFailed(.init(description: "TEST")),
+            .discoveryFailed(.init(description: "TEST")),
             .discovering,
             .discovered([
                 StubServiceModel(state: .makeStub(name: "Example Service")).eraseToAny(),

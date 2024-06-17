@@ -4,7 +4,7 @@ import CoreBluetoothTestable
 import Catalogs
 
 
-public struct DescriptorModelFailure: Error {
+public struct DescriptorModelFailure: Error, CustomStringConvertible {
     public let description: String
     
     
@@ -60,101 +60,124 @@ extension DescriptorModelState: CustomStringConvertible {
         case .failure(let error):
             valueDescription = ".failure(\(error.description))"
         }
-        return "DescriptorModelState(value: \(valueDescription), uuid: \(uuid), name: \(name ?? "nil"))"
+        return "DescriptorModelState(value: \(valueDescription), uuid: \(uuid.uuidString), name: \(name ?? "nil"))"
     }
 }
 
 
-public protocol DescriptorModelProtocol: Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
-    var uuid: CBUUID { get }
-    var state: DescriptorModelState { get }
-    var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> { get }
-    func refresh()
+extension DescriptorModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        let valueDescription: String
+        switch value {
+        case .success(let value):
+            valueDescription = ".success(\(value == nil ? "nil" : "value"))"
+        case .failure(let error):
+            valueDescription = ".failure(\(error.description))"
+        }
+        return "DescriptorModelState(value: \(valueDescription), uuid: \(uuid.uuidString), name: \(name ?? "nil"))"
+    }
+}
+
+
+public protocol DescriptorModelProtocol: Actor, Identifiable<CBUUID>, ObservableObject where ObjectWillChangePublisher == AnyPublisher<Any, Never>{
+    nonisolated var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> { get }
+    
+    func read()
+    func write(value: Data)
 }
 
 
 extension DescriptorModelProtocol {
-    public func eraseToAny() -> AnyDescriptorModel {
+    nonisolated public func eraseToAny() -> AnyDescriptorModel {
         AnyDescriptorModel(self)
     }
 }
 
 
-public class AnyDescriptorModel: DescriptorModelProtocol {
+public actor AnyDescriptorModel: DescriptorModelProtocol {
     private let base: any DescriptorModelProtocol
-    
-    public var uuid: CBUUID { base.uuid }
-    public var state: DescriptorModelState { base.state }
-    public var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> { base.stateDidUpdate }
-    public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
-    
     
     public init(_ base: any DescriptorModelProtocol) {
         self.base = base
     }
     
+    nonisolated public var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> {
+        base.stateDidUpdate
+    }
     
-    public func refresh() { base.refresh() }
+    nonisolated public var objectWillChange: AnyPublisher<Any, Never> {
+        base.objectWillChange
+    }
+    
+    nonisolated public var id: CBUUID { base.id }
+    
+    public func read() {
+        Task { await base.read() }
+    }
+    
+    public func write(value: Data) {
+        Task { await base.write(value: value) }
+    }
 }
 
 
-public class DescriptorModel: DescriptorModelProtocol {
-    private let peripheral: any PeripheralProtocol
+public actor DescriptorModel: DescriptorModelProtocol {
     private let descriptor: any DescriptorProtocol
+    private let peripheral: any PeripheralProtocol
+    nonisolated public let id: CBUUID
     
-    public var uuid: CBUUID { descriptor.uuid }
-    
-    public var state: DescriptorModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            stateDidUpdateSubject.value = newValue
-        }
-    }
-    
-    private let stateDidUpdateSubject: CurrentValueSubject<DescriptorModelState, Never>
-    public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
-    
-    public let objectWillChange = ObservableObjectPublisher()
+    private let stateDidUpdateSubject: ConcurrentValueSubject<DescriptorModelState, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
+    nonisolated public let objectWillChange: AnyPublisher<Any, Never>
+
     private var cancellables = Set<AnyCancellable>()
     
-    
-    init(
+    public init(
         startsWith initialState: DescriptorModelState,
-        peripheral: any PeripheralProtocol,
-        descriptor: any DescriptorProtocol
-    ) {
-        self.peripheral = peripheral
-        self.descriptor = descriptor
-        
-        let stateDidUpdateSubject = CurrentValueSubject<DescriptorModelState, Never>(initialState)
-        self.stateDidUpdateSubject = stateDidUpdateSubject
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-        
-        self.peripheral.didUpdateValueForDescriptor
-            .sink { [weak self] resp in
-                guard let self else { return }
-                guard self.descriptor.uuid == resp.descriptor.uuid else { return }
-                
-                if let value = resp.descriptor.value {
-                    self.state.value = .success(value)
-                } else if let error = resp.error {
-                    self.state.value = .failure(DescriptorModelFailure(wrapping: error))
-                } else {
-                    self.state.value = .failure(DescriptorModelFailure(description: "Unknown error"))
-                }
-            }
-            .store(in: &cancellables)
+        descriptor: any DescriptorProtocol,
+        peripheral: any PeripheralProtocol
+   ) {
+       self.descriptor = descriptor
+       self.peripheral = peripheral
+       self.id = descriptor.uuid
+       
+       let stateDidUpdateSubject = ConcurrentValueSubject<DescriptorModelState, Never>(initialState)
+       self.stateDidUpdateSubject = stateDidUpdateSubject
+       self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+       self.objectWillChange = stateDidUpdateSubject.map { _ in () }.eraseToAnyPublisher()
+       
+       var mutableCancellables = Set<AnyCancellable>()
+       
+       peripheral.didUpdateValueForDescriptor
+           .sink { [weak self] descriptor, error in
+               guard let self = self else { return }
+               Task {
+                   await self.stateDidUpdateSubject.change { prev in
+                       var new = prev
+                       if let error {
+                           new.value = .failure(.init(wrapping: error))
+                       } else {
+                           new.value = .success(descriptor.value)
+                       }
+                       return new
+                   }
+               }
+           }
+           .store(in: &mutableCancellables)
     }
     
     
-    public func refresh() {
-        self.peripheral.readValue(for: self.descriptor)
+    private func store(cancellables: Set<AnyCancellable>) {
+        self.cancellables.formUnion(cancellables)
     }
-}
-
-
-extension DescriptorModel: Identifiable {
-    public var id: Data { state.uuid.data }
+    
+    
+    public func read() {
+        peripheral.readValue(for: descriptor)
+    }
+    
+    
+    public func write(value: Data) {
+        peripheral.writeValue(value, for: descriptor)
+    }
 }
