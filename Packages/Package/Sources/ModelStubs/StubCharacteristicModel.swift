@@ -36,7 +36,7 @@ extension CharacteristicModelState {
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = nil,
         connection: ConnectionModelState = .makeStub(),
-        discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
+        discovery: DiscoveryModelState<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
     ) -> Self {
         .init(
             uuid: uuid,
@@ -51,10 +51,10 @@ extension CharacteristicModelState {
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = "Example",
         connection: ConnectionModelState = .makeStub(),
-        discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> = .discovered([
+        discovery: DiscoveryModelState<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure> = .discovered(StateMachineArray([
             StubDescriptorModel().eraseToAny(),
             StubDescriptorModel().eraseToAny(),
-        ])
+        ]))
     ) -> Self {
         .init(
             uuid: uuid,

@@ -29,17 +29,21 @@ public struct ServiceModelFailure: Error, CustomStringConvertible {
 }
 
 
+public typealias CharacteristicDiscoveryModelState = DiscoveryModelState<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>
+public typealias CharacteristicsModel = StateMachineArray<CBUUID, CharacteristicModelState, AnyCharacteristicModel>
+
+
 public struct ServiceModelState {
     public let uuid: CBUUID
     public let name: String?
-    public let discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>
+    public let discovery: CharacteristicDiscoveryModelState
     public let connection: ConnectionModelState
     
     
     public init(
         uuid: CBUUID,
         name: String?,
-        discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>,
+        discovery: CharacteristicDiscoveryModelState,
         connection: ConnectionModelState
     ) {
         self.uuid = uuid
@@ -94,7 +98,7 @@ public actor AnyServiceModel: ServiceModelProtocol {
 
 
 public actor ServiceModel: ServiceModelProtocol {
-    private let model: ConnectableDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>
+    private let model: ConnectableDiscoveryModel<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>
     
     nonisolated public let initialState: State
     nonisolated public let stateDidChange: AnyPublisher<ServiceModelState, Never>
@@ -109,9 +113,12 @@ public actor ServiceModel: ServiceModelProtocol {
     ) {
         self.id = service.uuid
         
-        let discoveryModel = DiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>(
-            discoveringBy: characteristicDiscoveryStrategy(forService: service, connectingBy: connectionModel),
-            thatTakes: peripheral
+        let discoveryModel = DiscoveryModel<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>(
+            discoveringBy: characteristicDiscoveryStrategy(
+                forService: service,
+                onPeripheral: peripheral,
+                connectingBy: connectionModel
+            )
         )
         
         let name = ServiceCatalog.from(cbuuid: service.uuid)?.name
@@ -124,7 +131,7 @@ public actor ServiceModel: ServiceModelProtocol {
         )
         self.initialState = initialState
         
-        let model = ConnectableDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>(
+        let model = ConnectableDiscoveryModel<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>(
             discoveringBy: discoveryModel,
             connectingBy: connectionModel
         )
@@ -161,9 +168,10 @@ public actor ServiceModel: ServiceModelProtocol {
 
 private func characteristicDiscoveryStrategy(
     forService Service: any ServiceProtocol,
+    onPeripheral peripheral: any PeripheralProtocol,
     connectingBy connectionModel: any ConnectionModelProtocol
-) -> (any PeripheralProtocol) async -> Result<[AnyCharacteristicModel], ServiceModelFailure> {
-    return { peripheral in
+) -> () async -> Result<[AnyCharacteristicModel], ServiceModelFailure> {
+    return {
         await DiscoveryTask
             .discoverCharacteristics(forService: Service, onPeripheral: peripheral)
             .map { characteristics in

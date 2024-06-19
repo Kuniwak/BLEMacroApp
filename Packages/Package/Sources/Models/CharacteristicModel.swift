@@ -29,18 +29,22 @@ public struct CharacteristicModelFailure: Error, CustomStringConvertible {
 }
 
 
+public typealias DescriptorDiscoveryModelState = DiscoveryModelState<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure>
+public typealias DescriptorsModel = StateMachineArray<CBUUID, DescriptorModelState, AnyDescriptorModel>
+
+
 public struct CharacteristicModelState {
     public let uuid: CBUUID
     public let name: String?
     public let connection: ConnectionModelState
-    public let discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure>
+    public let discovery: DescriptorDiscoveryModelState
     
     
     public init(
         uuid: CBUUID,
         name: String?,
         connection: ConnectionModelState,
-        discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure>
+        discovery: DescriptorDiscoveryModelState
     ) {
         self.uuid = uuid
         self.name = name
@@ -50,7 +54,7 @@ public struct CharacteristicModelState {
 }
 
 
-public protocol CharacteristicModelProtocol: StateMachine, Identifiable<CBUUID> where State == CharacteristicModelState {
+public protocol CharacteristicModelProtocol: StateMachine<CharacteristicModelState>, Identifiable<CBUUID> {
     func discover()
     func connect()
     func disconnect()
@@ -94,7 +98,7 @@ public actor AnyCharacteristicModel: CharacteristicModelProtocol {
 
 
 public actor CharacteristicModel: CharacteristicModelProtocol {
-    private let model: any ConnectableDiscoveryModelProtocol<AnyDescriptorModel, CharacteristicModelFailure>
+    private let model: any ConnectableDiscoveryModelProtocol<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure>
     nonisolated public let id: CBUUID
     
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
@@ -105,9 +109,11 @@ public actor CharacteristicModel: CharacteristicModelProtocol {
         onPeripheral peripheral: any PeripheralProtocol,
         connectingBy connectionModel: any ConnectionModelProtocol
     ) {
-        let discoveryModel = DiscoveryModel<AnyDescriptorModel, CharacteristicModelFailure>(
-            discoveringBy: descriptorDiscoveryStrategy(forCharacteristic: characteristic),
-            thatTakes: peripheral
+        let discoveryModel = DiscoveryModel<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure>(
+            discoveringBy: descriptorDiscoveryStrategy(
+                forCharacteristic: characteristic,
+                onPeripheral: peripheral
+            )
         )
         
         let name = CharacteristicCatalog.from(cbuuid: characteristic.uuid)?.name
@@ -154,9 +160,10 @@ public actor CharacteristicModel: CharacteristicModelProtocol {
 
 
 private func descriptorDiscoveryStrategy(
-    forCharacteristic characteristic: any CharacteristicProtocol
-) -> (any PeripheralProtocol) async -> Result<[AnyDescriptorModel], CharacteristicModelFailure> {
-    return { peripheral in
+    forCharacteristic characteristic: any CharacteristicProtocol,
+    onPeripheral peripheral: any PeripheralProtocol
+) -> () async -> Result<[AnyDescriptorModel], CharacteristicModelFailure> {
+    return {
         await DiscoveryTask
             .discoverDescriptors(forCharacteristic: characteristic, onPeripheral: peripheral)
             .map { descriptors in

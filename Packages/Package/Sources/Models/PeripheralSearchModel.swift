@@ -1,3 +1,4 @@
+import Foundation
 import Combine
 import ConcurrentCombine
 import BLEInternal
@@ -57,8 +58,10 @@ public struct SearchQuery: RawRepresentable {
             return .idle
         case .ready:
             return .ready
-        case .discovering(let peripherals):
+        case .discovering(.some(let peripherals)):
             return .discovering(await filter(peripherals: peripherals, bySearchQuery: searchQuery))
+        case .discovering(.none):
+            return .discovering(nil)
         case .discovered(let peripherals):
             return .discovered(await filter(peripherals: peripherals, bySearchQuery: searchQuery))
         case .discoveryFailed(let error):
@@ -67,11 +70,12 @@ public struct SearchQuery: RawRepresentable {
     }
 
     
-    private static func filter(peripherals: [AnyPeripheralModel], bySearchQuery searchQuery: SearchQuery) async -> [AnyPeripheralModel] {
-        let states = await Task.all(peripherals.map { peripheral in Task { await peripheral.state } } )
-        return zip(peripherals, states.map { match(searchQuery: searchQuery, state: $0) } )
+    private static func filter(peripherals: StateMachineArray<UUID, PeripheralModelState, AnyPeripheralModel>, bySearchQuery searchQuery: SearchQuery) async -> StateMachineArray<UUID, PeripheralModelState, AnyPeripheralModel> {
+        let states = await peripherals.state
+        let models = zip(await peripherals.state, states.map { match(searchQuery: searchQuery, state: $0.state) } )
             .filter(\.1)
-            .map(\.0)
+            .map(\.0.stateMachine)
+        return StateMachineArray(models)
     }
 }
 

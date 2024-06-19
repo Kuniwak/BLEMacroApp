@@ -60,15 +60,7 @@ public struct PeripheralsView: View {
                     }
                     .foregroundStyle(Color(.weak))
                 } else {
-                    ForEach(peripherals) { peripheral in
-                        if peripheral.state.connection.canConnect {
-                            NavigationLink(destination: servicesView(peripheral)) {
-                                PeripheralRow(observing: peripheral)
-                            }
-                        } else {
-                            PeripheralRow(observing: peripheral)
-                        }
-                    }
+                    PeripheralList(peripherals)
                 }
             case .discoveryFailed(.unspecified(let error)):
                 HStack {
@@ -115,19 +107,6 @@ public struct PeripheralsView: View {
                     .disabled(!projection.state.discovery.canStartScan)
             }
         }
-    }
-    
-    
-    private func servicesView(_ peripheral: any PeripheralModelProtocol) -> some View {
-        let model = self.model
-        return ServicesView(observing: peripheral, loggingBy: logger)
-            .onAppear() {
-                model.stopScan()
-                peripheral.discover()
-            }
-            .onDisappear() {
-                peripheral.disconnect()
-            }
     }
 }
 

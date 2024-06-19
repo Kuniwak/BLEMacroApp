@@ -29,9 +29,9 @@ extension PeripheralDiscoveryModelState {
     }
     
     public static func makeSuccessfulStub() -> Self {
-        .discovered([
+        .discovered(StateMachineArray([
             StubPeripheralModel().eraseToAny(),
             StubPeripheralModel().eraseToAny()
-        ])
+        ]))
     }
 }

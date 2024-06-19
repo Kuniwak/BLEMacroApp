@@ -43,7 +43,7 @@ extension PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         manufacturerData: ManufacturerData? = nil,
         connection: ConnectionModelState = .makeStub(),
-        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
+        discovery: DiscoveryModelState<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
     ) -> Self {
         .init(
             uuid: uuid,
@@ -62,10 +62,10 @@ extension PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
         manufacturerData: ManufacturerData? = nil,
         connection: ConnectionModelState = .makeSuccessfulStub(),
-        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discovered([
+        discovery: DiscoveryModelState<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure> = .discovered(StateMachineArray([
             StubServiceModel().eraseToAny(),
             StubServiceModel().eraseToAny(),
-        ])
+        ]))
     ) -> Self {
         .init(
             uuid: uuid,

@@ -62,11 +62,14 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
 }
 
 
+public typealias PeripheralsModel = StateMachineArray<UUID, PeripheralModelState, AnyPeripheralModel>
+
+
 public enum PeripheralDiscoveryModelState {
     case idle
     case ready
-    case discovering([AnyPeripheralModel])
-    case discovered([AnyPeripheralModel])
+    case discovering(PeripheralsModel?)
+    case discovered(PeripheralsModel)
     case discoveryFailed(PeripheralDiscoveryModelFailure)
 
     
@@ -75,12 +78,12 @@ public enum PeripheralDiscoveryModelState {
     }
 
 
-    public var models: Result<[AnyPeripheralModel], PeripheralDiscoveryModelFailure> {
+    public var models: Result<PeripheralsModel?, PeripheralDiscoveryModelFailure> {
         switch self {
-        case .discovering(let peripherals), .discovered(let peripherals):
+        case .discovering(.some(let peripherals)), .discovered(let peripherals):
             return .success(peripherals)
-        case .idle, .ready:
-            return .success([])
+        case .discovering(.none), .idle, .ready:
+            return .success(nil)
         case .discoveryFailed(let error):
             return .failure(error)
         }
@@ -125,10 +128,10 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
             return ".idle"
         case .ready:
             return ".ready"
-        case .discovering(let peripherals):
-            return ".discovering([\(peripherals.count) peripherals])"
-        case .discovered(let peripherals):
-            return ".discovered([\(peripherals.count) peripherals])"
+        case .discovering:
+            return ".discovering([...])"
+        case .discovered:
+            return ".discovered([...])"
         case .discoveryFailed(let error):
             return ".discoveryFailed(\(error.description))"
         }
@@ -245,7 +248,10 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                                         isConnectable: isConnectable(fromAdvertisementData: resp.advertisementData)
                                     )
                                 )
-                                return .discovering(models + [newModel.eraseToAny()])
+                                
+                                let newModels = models ?? StateMachineArray([])
+                                newModels.append(newModel.eraseToAny())
+                                return .discovering(newModels)
                             case .failure(let error):
                                 return .discoveryFailed(.unspecified("\(error)"))
                             }
@@ -271,7 +277,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 switch prev {
                 case .ready, .discovered, .discoveryFailed:
                     centralManager.scanForPeripherals(withServices: nil)
-                    return .discovering([])
+                    return .discovering(nil)
                 case .idle, .discovering:
                     return prev
                 }
@@ -288,7 +294,11 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                     return prev
                 case .discovering(let models):
                     centralManager.stopScan()
-                    return .discovered(models)
+                    if let models {
+                        return .discovered(models)
+                    } else {
+                        return .ready
+                    }
                 }
             }
         }

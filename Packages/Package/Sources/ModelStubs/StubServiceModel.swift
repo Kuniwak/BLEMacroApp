@@ -39,7 +39,7 @@ extension ServiceModelState {
     public static func makeStub(
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = nil,
-        discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
+        discovery: DiscoveryModelState<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
         connection: ConnectionModelState = .makeStub()
     ) -> Self {
         .init(
@@ -54,10 +54,10 @@ extension ServiceModelState {
     public static func makeSuccessfulStub(
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = "Example",
-        discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discovered([
+        discovery: DiscoveryModelState<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure> = .discovered(StateMachineArray([
             StubCharacteristicModel().eraseToAny(),
             StubCharacteristicModel().eraseToAny(),
-        ]),
+        ])),
         connection: ConnectionModelState = .makeStub()
     ) -> Self {
         .init(
@@ -70,9 +70,9 @@ extension ServiceModelState {
 }
 
 
-extension ConnectableDiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> {
+extension ConnectableDiscoveryModelState<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure> {
     public static func makeStub(
-        discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
+        discovery: DiscoveryModelState<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
         connection: ConnectionModelState = .makeStub()
     ) -> Self {
         .init(discovery: discovery, connection: connection)
@@ -80,10 +80,10 @@ extension ConnectableDiscoveryModelState<AnyCharacteristicModel, ServiceModelFai
     
     
     public static func makeSuccessfulStub(
-        discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discovered([
-                StubCharacteristicModel().eraseToAny(),
-                StubCharacteristicModel().eraseToAny(),
-            ]),
+        discovery: DiscoveryModelState<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure> = .discovered(StateMachineArray([
+            StubCharacteristicModel().eraseToAny(),
+            StubCharacteristicModel().eraseToAny(),
+        ])),
         connection: ConnectionModelState = .makeStub()
     ) -> Self {
         .init(discovery: discovery, connection: connection)

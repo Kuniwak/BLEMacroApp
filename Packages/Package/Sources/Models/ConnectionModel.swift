@@ -32,7 +32,6 @@ public struct ConnectionModelFailure: Error, Equatable, CustomStringConvertible 
 
 
 public func isConnectable(fromAdvertisementData advertisementData: [String: Any]) -> Bool {
-    let isConnectable: Bool
     if let flag = advertisementData[CBAdvertisementDataIsConnectable] as? Bool {
         return flag
     } else {

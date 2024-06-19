@@ -31,13 +31,17 @@ public struct PeripheralModelFailure: Error, CustomStringConvertible {
 }
 
 
+public typealias ServiceDiscoveryModelState = DiscoveryModelState<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure>
+public typealias ServicesModel = StateMachineArray<CBUUID, ServiceModelState, AnyServiceModel>
+
+
 public struct PeripheralModelState {
     public var uuid: UUID
     public var connection: ConnectionModelState
     public var name: Result<String?, PeripheralModelFailure>
     public var rssi: Result<NSNumber, PeripheralModelFailure>
     public var manufacturerData: ManufacturerData?
-    public var discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
+    public var discovery: ServiceDiscoveryModelState
 
     
     public init(
@@ -46,7 +50,7 @@ public struct PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure>,
         manufacturerData: ManufacturerData?,
         connection: ConnectionModelState,
-        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
+        discovery: ServiceDiscoveryModelState
     ) {
         self.uuid = uuid
         self.name = name
@@ -63,7 +67,7 @@ public struct PeripheralModelState {
         rssi: NSNumber,
         manufacturerData: ManufacturerData?,
         isConnectable: Bool,
-        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
+        discovery: ServiceDiscoveryModelState
     ) -> Self {
         return PeripheralModelState(
             uuid: uuid,
@@ -206,7 +210,7 @@ public actor PeripheralModel: PeripheralModelProtocol {
     private let rssiSubject: ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>
 
     private let peripheral: any PeripheralProtocol
-    private let model: any ConnectableDiscoveryModelProtocol<AnyServiceModel, PeripheralModelFailure>
+    private let model: any ConnectableDiscoveryModelProtocol<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure>
     private var cancellables = Set<AnyCancellable>()
     
     public var state: State {
@@ -240,9 +244,11 @@ public actor PeripheralModel: PeripheralModelProtocol {
         let rssiSubject = ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>(.success(rssi))
         self.rssiSubject = rssiSubject
         
-        let discoveryModel = DiscoveryModel<AnyServiceModel, PeripheralModelFailure>(
-            discoveringBy: serviceDiscoveryStrategy(connectionModel: connectionModel),
-            thatTakes: peripheral
+        let discoveryModel = DiscoveryModel<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure>(
+            discoveringBy: serviceDiscoveryStrategy(
+                onPeripheral: peripheral,
+                connectingBy: connectionModel
+            )
         )
 
         let initialState: State = .initialState(
@@ -355,8 +361,11 @@ public actor PeripheralModel: PeripheralModelProtocol {
 }
 
 
-private func serviceDiscoveryStrategy(connectionModel: any ConnectionModelProtocol) -> (any PeripheralProtocol) async -> Result<[AnyServiceModel], PeripheralModelFailure> {
-    return { peripheral in
+private func serviceDiscoveryStrategy(
+    onPeripheral peripheral: any PeripheralProtocol,
+    connectingBy connectionModel: any ConnectionModelProtocol
+) -> () async -> Result<[AnyServiceModel], PeripheralModelFailure> {
+    return {
         await DiscoveryTask
             .discoverServices(onPeripheral: peripheral)
             .map { services in

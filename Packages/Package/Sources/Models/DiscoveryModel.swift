@@ -4,14 +4,14 @@ import CoreBluetooth
 import CoreBluetoothTestable
 
 
-public enum DiscoveryModelState<V, E: Error> {
+public enum DiscoveryModelState<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, E: Error> {
     case notDiscoveredYet
-    case discovering([V]?)
-    case discovered([V])
-    case discoveryFailed(E, [V]?)
+    case discovering(StateMachineArray<ID, S, M>?)
+    case discovered(StateMachineArray<ID, S, M>)
+    case discoveryFailed(E, StateMachineArray<ID, S, M>?)
     
     
-    public var values: [V]? {
+    public var values: StateMachineArray<ID, S, M>? {
         switch self {
         case .discovered(let values), .discovering(.some(let values)), .discoveryFailed(_, .some(let values)):
             return values
@@ -32,39 +32,19 @@ public enum DiscoveryModelState<V, E: Error> {
 }
 
 
-extension DiscoveryModelState: Equatable where V: Equatable, E: Equatable {
-    public static func == (lhs: DiscoveryModelState, rhs: DiscoveryModelState) -> Bool {
-        switch (lhs, rhs) {
-        case (.notDiscoveredYet, .notDiscoveredYet):
-            return true
-        case (.discovering(.none), .discovering(.none)):
-            return true
-        case (.discovering(.some(let lhsValues)), .discovering(.some(let rhsValues))):
-            return lhsValues == rhsValues
-        case (.discovered(let lhsValues), .discovered(let rhsValues)):
-            return lhsValues == rhsValues
-        case (.discoveryFailed(let lhsError, let lhsValues), .discoveryFailed(let rhsError, let rhsValues)):
-            return lhsError == rhsError && lhsValues == rhsValues
-        default:
-            return false
-        }
-    }
-}
-
-
-extension DiscoveryModelState: CustomStringConvertible where V: CustomStringConvertible, E: CustomStringConvertible {
+extension DiscoveryModelState: CustomStringConvertible where E: CustomStringConvertible {
     public var description: String {
         switch self {
         case .notDiscoveredYet:
             return ".notDiscoveredYet"
         case .discovering(.none):
             return ".discovering(nil)"
-        case .discovering(.some(let values)):
-            return ".discovering([\(values.map(\.description).joined(separator: ", "))])"
-        case .discovered(let values):
-            return ".discovered([\(values.map(\.description).joined(separator: ", "))])"
-        case .discoveryFailed(let error, .some(let values)):
-            return ".discoveryFailed(\(error.description), [\(values.map(\.description).joined(separator: ", "))])"
+        case .discovering(.some):
+            return ".discovering([...])"
+        case .discovered:
+            return ".discovered([...])"
+        case .discoveryFailed(let error, .some):
+            return ".discoveryFailed(\(error.description), [...])"
         case .discoveryFailed(let error, .none):
             return ".discoveryFailed(\(error.description), nil)"
         }
@@ -72,28 +52,10 @@ extension DiscoveryModelState: CustomStringConvertible where V: CustomStringConv
 }
 
 
-extension DiscoveryModelState: CustomDebugStringConvertible where E: CustomStringConvertible {
-    public var debugDescription: String {
-        switch self {
-        case .notDiscoveredYet:
-            return ".notDiscoveredYet"
-        case .discovering(.none):
-            return ".discovering(nil)"
-        case .discovering(.some(let values)):
-            return ".discovering([\(values.count) values])"
-        case .discovered(let values):
-            return ".discovered([\(values.count) values])"
-        case .discoveryFailed(let error, .some(let values)):
-            return ".discoveryFailed(\(error.description), [\(values.count) values])"
-        case .discoveryFailed(let error, .none):
-            return ".discoveryFailed(\(error.description), nil)"
-        }
-    }
-}
-
-
-public protocol DiscoveryModelProtocol<Value, Error>: StateMachine  where State == DiscoveryModelState<Value, Error> {
-    associatedtype Value
+public protocol DiscoveryModelProtocol<ID, S, M, Error>: StateMachine where State == DiscoveryModelState<ID, S, M, Error> {
+    associatedtype ID: Hashable
+    associatedtype S
+    associatedtype M: StateMachine<S> & Identifiable<ID>
     associatedtype Error: Swift.Error
     
     var state: State { get async }
@@ -102,14 +64,14 @@ public protocol DiscoveryModelProtocol<Value, Error>: StateMachine  where State 
 
 
 extension DiscoveryModelProtocol {
-    public func eraseToAny() -> AnyDiscoveryModel<Value, Error> {
+    public func eraseToAny() -> AnyDiscoveryModel<ID, S, M, Error> {
         AnyDiscoveryModel(self)
     }
 }
 
 
-public actor AnyDiscoveryModel<Value, Error: Swift.Error>: DiscoveryModelProtocol {
-    private let base: any DiscoveryModelProtocol<Value, Error>
+public actor AnyDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Error: Swift.Error>: DiscoveryModelProtocol {
+    private let base: any DiscoveryModelProtocol<ID, S, M, Error>
     
     nonisolated public var initialState: State { base.initialState }
     
@@ -117,11 +79,11 @@ public actor AnyDiscoveryModel<Value, Error: Swift.Error>: DiscoveryModelProtoco
         get async { await base.state }
     }
 
-    public init(_ base: any DiscoveryModelProtocol<Value, Error>) {
+    public init(_ base: any DiscoveryModelProtocol<ID, S, M, Error>) {
         self.base = base
     }
     
-    nonisolated public var stateDidChange: AnyPublisher<DiscoveryModelState<Value, Error>, Never> {
+    nonisolated public var stateDidChange: AnyPublisher<DiscoveryModelState<ID, S, M, Error>, Never> {
         base.stateDidChange
     }
     
@@ -131,13 +93,13 @@ public actor AnyDiscoveryModel<Value, Error: Swift.Error>: DiscoveryModelProtoco
 }
 
 
-public actor DiscoveryModel<Value, Failure: Error & CustomStringConvertible>: DiscoveryModelProtocol {
-    public typealias Value = Value
-    public typealias Error = Failure
-    public typealias State = DiscoveryModelState<Value, Failure>
+public actor DiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error & CustomStringConvertible>: DiscoveryModelProtocol {
+    public typealias ID = ID
+    public typealias S = S
+    public typealias M = M
+    public typealias State = DiscoveryModelState<ID, S, M, Failure>
     
-    private let peripheral: any PeripheralProtocol
-    private let discoverStrategy: (any PeripheralProtocol) async -> Result<[Value], Failure>
+    private let discoverStrategy: () async -> Result<[M], Failure>
     
     public var state: State {
         get async { await stateDidChangeSubject.value }
@@ -149,18 +111,13 @@ public actor DiscoveryModel<Value, Failure: Error & CustomStringConvertible>: Di
     nonisolated public let initialState: State
 
 
-    public init(
-        discoveringBy discoverStrategy: @escaping (any PeripheralProtocol) async -> Result<[Value], Failure>,
-        thatTakes peripheral: any PeripheralProtocol
-    ) {
-        self.peripheral = peripheral
-        self.discoverStrategy = discoverStrategy
-        
+    public init(discoveringBy discoverStrategy: @escaping () async -> Result<[M], Failure>) {
         let initialState: State = .notDiscoveredYet
         self.initialState = initialState
         
         self.stateDidChangeSubject = ConcurrentValueSubject(initialState)
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
+        self.discoverStrategy = discoverStrategy
     }
     
     
@@ -171,11 +128,11 @@ public actor DiscoveryModel<Value, Failure: Error & CustomStringConvertible>: Di
                 return .discovering(prev.values)
             }
             
-            switch await self.discoverStrategy(peripheral) {
+            switch await self.discoverStrategy() {
             case .success(let values):
                 await self.stateDidChangeSubject.change { prev in
                     guard case .discovering = prev else { return prev }
-                    return .discovered(values)
+                    return .discovered(StateMachineArray(values))
                 }
             case .failure(let error):
                 await self.stateDidChangeSubject.change { prev in

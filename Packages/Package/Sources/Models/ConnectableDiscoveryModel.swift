@@ -2,20 +2,22 @@ import Combine
 import CoreBluetooth
 
 
-public struct ConnectableDiscoveryModelState<Attribute, Failure: Error> {
-    public let discovery: DiscoveryModelState<Attribute, Failure>
+public struct ConnectableDiscoveryModelState<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error> {
+    public let discovery: DiscoveryModelState<ID, S, M, Failure>
     public let connection: ConnectionModelState
     
     
-    public init(discovery: DiscoveryModelState<Attribute, Failure>, connection: ConnectionModelState) {
+    public init(discovery: DiscoveryModelState<ID, S, M, Failure>, connection: ConnectionModelState) {
         self.discovery = discovery
         self.connection = connection
     }
 }
 
 
-public protocol ConnectableDiscoveryModelProtocol<Attribute, Failure>: StateMachine  where State == ConnectableDiscoveryModelState<Attribute, Failure> {
-    associatedtype Attribute
+public protocol ConnectableDiscoveryModelProtocol<ID, S, M, Failure>: StateMachine where State == ConnectableDiscoveryModelState<ID, S, M, Failure> {
+    associatedtype ID: Hashable
+    associatedtype S
+    associatedtype M: StateMachine<S> & Identifiable<ID>
     associatedtype Failure: Error
     var state: State { get async }
     
@@ -26,18 +28,20 @@ public protocol ConnectableDiscoveryModelProtocol<Attribute, Failure>: StateMach
 
 
 extension ConnectableDiscoveryModelProtocol {
-    nonisolated public func eraseToAny() -> AnyConnectableDiscoveryModel<Attribute, Failure> {
+    nonisolated public func eraseToAny() -> AnyConnectableDiscoveryModel<ID, S, M, Failure> {
         AnyConnectableDiscoveryModel(self)
     }
 }
 
 
-public actor AnyConnectableDiscoveryModel<Attribute, Failure: Error>: ConnectableDiscoveryModelProtocol {
-    public typealias Attribute = Attribute
+public actor AnyConnectableDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error>: ConnectableDiscoveryModelProtocol {
+    public typealias ID = ID
+    public typealias S = S
+    public typealias M = M
     public typealias Failure = Failure
-    public typealias State = ConnectableDiscoveryModelState<Attribute, Failure>
+    public typealias State = ConnectableDiscoveryModelState<ID, S, M, Failure>
     
-    private let base: any ConnectableDiscoveryModelProtocol<Attribute, Failure>
+    private let base: any ConnectableDiscoveryModelProtocol<ID, S, M, Failure>
     
     public var state: State {
         get async { await base.state }
@@ -46,7 +50,7 @@ public actor AnyConnectableDiscoveryModel<Attribute, Failure: Error>: Connectabl
     nonisolated public var initialState: State { base.initialState }
 
     
-    public init(_ base: any ConnectableDiscoveryModelProtocol<Attribute, Failure>) {
+    public init(_ base: any ConnectableDiscoveryModelProtocol<ID, S, M, Failure>) {
         self.base = base
     }
     
@@ -67,11 +71,14 @@ public actor AnyConnectableDiscoveryModel<Attribute, Failure: Error>: Connectabl
 }
 
 
-public actor ConnectableDiscoveryModel<Attribute, Failure: Error>: ConnectableDiscoveryModelProtocol {
-    public typealias Attribute = Attribute
+public actor ConnectableDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error>: ConnectableDiscoveryModelProtocol {
+    public typealias ID = ID
+    public typealias S = S
+    public typealias M = M
     public typealias Failure = Failure
-    
-    private let discovery: any DiscoveryModelProtocol<Attribute, Failure>
+    public typealias State = ConnectableDiscoveryModelState<ID, S, M, Failure>
+
+    private let discovery: any DiscoveryModelProtocol<ID, S, M, Failure>
     private let connection: any ConnectionModelProtocol
     private var discoveryRequested = false
     
@@ -95,7 +102,7 @@ public actor ConnectableDiscoveryModel<Attribute, Failure: Error>: ConnectableDi
     
     
     public init(
-        discoveringBy discovery: any DiscoveryModelProtocol<Attribute, Failure>,
+        discoveringBy discovery: any DiscoveryModelProtocol<ID, S, M, Failure>,
         connectingBy connection: any ConnectionModelProtocol
     ) {
         self.discovery = discovery
@@ -157,7 +164,7 @@ public actor ConnectableDiscoveryModel<Attribute, Failure: Error>: ConnectableDi
     }
     
     
-    private func shouldDiscovery(_ state: ConnectableDiscoveryModelState<Attribute, Failure>) -> Bool {
+    private func shouldDiscovery(_ state: ConnectableDiscoveryModelState<ID, S, M, Failure>) -> Bool {
         let result = discoveryRequested && !state.discovery.isDiscovering && state.connection.isConnected
         if result {
             discoveryRequested = false
