@@ -13,8 +13,13 @@ public struct StateMachineArrayElement<ID: Hashable, State, M: StateMachine & Id
 }
 
 
-private struct StateMachineArrayState<ID: Hashable, State, M: StateMachine & Identifiable> where M.State == State, M.ID == ID {
-    typealias Element = StateMachineArrayElement<ID, State, M>
+extension StateMachineArrayElement: Identifiable {
+    public var id: ID { stateMachine.id }
+}
+
+
+public struct StateMachineArrayState<ID: Hashable, State, M: StateMachine & Identifiable> where M.State == State, M.ID == ID {
+    public typealias Element = StateMachineArrayElement<ID, State, M>
     private var ids: [ID]
     private var stateMachineMap: [ID: Element]
     
@@ -24,6 +29,11 @@ private struct StateMachineArrayState<ID: Hashable, State, M: StateMachine & Ide
     public init(_ stateMachines: [M]) {
         self.ids = stateMachines.map(\.id)
         self.stateMachineMap = Dictionary(uniqueKeysWithValues: stateMachines.map { ($0.id, Element(state: $0.initialState, stateMachine: $0)) })
+    }
+    
+    
+    public var isEmpty: Bool {
+        return self.ids.isEmpty
     }
     
     
@@ -43,10 +53,10 @@ private struct StateMachineArrayState<ID: Hashable, State, M: StateMachine & Ide
 
 
 public actor StateMachineArray<ID: Hashable, S, SM: StateMachine<S> & Identifiable<ID>>: StateMachine {
-    public typealias State = [StateMachineArrayElement<ID, S, SM>]
+    public typealias State = StateMachineArrayState<ID, S, SM>
    
     public var state: State {
-        get async { await stateDidChangeSubject.value.stateMachines }
+        get async { await stateDidChangeSubject.value }
     }
     
     private let stateDidChangeSubject: ConcurrentValueSubject<StateMachineArrayState<ID, S, SM>, Never>
@@ -57,13 +67,12 @@ public actor StateMachineArray<ID: Hashable, S, SM: StateMachine<S> & Identifiab
     
     
     public init(_ stateMachines: [SM]) {
-        let initialState = stateMachines.map { State.Element(state: $0.initialState, stateMachine: $0) }
+        let initialState = StateMachineArrayState(stateMachines)
         self.initialState = initialState
         
-        let stateDidChangeSubject = ConcurrentValueSubject<StateMachineArrayState<ID, S, SM>, Never>(.init(stateMachines))
+        let stateDidChangeSubject = ConcurrentValueSubject<StateMachineArrayState<ID, S, SM>, Never>(initialState)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject
-            .map(\.stateMachines)
             .eraseToAnyPublisher()
     }
     

@@ -26,7 +26,7 @@ let package = Package(
         .package(url: "https://github.com/cezheng/Fuzi.git", .upToNextMajor(from: "3.1.3")),
         .package(url: "https://github.com/Kuniwak/MirrorDiffKit.git", .upToNextMajor(from: "6.0.0")),
         .package(url: "https://github.com/Nirma/SFSymbol.git", .upToNextMajor(from: "2.3.0")),
-        .package(url: "https://github.com/apple/swift-testing.git", .upToNextMajor(from: "0.10.0")),
+        .package(url: "https://github.com/apple/swift-testing.git", from: "0.10.0"),
     ],
     targets: [
         .target(
@@ -50,7 +50,6 @@ let package = Package(
             name: "CoreBluetoothTasks",
             dependencies: [
                 .coreBluetoothTestable,
-                .testing,
             ],
             swiftSettings: SwiftSetting.allCases
         ),

@@ -31,7 +31,7 @@ public struct RSSIView: View {
                 Text(error.description)
                     .font(.footnote)
             }
-                .foregroundStyle(Color(.error))
+            .foregroundStyle(Color(.error))
         }
     }
 }

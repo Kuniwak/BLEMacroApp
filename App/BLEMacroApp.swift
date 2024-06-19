@@ -19,7 +19,8 @@ public struct BLEMacroApp: App {
 #else
 @main
 public struct BLEMacroApp: App {
-    @ObservedObject private var model: AnyPeripheralSearchModel
+    @ObservedObject private var projected: StateProjection<PeripheralSearchModelState>
+    private let model: any PeripheralSearchModelProtocol
     private let logger: any LoggerProtocol
     
     
@@ -39,14 +40,16 @@ public struct BLEMacroApp: App {
         
         let model = PeripheralSearchModel(
             observing: PeripheralDiscoveryModel(observing: centralManager),
-            initialSearchQuery: ""
+            initialSearchQuery: SearchQuery(rawValue: "")
         )
-        self.model = model.eraseToAny()
+        self.model = model
+        self.projected = StateProjection.project(stateMachine: model)
     }
     
     
     public init(model: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
-        self.model = model.eraseToAny()
+        self.model = model
+        self.projected = StateProjection.project(stateMachine: model)
         self.logger = logger
     }
     

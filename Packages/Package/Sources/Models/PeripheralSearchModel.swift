@@ -70,11 +70,11 @@ public struct SearchQuery: RawRepresentable {
     }
 
     
-    private static func filter(peripherals: StateMachineArray<UUID, PeripheralModelState, AnyPeripheralModel>, bySearchQuery searchQuery: SearchQuery) async -> StateMachineArray<UUID, PeripheralModelState, AnyPeripheralModel> {
-        let states = await peripherals.state
-        let models = zip(await peripherals.state, states.map { match(searchQuery: searchQuery, state: $0.state) } )
+    private static func filter(peripherals: PeripheralsModel, bySearchQuery searchQuery: SearchQuery) async -> PeripheralsModel {
+        let models = await peripherals.state.stateMachines
+            .map { ($0.stateMachine, match(searchQuery: searchQuery, state: $0.state)) }
             .filter(\.1)
-            .map(\.0.stateMachine)
+            .map(\.0)
         return StateMachineArray(models)
     }
 }

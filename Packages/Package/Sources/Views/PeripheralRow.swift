@@ -12,18 +12,18 @@ import PreviewHelper
 
 
 public struct PeripheralRow: View {
-    @ObservedObject public var projection: StateProjection<PeripheralModelState>
+    @ObservedObject private var projected: StateProjection<PeripheralModelState>
     
     
     public init(observing model: any PeripheralModelProtocol) {
-        self.projection = StateProjection(projecting: model)
+        self.projected = StateProjection.project(stateMachine: model)
     }
 
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                switch projection.state.name {
+                switch projected.state.name {
                 case .success(let name):
                     if let name {
                         Text(name)
@@ -40,13 +40,13 @@ public struct PeripheralRow: View {
                         .foregroundStyle(Color(.error))
                 }
                 Spacer()
-                RSSIView(rssi: projection.state.rssi)
+                RSSIView(rssi: projected.state.rssi)
             }
-            Text(projection.state.uuid.uuidString)
+            Text(projected.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
-            switch projection.state.manufacturerData {
+            switch projected.state.manufacturerData {
             case .some(.knownName(let manufacturerName, let data)):
                 Text("Manufacturer: \(manufacturerName) - \(HexEncoding.upper.encode(data: data))")
                     .font(.footnote)
@@ -64,40 +64,53 @@ public struct PeripheralRow: View {
 }
 
 
-#Preview("NavigationLink") {
-    let rssiValues: [Result<NSNumber, ConnectionModelFailure>] = [
+private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
+    let rssiValues: [Result<NSNumber, PeripheralModelFailure>] = [
         .success(NSNumber(value: -50)),
         .success(NSNumber(value: -60)),
         .success(NSNumber(value: -70)),
         .success(NSNumber(value: -80)),
         .failure(.init(description: "TEST")),
     ]
-    let names: [Result<String?, ConnectionModelFailure>] = [
+    let names: [Result<String?, PeripheralModelFailure>] = [
         .success("Device Name"),
         .success(nil),
         .failure(.init(description: "TEST")),
     ]
     let manufacturerData: [ManufacturerData?] = [
         nil,
-        .knownName("Example Ltd.", Data([0x00, 0x00])),
+        .knownName("Example Inc.", Data([0x00, 0x00])),
         .data(Data([0x00, 0x00])),
     ]
-    let projections = cartesianProduct4(rssiValues, names, [true, false], manufacturerData)
-        .map { rssi, name, isConnectable, manufacturerData in
-            StubConnectionModel(state: .makeStub(
-                discoveryState: .makeStub(),
-                rssi: rssi,
-                name: name,
-                isConnectable: isConnectable,
-                manufacturerData: manufacturerData
-            ))
-            .eraseToAny()
-        }
-    
+    let connection: [ConnectionModelState] = [
+        .disconnected,
+        .connecting,
+        .connectionFailed(.init(description: "TEST")),
+        .connected,
+        .disconnecting,
+    ]
+    let state1: [PeripheralModelState] = rssiValues
+        .map { rssi in .makeStub(rssi: rssi) }
+    let state2: [PeripheralModelState] = names
+        .map { name in .makeStub(name: name) }
+    let state3: [PeripheralModelState] = manufacturerData
+        .map { manufacturerData in .makeStub(manufacturerData: manufacturerData) }
+    let state4: [PeripheralModelState] = connection
+        .map { connection in .makeStub(connection: connection) }
+    return (state1 + state2 + state3 + state4).map { state in
+        Previewable(
+            StubPeripheralModel(state: state).eraseToAny(),
+            describing: state.description
+        )
+    }
+}
+
+
+#Preview("NavigationLink") {
     NavigationView {
-        List(projections) { projection in
+        List(stubsForPreview()) { wrapper in
             NavigationLink(destination: Text("TODO")) {
-                PeripheralRow(observing: projection)
+                PeripheralRow(observing: wrapper.value)
             }
         }
     }
@@ -105,36 +118,7 @@ public struct PeripheralRow: View {
 
 
 #Preview("No NavigationLink") {
-    let rssiValues: [Result<NSNumber, ConnectionModelFailure>] = [
-        .success(NSNumber(value: -50)),
-        .success(NSNumber(value: -60)),
-        .success(NSNumber(value: -70)),
-        .success(NSNumber(value: -80)),
-        .failure(.init(description: "TEST")),
-    ]
-    let names: [Result<String?, ConnectionModelFailure>] = [
-        .success("Device Name"),
-        .success(nil),
-        .failure(.init(description: "TEST")),
-    ]
-    let manufacturerData: [ManufacturerData?] = [
-        nil,
-        .knownName("Manufacturer Name", Data([0x00, 0x00])),
-        .data(Data([0x00, 0x00])),
-    ]
-    let projections = cartesianProduct4(rssiValues, names, [true, false], manufacturerData)
-        .map { rssi, name, isConnectable, manufacturerData in
-            StubConnectionModel(state: .makeStub(
-                discoveryState: .makeStub(),
-                rssi: rssi,
-                name: name,
-                isConnectable: isConnectable,
-                manufacturerData: manufacturerData
-            ))
-            .eraseToAny()
-        }
-    
-    List(projections) { projection in
-        PeripheralRow(observing: projection)
+    List(stubsForPreview()) { wrapper in
+        PeripheralRow(observing: wrapper.value )
     }
 }

@@ -7,76 +7,70 @@ import SFSymbol
 
 
 public struct CharacteristicsView: View {
-    @ObservedObject private var model: StateProjection<ServiceModelState>
+    @ObservedObject private var projected: StateProjection<ServiceModelState>
+    private let model: any ServiceModelProtocol
     private let modelLogger: ServiceModelLogger
     private let logger: any LoggerProtocol
+    private var cancellables = Set<AnyCancellable>()
     
     
     public init(
         observing model: any ServiceModelProtocol,
         loggingBy logger: any LoggerProtocol
     ) {
-        self.model = StateProjection(projecting: model)
+        self.projected = StateProjection.project(stateMachine: model)
+        self.model = model
         self.modelLogger = ServiceModelLogger(observing: model, loggingBy: logger)
+        self.logger = logger
     }
     
     
     public var body: some View {
         List {
-            switch model.state.discovery {
-            case .notDiscoveredYet:
-                Text("Not discovered yet")
-                    .foregroundStyle(Color(.weak))
-            case .discovered(let characteristics):
-                ForEach(characteristics) { characteristic in
-                    NavigationLink(destination: Text("TODO")) {
-                        CharacteristicRow(observing: characteristic)
+            switch projected.state.discovery {
+            case .notDiscoveredYet, .discoveryFailed(_, nil):
+                HStack {
+                    Text("Discovery Not Started.")
+                        .foregroundStyle(Color(.weak))
+                    Button("Start") {
+                        Task { await model.discover() }
                     }
                 }
-            case .discoverFailed(let error):
-                HStack {
-                    Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
-                        .foregroundStyle(Color(.error))
-                    Text("E: \(error)")
-                        .foregroundStyle(Color(.error))
+            case .discovering(nil):
+                VStack {
+                    Text("Discovering...")
+                        .foregroundStyle(Color(.weak))
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
                 }
-            case .discovering:
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
+            case .discovered(let characteristics), .discovering(.some(let characteristics)), .discoveryFailed(_, .some(let characteristics)):
+                CharacteristicList(observing: characteristics)
             }
         }
-        .navigationTitle(name)
+        .navigationTitle(projected.state.name ?? projected.state.uuid.uuidString)
         .navigationBarItems(trailing: trailingNavigationBarItem)
-    }
-    
-    
-    private var name: String {
-        switch model.state.name {
-        case .success(.some(let name)):
-            return name
-        case .success(.none):
-            return "(no name)"
-        case .failure(let error):
-            return "E: \(error)"
-        }
     }
     
     
     private func descriptorView(model: any CharacteristicModelProtocol) -> some View {
         // TODO
-        Text(model.uuid.uuidString)
+        Text(projected.state.uuid.uuidString)
     }
     
     
     private var trailingNavigationBarItem: some View {
         Group {
-            if model.state.discoveryState.canConnect {
-                Button("Connect", action: model.connect)
-            } else if model.state.discoveryState.isConnected {
-                Button("Disconnect", action: model.disconnect)
+            if projected.state.connection.canConnect {
+                Button("Connect") {
+                    Task { await model.connect() }
+                }
+            } else if projected.state.connection.isConnected {
+                Button("Disconnect") {
+                    Task { await model.disconnect() }
+                }
             } else {
                 ProgressView()
             }

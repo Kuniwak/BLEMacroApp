@@ -54,6 +54,13 @@ public struct CharacteristicModelState {
 }
 
 
+extension CharacteristicModelState: CustomStringConvertible {
+    public var description: String {
+        "CharacteristicModelState(uuid: \(uuid.uuidString), name: \(name ?? "(no name)"), connection: \(connection.description), discovery: \(discovery.description)"
+    }
+}
+
+
 public protocol CharacteristicModelProtocol: StateMachine<CharacteristicModelState>, Identifiable<CBUUID> {
     func discover()
     func connect()

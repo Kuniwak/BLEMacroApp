@@ -9,17 +9,17 @@ import PreviewHelper
 
 
 public struct CharacteristicRow: View {
-    @ObservedObject private var model: StateProjection<CharacteristicModelState>
+    @ObservedObject private var projected: StateProjection<CharacteristicModelState>
     
     
     public init(observing model: any CharacteristicModelProtocol) {
-        self.model = StateProjection(projecting: model)
+        self.projected = StateProjection.project(stateMachine: model)
     }
     
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let name = model.state.name {
+            if let name = projected.state.name {
                 Text(name)
                     .font(.headline)
                     .foregroundStyle(Color(.normal))
@@ -29,7 +29,7 @@ public struct CharacteristicRow: View {
                     .foregroundStyle(Color(.weak))
             }
             
-            Text(model.state.uuid.uuidString)
+            Text(projected.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
@@ -47,7 +47,7 @@ public struct CharacteristicRow: View {
             ]
             
             let wrappers: [Previewable] = states.map { state in
-                Previewable(state, describing: state.debugDescription)
+                Previewable(state, describing: state.description)
             }
             
             ForEach(wrappers) { wrapper in

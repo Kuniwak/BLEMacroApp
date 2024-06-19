@@ -5,17 +5,17 @@ import PreviewHelper
 
 
 public struct ServiceRow: View {
-    @ObservedObject private var model: StateProjection<ServiceModelState>
+    @ObservedObject private var projected: StateProjection<ServiceModelState>
     
     
     public init(observing model: any ServiceModelProtocol) {
-        self.model = StateProjection(projecting: model)
+        self.projected = StateProjection.project(stateMachine: model)
     }
     
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let name = model.state.name {
+            if let name = projected.state.name {
                 Text(name)
                     .font(.headline)
                     .foregroundStyle(Color(.normal))
@@ -25,7 +25,7 @@ public struct ServiceRow: View {
                     .foregroundStyle(Color(.weak))
             }
             
-            Text(model.state.uuid.uuidString)
+            Text(projected.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
@@ -34,22 +34,27 @@ public struct ServiceRow: View {
 }
 
 
-#Preview("with NavigationLink") {
-    let models = [nil, "Example Service"]
-        .map { name -> AnyServiceModel in
-            StubServiceModel(
-                state: .makeStub(
-                    name: name,
-                    discovery: .notDiscoveredYet
-                )
-            ).eraseToAny()
+private func stubsForPreview() -> [Previewable<AnyServiceModel>] {
+    let names: [String?] = [nil, "Example Service"]
+    return names
+        .map { name -> Previewable<AnyServiceModel> in
+            let state: ServiceModelState = .makeStub(
+                name: name,
+                discovery: .notDiscoveredYet
+            )
+            let model = StubServiceModel(state: state).eraseToAny()
+            return Previewable(model, describing: state.description)
         }
-    
+
+}
+
+
+#Preview("with NavigationLink") {
     NavigationStack {
         List {
-            ForEach(models) { model in
+            ForEach(stubsForPreview()) { wrapper in
                 NavigationLink(destination: Text("TODO")) {
-                    ServiceRow(observing: model)
+                    ServiceRow(observing: wrapper.value)
                 }
             }
         }
@@ -58,19 +63,9 @@ public struct ServiceRow: View {
 
 
 #Preview("without NavigationLink") {
-    let models = [nil, "Example Service"]
-        .map { name -> AnyServiceModel in
-            StubServiceModel(
-                state: .makeStub(
-                    discoveryState: .notDiscoveredYet,
-                    name: name
-                )
-            ).eraseToAny()
-        }
-
     List {
-        ForEach(models) { model in
-            ServiceRow(observing: model)
+        ForEach(stubsForPreview()) { wrapper in
+            ServiceRow(observing: wrapper.value)
         }
     }
 }

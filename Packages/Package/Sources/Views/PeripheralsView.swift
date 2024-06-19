@@ -14,12 +14,12 @@ public struct PeripheralsView: View {
     private let projectionLogger: PeripheralSearchModelLogger
     
     
-    public init(observing projection: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
-        self.projection = StateProjection(projecting: projection)
-        self.model = projection
+    public init(observing model: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
+        self.projection = StateProjection.project(stateMachine: model)
+        self.model = model
         self.logger = logger
         self.projectionLogger = PeripheralSearchModelLogger(
-            observing: projection,
+            observing: model,
             loggingBy: logger
         )
     }
@@ -37,7 +37,7 @@ public struct PeripheralsView: View {
     private var content: some View {
         List {
             switch projection.state.discovery {
-            case .idle:
+            case .idle, .discovering(.none):
                 HStack {
                     Spacer()
                     ProgressView()
@@ -51,17 +51,12 @@ public struct PeripheralsView: View {
                         .foregroundStyle(.tint)
                     Spacer()
                 }
-            case .discovering(let peripherals), .discovered(let peripherals):
-                if peripherals.isEmpty {
-                    HStack {
-                        Spacer()
-                        Text("No devices found")
-                        Spacer()
-                    }
-                    .foregroundStyle(Color(.weak))
-                } else {
-                    PeripheralList(peripherals)
-                }
+            case .discovering(.some(let peripherals)), .discovered(let peripherals):
+                PeripheralList(
+                    projecting: peripherals,
+                    stoppingScanningBy: model,
+                    loggingBy: logger
+                )
             case .discoveryFailed(.unspecified(let error)):
                 HStack {
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
@@ -116,16 +111,16 @@ internal struct PeripheralsView_Previews: PreviewProvider {
         let discoveryStates: [PeripheralDiscoveryModelState] = [
             .idle,
             .ready,
-            .discovering([]),
-            .discovering([
+            .discovering(StateMachineArray([])),
+            .discovering(StateMachineArray([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ]),
-            .discovered([]),
-            .discovered([
+            ])),
+            .discovered(StateMachineArray([])),
+            .discovered(StateMachineArray([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ]),
+            ])),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unspecified("Something went wrong"))

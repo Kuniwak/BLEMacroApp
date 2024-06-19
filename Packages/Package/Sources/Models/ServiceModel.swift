@@ -54,6 +54,13 @@ public struct ServiceModelState {
 }
 
 
+extension ServiceModelState: CustomStringConvertible {
+    public var description: String {
+        "ServiceModelState(uuid: \(uuid.uuidString), name: \(name ?? "(no name)"), discovery: \(discovery.description), connection: \(connection.description))"
+    }
+}
+
+
 public protocol ServiceModelProtocol: StateMachine, Identifiable<CBUUID> where State == ServiceModelState {
     func discover()
     func connect()

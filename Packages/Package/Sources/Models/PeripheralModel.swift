@@ -115,38 +115,6 @@ extension PeripheralModelState: CustomStringConvertible {
 }
 
 
-extension PeripheralModelState: CustomDebugStringConvertible {
-    public var debugDescription: String {
-        let name: String
-        switch self.name {
-        case .success(.some(let value)):
-            name = value
-        case .success(.none):
-            name = "nil"
-        case .failure(let error):
-            name = error.description
-        }
-        
-        let rssi: String
-        switch self.rssi {
-        case .success(let value):
-            rssi = "\(value)"
-        case .failure(let error):
-            rssi = error.description
-        }
-        
-        let manufacturerData: String
-        if let data = self.manufacturerData {
-            manufacturerData = data.debugDescription
-        } else {
-            manufacturerData = "nil"
-        }
-        
-        return "ConnectionModelState(uuid: \(uuid), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData), discoveryState: \(connection.description))"
-    }
-}
-
-
 public protocol PeripheralModelProtocol: StateMachine, Identifiable<UUID> where State == PeripheralModelState {
     var state: State { get async }
     func readRSSI()
