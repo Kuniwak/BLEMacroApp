@@ -3,6 +3,7 @@ import Combine
 import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
+import ModelFoundation
 
 
 
@@ -62,14 +63,11 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
 }
 
 
-public typealias PeripheralsModel = StateMachineArray<UUID, PeripheralModelState, AnyPeripheralModel>
-
-
 public enum PeripheralDiscoveryModelState {
     case idle
     case ready
-    case discovering(PeripheralsModel?)
-    case discovered(PeripheralsModel)
+    case discovering([AnyPeripheralModel]?)
+    case discovered([AnyPeripheralModel])
     case discoveryFailed(PeripheralDiscoveryModelFailure)
 
     
@@ -78,7 +76,7 @@ public enum PeripheralDiscoveryModelState {
     }
 
 
-    public var models: Result<PeripheralsModel?, PeripheralDiscoveryModelFailure> {
+    public var models: Result<[AnyPeripheralModel]?, PeripheralDiscoveryModelFailure> {
         switch self {
         case .discovering(.some(let peripherals)), .discovered(let peripherals):
             return .success(peripherals)
@@ -139,7 +137,7 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
 }
 
 
-public protocol PeripheralDiscoveryModelProtocol: StateMachine where State == PeripheralDiscoveryModelState {
+public protocol PeripheralDiscoveryModelProtocol: StateMachineProtocol where State == PeripheralDiscoveryModelState {
     func startScan()
     func stopScan()
 }
@@ -155,7 +153,7 @@ extension PeripheralDiscoveryModelProtocol {
 public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let base: any PeripheralDiscoveryModelProtocol
     
-    nonisolated public var initialState: State { base.initialState }
+    nonisolated public var state: State { base.state }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
 
     
@@ -179,9 +177,8 @@ public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
 public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let centralManager: any CentralManagerProtocol
     
-    nonisolated public let initialState: State
-    
-    private let stateDidChangeSubject: ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>
+    nonisolated public var state: State { stateDidChangeSubject.projected }
+    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<PeripheralDiscoveryModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<PeripheralDiscoveryModelState, Never>
     
     
@@ -190,10 +187,8 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     
     public init(observing centralManager: any CentralManagerProtocol) {
         self.centralManager = centralManager
-        let initialState: State = .idle
-        self.initialState = initialState
         
-        let stateDidChangeSubject = ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>(initialState)
+        let stateDidChangeSubject = ProjectedValueSubject<PeripheralDiscoveryModelState, Never>(.idle)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         
@@ -249,9 +244,9 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                                     )
                                 )
                                 
-                                let newModels = models ?? StateMachineArray([])
+                                var newModels = models ?? []
                                 newModels.append(newModel.eraseToAny())
-                                return .discovering(newModels)
+                                return .discovered(newModels)
                             case .failure(let error):
                                 return .discoveryFailed(.unspecified("\(error)"))
                             }
@@ -276,7 +271,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
             await stateDidChangeSubject.change { prev in
                 switch prev {
                 case .ready, .discovered, .discoveryFailed:
-                    centralManager.scanForPeripherals(withServices: nil)
+                    self.centralManager.scanForPeripherals(withServices: nil)
                     return .discovering(nil)
                 case .idle, .discovering:
                     return prev
@@ -293,7 +288,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 case .idle, .ready, .discoveryFailed, .discovered:
                     return prev
                 case .discovering(let models):
-                    centralManager.stopScan()
+                    self.centralManager.stopScan()
                     if let models {
                         return .discovered(models)
                     } else {

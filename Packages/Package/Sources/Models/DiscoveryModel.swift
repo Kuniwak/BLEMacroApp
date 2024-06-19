@@ -2,16 +2,17 @@ import Combine
 import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
+import ModelFoundation
 
 
-public enum DiscoveryModelState<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, E: Error> {
+public enum DiscoveryModelState<Value, Failure: Error> {
     case notDiscoveredYet
-    case discovering(StateMachineArray<ID, S, M>?)
-    case discovered(StateMachineArray<ID, S, M>)
-    case discoveryFailed(E, StateMachineArray<ID, S, M>?)
+    case discovering([Value]?)
+    case discovered([Value])
+    case discoveryFailed(Failure, [Value]?)
     
     
-    public var values: StateMachineArray<ID, S, M>? {
+    public var values: [Value]? {
         switch self {
         case .discovered(let values), .discovering(.some(let values)), .discoveryFailed(_, .some(let values)):
             return values
@@ -32,19 +33,19 @@ public enum DiscoveryModelState<ID: Hashable, S, M: StateMachine<S> & Identifiab
 }
 
 
-extension DiscoveryModelState: CustomStringConvertible where E: CustomStringConvertible {
+extension DiscoveryModelState: CustomStringConvertible where Value: CustomStringConvertible, Failure: CustomStringConvertible {
     public var description: String {
         switch self {
         case .notDiscoveredYet:
             return ".notDiscoveredYet"
         case .discovering(.none):
             return ".discovering(nil)"
-        case .discovering(.some):
-            return ".discovering([...])"
-        case .discovered:
-            return ".discovered([...])"
-        case .discoveryFailed(let error, .some):
-            return ".discoveryFailed(\(error.description), [...])"
+        case .discovering(.some(let models)):
+            return ".discovering([\(models.map(\.description).joined(separator: ", "))])"
+        case .discovered(let models):
+            return ".discovered([\(models.map(\.description).joined(separator: ", "))])"
+        case .discoveryFailed(let error, .some(let models)):
+            return ".discoveryFailed(\(error.description), [\(models.map(\.description).joined(separator: ", "))])"
         case .discoveryFailed(let error, .none):
             return ".discoveryFailed(\(error.description), nil)"
         }
@@ -52,38 +53,31 @@ extension DiscoveryModelState: CustomStringConvertible where E: CustomStringConv
 }
 
 
-public protocol DiscoveryModelProtocol<ID, S, M, Error>: StateMachine where State == DiscoveryModelState<ID, S, M, Error> {
-    associatedtype ID: Hashable
-    associatedtype S
-    associatedtype M: StateMachine<S> & Identifiable<ID>
-    associatedtype Error: Swift.Error
+public protocol DiscoveryModelProtocol<Value, Failure>: StateMachineProtocol where State == DiscoveryModelState<Value, Failure> {
+    associatedtype Value
+    associatedtype Failure: Error
     
-    var state: State { get async }
     func discover()
 }
 
 
 extension DiscoveryModelProtocol {
-    public func eraseToAny() -> AnyDiscoveryModel<ID, S, M, Error> {
+    public func eraseToAny() -> AnyDiscoveryModel<Value, Failure> {
         AnyDiscoveryModel(self)
     }
 }
 
 
-public actor AnyDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Error: Swift.Error>: DiscoveryModelProtocol {
-    private let base: any DiscoveryModelProtocol<ID, S, M, Error>
+public actor AnyDiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
+    private let base: any DiscoveryModelProtocol<Value, Failure>
     
-    nonisolated public var initialState: State { base.initialState }
-    
-    public var state: State {
-        get async { await base.state }
-    }
+    nonisolated public var state: State { base.state }
 
-    public init(_ base: any DiscoveryModelProtocol<ID, S, M, Error>) {
+    public init(_ base: any DiscoveryModelProtocol<Value, Failure>) {
         self.base = base
     }
     
-    nonisolated public var stateDidChange: AnyPublisher<DiscoveryModelState<ID, S, M, Error>, Never> {
+    nonisolated public var stateDidChange: AnyPublisher<DiscoveryModelState<Value, Failure>, Never> {
         base.stateDidChange
     }
     
@@ -93,29 +87,16 @@ public actor AnyDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiabl
 }
 
 
-public actor DiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error & CustomStringConvertible>: DiscoveryModelProtocol {
-    public typealias ID = ID
-    public typealias S = S
-    public typealias M = M
-    public typealias State = DiscoveryModelState<ID, S, M, Failure>
+public actor DiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
+    private let discoverStrategy: () async -> Result<[Value], Failure>
     
-    private let discoverStrategy: () async -> Result<[M], Failure>
-    
-    public var state: State {
-        get async { await stateDidChangeSubject.value }
-    }
-
-    private let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
+    nonisolated public var state: State { stateDidChangeSubject.projected }
+    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
-    nonisolated public let initialState: State
 
-
-    public init(discoveringBy discoverStrategy: @escaping () async -> Result<[M], Failure>) {
-        let initialState: State = .notDiscoveredYet
-        self.initialState = initialState
-        
-        self.stateDidChangeSubject = ConcurrentValueSubject(initialState)
+    public init(discoveringBy discoverStrategy: @escaping () async -> Result<[Value], Failure>) {
+        self.stateDidChangeSubject = ProjectedValueSubject(.notDiscoveredYet)
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         self.discoverStrategy = discoverStrategy
     }
@@ -132,7 +113,7 @@ public actor DiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<I
             case .success(let values):
                 await self.stateDidChangeSubject.change { prev in
                     guard case .discovering = prev else { return prev }
-                    return .discovered(StateMachineArray(values))
+                    return .discovered(values)
                 }
             case .failure(let error):
                 await self.stateDidChangeSubject.change { prev in

@@ -5,6 +5,7 @@ import CoreBluetoothTestable
 import Logger
 import Models
 import Views
+import ViewFoundation
 
 // NOTE: The app gets initialized even during testing, which can lead to performance overhead.
 #if canImport(XCTest)
@@ -19,7 +20,7 @@ public struct BLEMacroApp: App {
 #else
 @main
 public struct BLEMacroApp: App {
-    @ObservedObject private var projected: StateProjection<PeripheralSearchModelState>
+    @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     private let model: any PeripheralSearchModelProtocol
     private let logger: any LoggerProtocol
     
@@ -43,13 +44,13 @@ public struct BLEMacroApp: App {
             initialSearchQuery: SearchQuery(rawValue: "")
         )
         self.model = model
-        self.projected = StateProjection.project(stateMachine: model)
+        self.binding = ViewBinding(source: model.eraseToAny())
     }
     
     
     public init(model: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
         self.model = model
-        self.projected = StateProjection.project(stateMachine: model)
+        self.binding = ViewBinding(source: model.eraseToAny())
         self.logger = logger
     }
     

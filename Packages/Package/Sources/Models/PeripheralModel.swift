@@ -4,6 +4,7 @@ import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
 import CoreBluetoothTasks
+import ModelFoundation
 import Catalogs
 
 
@@ -31,8 +32,7 @@ public struct PeripheralModelFailure: Error, CustomStringConvertible {
 }
 
 
-public typealias ServiceDiscoveryModelState = DiscoveryModelState<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure>
-public typealias ServicesModel = StateMachineArray<CBUUID, ServiceModelState, AnyServiceModel>
+public typealias ServiceDiscoveryModelState = DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
 
 
 public struct PeripheralModelState {
@@ -115,8 +115,7 @@ extension PeripheralModelState: CustomStringConvertible {
 }
 
 
-public protocol PeripheralModelProtocol: StateMachine, Identifiable<UUID> where State == PeripheralModelState {
-    var state: State { get async }
+public protocol PeripheralModelProtocol: StateMachineProtocol<PeripheralModelState>, Identifiable<UUID> {
     func readRSSI()
     func discover()
     func connect()
@@ -132,12 +131,9 @@ extension PeripheralModelProtocol {
 
 
 public actor AnyPeripheralModel: PeripheralModelProtocol {
-    nonisolated public var initialState: PeripheralModelState { base.initialState }
-    nonisolated public var stateDidChange: AnyPublisher<PeripheralModelState, Never> { base.stateDidChange }
+    nonisolated public var state: State { base.state }
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
     nonisolated public var id: UUID { base.id }
-    public var state: State {
-        get async { await base.state }
-    }
     
     private let base: any PeripheralModelProtocol
     
@@ -169,32 +165,27 @@ public actor AnyPeripheralModel: PeripheralModelProtocol {
 
 
 public actor PeripheralModel: PeripheralModelProtocol {
-    nonisolated public let initialState: PeripheralModelState
+    nonisolated public var state: State {
+        return PeripheralModelState(
+            uuid: id,
+            name: nameSubject.projected,
+            rssi: rssiSubject.projected,
+            manufacturerData: manufacturerData,
+            connection: model.state.connection,
+            discovery: model.state.discovery
+        )
+    }
     nonisolated public let stateDidChange: AnyPublisher<PeripheralModelState, Never>
     
     nonisolated public let id: UUID
     nonisolated private let manufacturerData: ManufacturerData?
-    private let nameSubject: ConcurrentValueSubject<Result<String?, PeripheralModelFailure>, Never>
-    private let rssiSubject: ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>
+    nonisolated private let nameSubject: ProjectedValueSubject<Result<String?, PeripheralModelFailure>, Never>
+    nonisolated private let rssiSubject: ProjectedValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>
 
-    private let peripheral: any PeripheralProtocol
-    private let model: any ConnectableDiscoveryModelProtocol<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure>
+    nonisolated private let peripheral: any PeripheralProtocol
+    nonisolated private let model: any ConnectableDiscoveryModelProtocol<AnyServiceModel, PeripheralModelFailure>
     private var cancellables = Set<AnyCancellable>()
     
-    public var state: State {
-        get async {
-            let state = await model.state
-            return PeripheralModelState(
-                uuid: id,
-                name: await nameSubject.value,
-                rssi: await rssiSubject.value,
-                manufacturerData: manufacturerData,
-                connection: state.connection,
-                discovery: state.discovery
-            )
-        }
-    }
-
 
     public init(
         representing peripheral: any PeripheralProtocol,
@@ -207,28 +198,18 @@ public actor PeripheralModel: PeripheralModelProtocol {
         let manufacturerData = ManufacturerData.from(advertisementData: advertisementData)
         self.manufacturerData = manufacturerData
         
-        let nameSubject = ConcurrentValueSubject<Result<String?, PeripheralModelFailure>, Never>(.success(peripheral.name))
+        let nameSubject = ProjectedValueSubject<Result<String?, PeripheralModelFailure>, Never>(.success(peripheral.name))
         self.nameSubject = nameSubject
-        let rssiSubject = ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>(.success(rssi))
+        let rssiSubject = ProjectedValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>(.success(rssi))
         self.rssiSubject = rssiSubject
         
-        let discoveryModel = DiscoveryModel<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure>(
+        let discoveryModel = DiscoveryModel<AnyServiceModel, PeripheralModelFailure>(
             discoveringBy: serviceDiscoveryStrategy(
                 onPeripheral: peripheral,
                 connectingBy: connectionModel
             )
         )
 
-        let initialState: State = .initialState(
-            uuid: peripheral.identifier,
-            name: peripheral.name,
-            rssi: rssi,
-            manufacturerData: manufacturerData,
-            isConnectable: isConnectable(fromAdvertisementData: advertisementData),
-            discovery: discoveryModel.initialState
-        )
-        self.initialState = initialState
-        
         self.peripheral = peripheral
         
         let model = ConnectableDiscoveryModel(

@@ -1,25 +1,30 @@
 import Combine
 import CoreBluetooth
+import ModelFoundation
 
 
-public struct ConnectableDiscoveryModelState<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error> {
-    public let discovery: DiscoveryModelState<ID, S, M, Failure>
+public struct ConnectableDiscoveryModelState<Value, Failure: Error> {
+    public let discovery: DiscoveryModelState<Value, Failure>
     public let connection: ConnectionModelState
     
     
-    public init(discovery: DiscoveryModelState<ID, S, M, Failure>, connection: ConnectionModelState) {
+    public init(discovery: DiscoveryModelState<Value, Failure>, connection: ConnectionModelState) {
         self.discovery = discovery
         self.connection = connection
     }
 }
 
 
-public protocol ConnectableDiscoveryModelProtocol<ID, S, M, Failure>: StateMachine where State == ConnectableDiscoveryModelState<ID, S, M, Failure> {
-    associatedtype ID: Hashable
-    associatedtype S
-    associatedtype M: StateMachine<S> & Identifiable<ID>
+extension ConnectableDiscoveryModelState where Value: CustomStringConvertible, Failure: CustomStringConvertible {
+    public var description: String {
+        "ConnectableDiscoveryModelState(discovery: \(discovery.description), connection: \(connection.description))"
+    }
+}
+
+
+public protocol ConnectableDiscoveryModelProtocol<Value, Failure>: StateMachineProtocol where State == ConnectableDiscoveryModelState<Value, Failure> {
+    associatedtype Value
     associatedtype Failure: Error
-    var state: State { get async }
     
     func discover()
     func connect()
@@ -28,29 +33,23 @@ public protocol ConnectableDiscoveryModelProtocol<ID, S, M, Failure>: StateMachi
 
 
 extension ConnectableDiscoveryModelProtocol {
-    nonisolated public func eraseToAny() -> AnyConnectableDiscoveryModel<ID, S, M, Failure> {
+    nonisolated public func eraseToAny() -> AnyConnectableDiscoveryModel<Value, Failure> {
         AnyConnectableDiscoveryModel(self)
     }
 }
 
 
-public actor AnyConnectableDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error>: ConnectableDiscoveryModelProtocol {
-    public typealias ID = ID
-    public typealias S = S
-    public typealias M = M
+public actor AnyConnectableDiscoveryModel<Value, Failure: Error>: ConnectableDiscoveryModelProtocol {
+    public typealias Value = Value
     public typealias Failure = Failure
-    public typealias State = ConnectableDiscoveryModelState<ID, S, M, Failure>
     
-    private let base: any ConnectableDiscoveryModelProtocol<ID, S, M, Failure>
+    private let base: any ConnectableDiscoveryModelProtocol<Value, Failure>
     
-    public var state: State {
-        get async { await base.state }
-    }
+    nonisolated public var state: State { base.state }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
-    nonisolated public var initialState: State { base.initialState }
 
     
-    public init(_ base: any ConnectableDiscoveryModelProtocol<ID, S, M, Failure>) {
+    public init(_ base: any ConnectableDiscoveryModelProtocol<Value, Failure>) {
         self.base = base
     }
     
@@ -71,38 +70,30 @@ public actor AnyConnectableDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & 
 }
 
 
-public actor ConnectableDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Identifiable<ID>, Failure: Error>: ConnectableDiscoveryModelProtocol {
-    public typealias ID = ID
-    public typealias S = S
-    public typealias M = M
-    public typealias Failure = Failure
-    public typealias State = ConnectableDiscoveryModelState<ID, S, M, Failure>
+extension AnyConnectableDiscoveryModel where Value: CustomStringConvertible, Failure: CustomStringConvertible {
+    nonisolated public var description: String { state.description }
+}
 
-    private let discovery: any DiscoveryModelProtocol<ID, S, M, Failure>
+
+public actor ConnectableDiscoveryModel<Value, Failure: Error>: ConnectableDiscoveryModelProtocol {
+    public typealias Value = Value
+    public typealias Failure = Failure
+
+    private let discovery: any DiscoveryModelProtocol<Value, Failure>
     private let connection: any ConnectionModelProtocol
     private var discoveryRequested = false
     
-    public var state: State {
-        get async {
-            ConnectableDiscoveryModelState(
-                discovery: await discovery.state,
-                connection: await connection.state
-            )
-        }
+    nonisolated public var state: State {
+        ConnectableDiscoveryModelState(
+            discovery: discovery.state,
+            connection: connection.state
+        )
     }
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     private var cancellables = Set<AnyCancellable>()
     
-    nonisolated public var initialState: State {
-        ConnectableDiscoveryModelState(
-            discovery: discovery.initialState,
-            connection: connection.initialState
-        )
-    }
-    
-    
     public init(
-        discoveringBy discovery: any DiscoveryModelProtocol<ID, S, M, Failure>,
+        discoveringBy discovery: any DiscoveryModelProtocol<Value, Failure>,
         connectingBy connection: any ConnectionModelProtocol
     ) {
         self.discovery = discovery
@@ -144,7 +135,7 @@ public actor ConnectableDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Ide
     
     public func discover() {
         Task {
-            if await connection.state.isConnected {
+            if connection.state.isConnected {
                 await discovery.discover()
             } else {
                 self.discoveryRequested = true
@@ -164,7 +155,7 @@ public actor ConnectableDiscoveryModel<ID: Hashable, S, M: StateMachine<S> & Ide
     }
     
     
-    private func shouldDiscovery(_ state: ConnectableDiscoveryModelState<ID, S, M, Failure>) -> Bool {
+    private func shouldDiscovery(_ state: ConnectableDiscoveryModelState<Value, Failure>) -> Bool {
         let result = discoveryRequested && !state.discovery.isDiscovering && state.connection.isConnected
         if result {
             discoveryRequested = false

@@ -29,6 +29,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-testing.git", from: "0.10.0"),
     ],
     targets: [
+        .target(name: "ModelFoundation"),
         .target(
             name: "Catalogs",
             dependencies: [
@@ -81,6 +82,7 @@ let package = Package(
         .target(
             name: "Models",
             dependencies: [
+                .modelFoundation,
                 .logger,
                 .fuzi,
                 .concurrentCombine,
@@ -100,6 +102,7 @@ let package = Package(
         .target(
             name: "ModelStubs",
             dependencies: [
+                .modelFoundation,
                 .models,
                 .bleModelStub,
                 .catalogs,
@@ -112,6 +115,7 @@ let package = Package(
         .testTarget(
             name: "ModelTests",
             dependencies: [
+                .modelFoundation,
                 .logger,
                 .coreBluetoothStub,
                 .coreBluetoothTestable,
@@ -126,8 +130,9 @@ let package = Package(
         .target(
             name: "Views",
             dependencies: [
+                .modelFoundation,
+                .viewFoundation,
                 .previewHelper,
-                .viewExtensions,
                 .models,
                 .modelStubs,
                 .coreBluetoothTestable,
@@ -137,8 +142,9 @@ let package = Package(
             swiftSettings: SwiftSetting.allCases
         ),
         .target(
-            name: "ViewExtensions",
+            name: "ViewFoundation",
             dependencies: [
+                .modelFoundation,
                 .concurrentCombine,
             ],
             swiftSettings: SwiftSetting.allCases
@@ -152,8 +158,9 @@ let package = Package(
 
 private extension Target.Dependency {
     static let previewHelper: Self = "PreviewHelper"
-    static let viewExtensions: Self = "ViewExtensions"
+    static let viewFoundation: Self = "ViewFoundation"
     static let catalogs: Self = "Catalogs"
+    static let modelFoundation: Self = "ModelFoundation"
     static let models: Self = "Models"
     static let modelStubs: Self = "ModelStubs"
     static let logger: Self = .product(name: "Logger", package: "swift-logger")

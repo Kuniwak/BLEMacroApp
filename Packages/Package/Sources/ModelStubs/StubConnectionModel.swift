@@ -7,9 +7,7 @@ import Models
 
 
 public actor StubConnectionModel: ConnectionModelProtocol {
-    public var state: ConnectionModelState {
-        get async { stateDidChangeSubject.value }
-    }
+    nonisolated public var state: ConnectionModelState { stateDidChangeSubject.value }
     nonisolated public let stateDidChange: AnyPublisher<ConnectionModelState, Never>
     nonisolated public let stateDidChangeSubject: CurrentValueSubject<ConnectionModelState, Never>
     

@@ -3,20 +3,18 @@ import Logger
 import Models
 import ModelStubs
 import SFSymbol
-import ViewExtensions
+import ViewFoundation
 import PreviewHelper
 
 
 public struct PeripheralsView: View {
-    @ObservedObject private var projection: StateProjection<PeripheralSearchModelState>
-    private let model: any PeripheralSearchModelProtocol
+    @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     private let logger: any LoggerProtocol
     private let projectionLogger: PeripheralSearchModelLogger
     
     
     public init(observing model: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
-        self.projection = StateProjection.project(stateMachine: model)
-        self.model = model
+        self.binding = ViewBinding(source: model.eraseToAny())
         self.logger = logger
         self.projectionLogger = PeripheralSearchModelLogger(
             observing: model,
@@ -36,7 +34,7 @@ public struct PeripheralsView: View {
     
     private var content: some View {
         List {
-            switch projection.state.discovery {
+            switch binding.state.discovery {
             case .idle, .discovering(.none):
                 HStack {
                     Spacer()
@@ -47,16 +45,29 @@ public struct PeripheralsView: View {
                 HStack {
                     Spacer()
                     Text("Not Scanning.").foregroundStyle(Color(.weak))
-                    Button("Scan") { Task { await model.startScan() } }
+                    Button("Scan") { Task { await binding.source.startScan() } }
                         .foregroundStyle(.tint)
                     Spacer()
                 }
             case .discovering(.some(let peripherals)), .discovered(let peripherals):
-                PeripheralList(
-                    projecting: peripherals,
-                    stoppingScanningBy: model,
-                    loggingBy: logger
-                )
+               if peripherals.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text("No devices found")
+                        Spacer()
+                    }
+                    .foregroundStyle(Color(.weak))
+                } else {
+                    ForEach(peripherals) { peripheral in
+                        if peripheral.state.connection.canConnect {
+                            NavigationLink(destination: servicesView(peripheral)) {
+                                PeripheralRow(observing: peripheral)
+                            }
+                        } else {
+                            PeripheralRow(observing: peripheral)
+                        }
+                    }
+                }
             case .discoveryFailed(.unspecified(let error)):
                 HStack {
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
@@ -84,22 +95,35 @@ public struct PeripheralsView: View {
             }
         }
         .searchable(
-            text: ConcurrentValueSubjectBinding(model.searchQuery)
+            text: ProjectedValueSubjectBinding(binding.source.searchQuery)
                 .mapBind(\.rawValue, SearchQuery.init(rawValue:)),
             prompt: "Name or UUID or Manufacturer Name"
         )
     }
     
     
+    private func servicesView(_ peripheral: any PeripheralModelProtocol) -> some View {
+        let model = self.binding.source
+        return ServicesView(observing: peripheral, loggingBy: logger)
+            .onAppear() {
+                Task { await model.stopScan() }
+                Task { await peripheral.discover() }
+            }
+            .onDisappear() {
+                Task { await peripheral.disconnect() }
+            }
+    }
+
+    
     private var trailingNavigationBarItem: some View {
         HStack {
-            if projection.state.discovery.isScanning {
+            if binding.state.discovery.isScanning {
                 ProgressView()
-                Button("Stop", action: { Task { await model.stopScan() } })
-                    .disabled(!projection.state.discovery.canStopScan)
+                Button("Stop", action: { Task { await binding.source.stopScan() } })
+                    .disabled(!binding.state.discovery.canStopScan)
             } else {
-                Button("Scan", action: { Task { await model.startScan() } })
-                    .disabled(!projection.state.discovery.canStartScan)
+                Button("Scan", action: { Task { await binding.source.startScan() } })
+                    .disabled(!binding.state.discovery.canStartScan)
             }
         }
     }
@@ -111,16 +135,16 @@ internal struct PeripheralsView_Previews: PreviewProvider {
         let discoveryStates: [PeripheralDiscoveryModelState] = [
             .idle,
             .ready,
-            .discovering(StateMachineArray([])),
-            .discovering(StateMachineArray([
+            .discovering([]),
+            .discovering([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ])),
-            .discovered(StateMachineArray([])),
-            .discovered(StateMachineArray([
+            ]),
+            .discovered([]),
+            .discovered([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ])),
+            ]),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unspecified("Something went wrong"))

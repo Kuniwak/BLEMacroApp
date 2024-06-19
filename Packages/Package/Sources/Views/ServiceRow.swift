@@ -1,21 +1,22 @@
 import SwiftUI
 import Models
 import ModelStubs
+import ViewFoundation
 import PreviewHelper
 
 
 public struct ServiceRow: View {
-    @ObservedObject private var projected: StateProjection<ServiceModelState>
+    @ObservedObject private var binding: ViewBinding<ServiceModelState, AnyServiceModel>
     
     
     public init(observing model: any ServiceModelProtocol) {
-        self.projected = StateProjection.project(stateMachine: model)
+        self.binding = ViewBinding(source: model.eraseToAny())
     }
     
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let name = projected.state.name {
+            if let name = binding.state.name {
                 Text(name)
                     .font(.headline)
                     .foregroundStyle(Color(.normal))
@@ -25,7 +26,7 @@ public struct ServiceRow: View {
                     .foregroundStyle(Color(.weak))
             }
             
-            Text(projected.state.uuid.uuidString)
+            Text(binding.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))

@@ -1,17 +1,16 @@
 import Combine
+import ModelFoundation
 import Models
 
 
 
 public actor StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
-    nonisolated public let initialState: State
+    nonisolated public var state: State { stateDidChangeSubject.value }
     nonisolated public let stateDidChangeSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<Models.PeripheralDiscoveryModelState, Never>
 
     
     public init(state: PeripheralDiscoveryModelState = .makeStub()) {
-        self.initialState = state
-        
         let stateDidChangeSubject = CurrentValueSubject<PeripheralDiscoveryModelState, Never>(state)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
@@ -29,9 +28,9 @@ extension PeripheralDiscoveryModelState {
     }
     
     public static func makeSuccessfulStub() -> Self {
-        .discovered(StateMachineArray([
+        .discovered([
             StubPeripheralModel().eraseToAny(),
             StubPeripheralModel().eraseToAny()
-        ]))
+        ])
     }
 }

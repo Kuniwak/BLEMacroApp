@@ -4,11 +4,12 @@ import Logger
 import Models
 import ModelStubs
 import PreviewHelper
+import ViewFoundation
 import SFSymbol
 
 
 public struct ServicesView: View {
-    @ObservedObject private var projected: StateProjection<PeripheralModelState>
+    @ObservedObject private var binding: ViewBinding<PeripheralModelState, AnyPeripheralModel>
     private let model: any PeripheralModelProtocol
     private let logger: any LoggerProtocol
     private let modelLogger: PeripheralModelLogger
@@ -16,7 +17,7 @@ public struct ServicesView: View {
     
     
     public init(observing model: any PeripheralModelProtocol, loggingBy logger: any LoggerProtocol) {
-        self.projected = StateProjection<PeripheralModelState>.project(stateMachine: model)
+        self.binding = ViewBinding(source: model.eraseToAny())
         self.model = model
         self.logger = logger
         self.modelLogger = PeripheralModelLogger(observing: model, loggingBy: logger)
@@ -25,7 +26,7 @@ public struct ServicesView: View {
     
     public var body: some View {
         List {
-            switch projected.state.connection {
+            switch binding.state.connection {
             case .notConnectable:
                 HStack {
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
@@ -34,9 +35,16 @@ public struct ServicesView: View {
                         .foregroundStyle(Color(.error))
                 }
             case .connected, .connecting, .connectionFailed, .disconnected, .disconnecting:
-                if let services = projected.state.discovery.values {
-                    ServiceList(observing: services)
-                } else if projected.state.discovery.isDiscovering {
+                if let services = binding.state.discovery.values {
+                    if services.isEmpty {
+                        Text("No Services")
+                            .foregroundStyle(Color(.weak))
+                    } else {
+                        ForEach(services) { service in
+                            ServiceRow(observing: service)
+                        }
+                    }
+                } else if binding.state.discovery.isDiscovering {
                     Text("Discovering...")
                 } else {
                     Button("Discover") {
@@ -51,7 +59,7 @@ public struct ServicesView: View {
     
     
     private var name: String {
-        switch projected.state.name {
+        switch binding.state.name {
         case .success(.some(let name)):
             return name
         case .success(.none):
@@ -64,11 +72,11 @@ public struct ServicesView: View {
     
     private var trailingNavigationBarItem: some View {
         Group {
-            if projected.state.connection.canConnect {
+            if binding.state.connection.canConnect {
                 Button("Connect") {
                     Task { await model.connect() }
                 }
-            } else if projected.state.connection.isConnected {
+            } else if binding.state.connection.isConnected {
                 Button("Disconnect") {
                     Task { await model.disconnect() }
                 }
@@ -84,7 +92,7 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
     let discovery: [ServiceDiscoveryModelState] = [
         .notDiscoveredYet,
         .discovering(nil),
-        .discovered(StateMachineArray([])),
+        .discovered([]),
     ]
     
     let names: [Result<String?, ConnectionModelFailure>] = [
@@ -110,10 +118,10 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
             rssi: .success(-50),
             manufacturerData: nil,
             connection: .connected,
-            discovery: .discovered(StateMachineArray([
+            discovery: .discovered([
                 StubServiceModel(state: .makeSuccessfulStub()).eraseToAny(),
                 StubServiceModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ]))
+            ])
         )
     }
     

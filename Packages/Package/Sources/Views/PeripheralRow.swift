@@ -8,22 +8,23 @@ import CoreBluetoothTestable
 import CoreBluetoothStub
 import Models
 import ModelStubs
+import ViewFoundation
 import PreviewHelper
 
 
 public struct PeripheralRow: View {
-    @ObservedObject private var projected: StateProjection<PeripheralModelState>
+    @ObservedObject private var binding: ViewBinding<PeripheralModelState, AnyPeripheralModel>
     
     
     public init(observing model: any PeripheralModelProtocol) {
-        self.projected = StateProjection.project(stateMachine: model)
+        self.binding = ViewBinding(source: model.eraseToAny())
     }
 
     
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                switch projected.state.name {
+                switch binding.state.name {
                 case .success(let name):
                     if let name {
                         Text(name)
@@ -40,13 +41,13 @@ public struct PeripheralRow: View {
                         .foregroundStyle(Color(.error))
                 }
                 Spacer()
-                RSSIView(rssi: projected.state.rssi)
+                RSSIView(rssi: binding.state.rssi)
             }
-            Text(projected.state.uuid.uuidString)
+            Text(binding.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
-            switch projected.state.manufacturerData {
+            switch binding.state.manufacturerData {
             case .some(.knownName(let manufacturerName, let data)):
                 Text("Manufacturer: \(manufacturerName) - \(HexEncoding.upper.encode(data: data))")
                     .font(.footnote)

@@ -1,10 +1,11 @@
 import Foundation
 import Combine
+import ConcurrentCombine
 import BLEInternal
 import CoreBluetooth
 import CoreBluetoothTestable
+import ModelFoundation
 import Catalogs
-import ConcurrentCombine
 
 
 public struct ConnectionModelFailure: Error, Equatable, CustomStringConvertible {
@@ -101,9 +102,7 @@ extension ConnectionModelState: CustomStringConvertible {
 }
 
 
-public protocol ConnectionModelProtocol: StateMachine, Identifiable where State == ConnectionModelState {
-    var state: State { get async }
-    
+public protocol ConnectionModelProtocol: StateMachineProtocol, Identifiable where State == ConnectionModelState {
     func connect()
     func disconnect()
 }
@@ -119,11 +118,8 @@ extension ConnectionModelProtocol {
 public actor AnyConnectionModel: ConnectionModelProtocol {
     private let base: any ConnectionModelProtocol
     
-    public var state: ConnectionModelState {
-        get async { await base.state }
-    }
-    nonisolated public var stateDidChange: AnyPublisher<ConnectionModelState, Never> { base.stateDidChange }
-    nonisolated public var initialState: ConnectionModelState { base.initialState }
+    nonisolated public var state: State { base.state }
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
 
     
     public init(_ base: any ConnectionModelProtocol) {
@@ -164,11 +160,8 @@ public actor ConnectionModel: ConnectionModelProtocol {
     private let centralManager: any CentralManagerProtocol
     nonisolated public let id: UUID
     
-    public var state: ConnectionModelState {
-        get async { await stateDidChangeSubject.value }
-    }
-    
-    private let stateDidChangeSubject: ConcurrentValueSubject<ConnectionModelState, Never>
+    nonisolated public var state: ConnectionModelState { stateDidChangeSubject.projected }
+    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<ConnectionModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<ConnectionModelState, Never>
     
     private var cancellables = Set<AnyCancellable>()
@@ -187,7 +180,7 @@ public actor ConnectionModel: ConnectionModelProtocol {
         
         let initialState: State = .initialState(isConnectable: isConnectable) // T1, T2
         self.initialState = initialState
-        let didUpdateSubject = ConcurrentValueSubject<ConnectionModelState, Never>(initialState)
+        let didUpdateSubject = ProjectedValueSubject<ConnectionModelState, Never>(initialState)
         self.stateDidChangeSubject = didUpdateSubject
         self.stateDidChange = didUpdateSubject.eraseToAnyPublisher()
         

@@ -4,29 +4,19 @@ import ConcurrentCombine
 
 
 
-public class ConcurrentValueSubjectBinding<Value> {
+public class ProjectedValueSubjectBinding<Value> {
     private var cancellables = Set<AnyCancellable>()
-    private var projected: Value
-    private var subject: ConcurrentValueSubject<Value, Never>
+    private var subject: ProjectedValueSubject<Value, Never>
     
     
-    public init(_ subject: ConcurrentValueSubject<Value, Never>) {
-        self.projected = subject.initialValue
+    public init(_ subject: ProjectedValueSubject<Value, Never>) {
         self.subject = subject
-        
-        subject
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] value in
-                guard let self else { return }
-                self.projected = value
-            }
-            .store(in: &cancellables)
     }
     
     
     public func mapBind<NewValue>(_ get: @escaping (Value) -> (NewValue), _ set: @escaping (NewValue) -> (Value)) -> Binding<NewValue> {
         Binding(
-            get: { [self] in get(self.projected) },
+            get: { [self] in get(self.subject.projected) },
             set: { [self] newValue in
                 Task {
                     await self.subject.change { value in
@@ -40,7 +30,7 @@ public class ConcurrentValueSubjectBinding<Value> {
     
     public func bind() -> Binding<Value> {
         Binding(
-            get: { [self] in self.projected },
+            get: { [self] in self.subject.projected },
             set: { [self] newValue in
                 Task {
                     await self.subject.change { _ in

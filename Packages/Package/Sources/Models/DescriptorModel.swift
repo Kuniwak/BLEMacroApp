@@ -3,6 +3,7 @@ import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
 import Catalogs
+import ModelFoundation
 
 
 public struct DescriptorModelFailure: Error, CustomStringConvertible {
@@ -80,9 +81,7 @@ extension DescriptorModelState: CustomDebugStringConvertible {
 }
 
 
-public protocol DescriptorModelProtocol: StateMachine, Identifiable<CBUUID> where State == DescriptorModelState {
-    var state: DescriptorModelState { get async }
-    
+public protocol DescriptorModelProtocol: StateMachineProtocol<DescriptorModelState>, Identifiable<CBUUID>, CustomStringConvertible {
     func read()
     func write(value: Data)
 }
@@ -96,12 +95,10 @@ extension DescriptorModelProtocol {
 
 
 public actor AnyDescriptorModel: DescriptorModelProtocol {
-    public var state: DescriptorModelState {
-        get async { await base.state }
-    }
+    nonisolated public var state: DescriptorModelState { base.state }
     
     nonisolated public var id: CBUUID { base.id }
-    nonisolated public var initialState: DescriptorModelState { base.initialState }
+    nonisolated public var description: String { base.description }
 
     private let base: any DescriptorModelProtocol
 
@@ -128,13 +125,8 @@ public actor DescriptorModel: DescriptorModelProtocol {
     private let peripheral: any PeripheralProtocol
     nonisolated public let id: CBUUID
     
-    public var state: DescriptorModelState {
-        get async { await stateDidChangeSubject.value }
-    }
-    
-    nonisolated public let initialState: DescriptorModelState
-    
-    private let stateDidChangeSubject: ConcurrentValueSubject<DescriptorModelState, Never>
+    nonisolated public var state: DescriptorModelState { stateDidChangeSubject.projected }
+    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<DescriptorModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<DescriptorModelState, Never>
 
     private var cancellables = Set<AnyCancellable>()
@@ -144,13 +136,11 @@ public actor DescriptorModel: DescriptorModelProtocol {
         representing descriptor: any DescriptorProtocol,
         onPeripheral peripheral: any PeripheralProtocol
    ) {
-       self.initialState = initialState
-       
        self.descriptor = descriptor
        self.peripheral = peripheral
        self.id = descriptor.uuid
        
-       let stateDidChangeSubject = ConcurrentValueSubject<DescriptorModelState, Never>(initialState)
+       let stateDidChangeSubject = ProjectedValueSubject<DescriptorModelState, Never>(initialState)
        self.stateDidChangeSubject = stateDidChangeSubject
        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
        
@@ -191,4 +181,9 @@ public actor DescriptorModel: DescriptorModelProtocol {
     public func write(value: Data) {
         peripheral.writeValue(value, for: descriptor)
     }
+}
+
+
+extension DescriptorModel: CustomStringConvertible {
+    nonisolated public var description: String { state.description }
 }

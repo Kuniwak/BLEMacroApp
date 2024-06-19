@@ -6,9 +6,7 @@ import Models
 
 
 public actor StubDescriptorModel: DescriptorModelProtocol {
-    public var state: DescriptorModelState {
-        get async { stateDidChangeSubject.value }
-    }
+    nonisolated public var state: DescriptorModelState { stateDidChangeSubject.value }
     
     nonisolated public let stateDidChangeSubject: CurrentValueSubject<DescriptorModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<DescriptorModelState, Never>
@@ -29,6 +27,11 @@ public actor StubDescriptorModel: DescriptorModelProtocol {
     
     public func read() {}
     public func write(value: Data) {}
+}
+
+
+extension StubDescriptorModel: CustomStringConvertible {
+    nonisolated public var description: String { state.description }
 }
 
 

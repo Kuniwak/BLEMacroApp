@@ -1,8 +1,9 @@
 import Combine
 import CoreBluetooth
 import CoreBluetoothTestable
-import Catalogs
 import CoreBluetoothTasks
+import ModelFoundation
+import Catalogs
 
 
 public struct ServiceModelFailure: Error, CustomStringConvertible {
@@ -29,8 +30,7 @@ public struct ServiceModelFailure: Error, CustomStringConvertible {
 }
 
 
-public typealias CharacteristicDiscoveryModelState = DiscoveryModelState<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>
-public typealias CharacteristicsModel = StateMachineArray<CBUUID, CharacteristicModelState, AnyCharacteristicModel>
+public typealias CharacteristicDiscoveryModelState = DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>
 
 
 public struct ServiceModelState {
@@ -61,7 +61,7 @@ extension ServiceModelState: CustomStringConvertible {
 }
 
 
-public protocol ServiceModelProtocol: StateMachine, Identifiable<CBUUID> where State == ServiceModelState {
+public protocol ServiceModelProtocol: StateMachineProtocol<ServiceModelState>, Identifiable<CBUUID>, CustomStringConvertible {
     func discover()
     func connect()
     func disconnect()
@@ -78,9 +78,10 @@ extension ServiceModelProtocol {
 public actor AnyServiceModel: ServiceModelProtocol {
     private let base: any ServiceModelProtocol
     
-    nonisolated public var id: CBUUID { base.id }
-    nonisolated public var initialState: ServiceModelState { base.initialState }
-    nonisolated public var stateDidChange: AnyPublisher<ServiceModelState, Never> { base.stateDidChange }
+    nonisolated public var id: ID { base.id }
+    nonisolated public var description: String { base.description }
+    nonisolated public var state: State { base.state }
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
     
     
     public init(_ base: any ServiceModelProtocol) {
@@ -105,10 +106,18 @@ public actor AnyServiceModel: ServiceModelProtocol {
 
 
 public actor ServiceModel: ServiceModelProtocol {
-    private let model: ConnectableDiscoveryModel<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>
+    private let model: ConnectableDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>
     
-    nonisolated public let initialState: State
-    nonisolated public let stateDidChange: AnyPublisher<ServiceModelState, Never>
+    nonisolated private let name: String?
+    nonisolated public var state: State {
+        ServiceModelState(
+            uuid: id,
+            name: name,
+            discovery: model.state.discovery,
+            connection: model.state.connection
+        )
+    }
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
     nonisolated public let id: CBUUID
     
@@ -120,26 +129,17 @@ public actor ServiceModel: ServiceModelProtocol {
     ) {
         self.id = service.uuid
         
-        let discoveryModel = DiscoveryModel<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>(
-            discoveringBy: characteristicDiscoveryStrategy(
-                forService: service,
-                onPeripheral: peripheral,
-                connectingBy: connectionModel
-            )
-        )
-        
         let name = ServiceCatalog.from(cbuuid: service.uuid)?.name
+        self.name = name
         
-        let initialState: State = .init(
-            uuid: service.uuid,
-            name: name,
-            discovery: discoveryModel.initialState,
-            connection: connectionModel.initialState
-        )
-        self.initialState = initialState
-        
-        let model = ConnectableDiscoveryModel<CBUUID, CharacteristicModelState, AnyCharacteristicModel, ServiceModelFailure>(
-            discoveringBy: discoveryModel,
+        let model = ConnectableDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>(
+            discoveringBy: DiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>(
+                discoveringBy: characteristicDiscoveryStrategy(
+                    forService: service,
+                    onPeripheral: peripheral,
+                    connectingBy: connectionModel
+                )
+            ),
             connectingBy: connectionModel
         )
         self.model = model
@@ -192,4 +192,9 @@ private func characteristicDiscoveryStrategy(
             }
             .mapError(ServiceModelFailure.init(wrapping:))
     }
+}
+
+
+extension ServiceModel: CustomStringConvertible {
+    nonisolated public var description: String { state.description }
 }

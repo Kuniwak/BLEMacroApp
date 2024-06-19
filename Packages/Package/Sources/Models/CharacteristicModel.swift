@@ -2,6 +2,7 @@ import Combine
 import CoreBluetooth
 import CoreBluetoothTestable
 import CoreBluetoothTasks
+import ModelFoundation
 import Catalogs
 
 
@@ -29,8 +30,7 @@ public struct CharacteristicModelFailure: Error, CustomStringConvertible {
 }
 
 
-public typealias DescriptorDiscoveryModelState = DiscoveryModelState<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure>
-public typealias DescriptorsModel = StateMachineArray<CBUUID, DescriptorModelState, AnyDescriptorModel>
+public typealias DescriptorDiscoveryModelState = DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure>
 
 
 public struct CharacteristicModelState {
@@ -61,7 +61,7 @@ extension CharacteristicModelState: CustomStringConvertible {
 }
 
 
-public protocol CharacteristicModelProtocol: StateMachine<CharacteristicModelState>, Identifiable<CBUUID> {
+public protocol CharacteristicModelProtocol: StateMachineProtocol<CharacteristicModelState>, Identifiable<CBUUID>, CustomStringConvertible {
     func discover()
     func connect()
     func disconnect()
@@ -78,9 +78,10 @@ extension CharacteristicModelProtocol {
 public actor AnyCharacteristicModel: CharacteristicModelProtocol {
     private let base: any CharacteristicModelProtocol
     
-    nonisolated public var initialState: State { base.initialState }
+    nonisolated public var state: State { base.state }
     nonisolated public var id: CBUUID { base.id }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
+    nonisolated public var description: String { base.description }
     
     
     public init(_ base: any CharacteristicModelProtocol) {
@@ -105,35 +106,34 @@ public actor AnyCharacteristicModel: CharacteristicModelProtocol {
 
 
 public actor CharacteristicModel: CharacteristicModelProtocol {
-    private let model: any ConnectableDiscoveryModelProtocol<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure>
+    private let model: any ConnectableDiscoveryModelProtocol<AnyDescriptorModel, CharacteristicModelFailure>
     nonisolated public let id: CBUUID
     
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
-    nonisolated public let initialState: State
+    nonisolated public var state: State {
+        CharacteristicModelState(
+            uuid: id,
+            name: CharacteristicCatalog.from(cbuuid: id)?.name,
+            connection: model.state.connection,
+            discovery: model.state.discovery
+        )
+    }
+    nonisolated public var description: String { state.description }
     
     public init(
         characteristic: any CharacteristicProtocol,
         onPeripheral peripheral: any PeripheralProtocol,
         connectingBy connectionModel: any ConnectionModelProtocol
     ) {
-        let discoveryModel = DiscoveryModel<CBUUID, DescriptorModelState, AnyDescriptorModel, CharacteristicModelFailure>(
+        self.id = characteristic.uuid
+        
+        let discoveryModel = DiscoveryModel<AnyDescriptorModel, CharacteristicModelFailure>(
             discoveringBy: descriptorDiscoveryStrategy(
                 forCharacteristic: characteristic,
                 onPeripheral: peripheral
             )
         )
         
-        let name = CharacteristicCatalog.from(cbuuid: characteristic.uuid)?.name
-        
-        let initialState: State = .init(
-            uuid: characteristic.uuid,
-            name: name,
-            connection: connectionModel.initialState,
-            discovery: discoveryModel.initialState
-        )
-        self.initialState = initialState
-        
-        self.id = characteristic.uuid
         let model = ConnectableDiscoveryModel(
             discoveringBy: discoveryModel,
             connectingBy: connectionModel
@@ -144,7 +144,7 @@ public actor CharacteristicModel: CharacteristicModelProtocol {
             .map { state in
                 CharacteristicModelState(
                     uuid: characteristic.uuid,
-                    name: name,
+                    name: CharacteristicCatalog.from(cbuuid: characteristic.uuid)?.name,
                     connection: state.connection,
                     discovery: state.discovery
                 )

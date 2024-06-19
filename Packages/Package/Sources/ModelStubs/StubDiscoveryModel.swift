@@ -2,7 +2,7 @@ import Models
 import CoreBluetooth
 
 
-extension DiscoveryModelState where ID == CBUUID, S == ServiceModelState, M == AnyServiceModel, E == PeripheralModelFailure {
+extension DiscoveryModelState where Value == AnyServiceModel, Failure == PeripheralModelFailure {
     public static func makeStub() -> Self {
         .discoveryFailed(
             .init(description: "TEST"),
@@ -12,15 +12,15 @@ extension DiscoveryModelState where ID == CBUUID, S == ServiceModelState, M == A
     
     
     public static func makeSuccessfulStub() -> Self {
-        .discovered(StateMachineArray([
+        .discovered([
             StubServiceModel(state: .makeSuccessfulStub()).eraseToAny(),
             StubServiceModel(state: .makeSuccessfulStub()).eraseToAny(),
-        ]))
+        ])
     }
 }
 
 
-extension DiscoveryModelState where ID == CBUUID, S == CharacteristicModelState, M == AnyCharacteristicModel, E == ServiceModelFailure {
+extension DiscoveryModelState where Value == AnyCharacteristicModel, Failure == ServiceModelFailure {
     public static func makeStub() -> Self {
         .discoveryFailed(
             .init(description: "TEST"),
@@ -30,15 +30,15 @@ extension DiscoveryModelState where ID == CBUUID, S == CharacteristicModelState,
     
     
     public static func makeSuccessfulStub() -> Self {
-        .discovered(StateMachineArray([
+        .discovered([
             StubCharacteristicModel(state: .makeSuccessfulStub()).eraseToAny(),
             StubCharacteristicModel(state: .makeSuccessfulStub()).eraseToAny(),
-        ]))
+        ])
     }
 }
 
 
-extension DiscoveryModelState where ID == CBUUID, S == DescriptorModelState, M == AnyDescriptorModel, E == CharacteristicModelFailure {
+extension DiscoveryModelState where Value == AnyDescriptorModel, Failure == CharacteristicModelFailure {
     public static func makeStub() -> Self {
         .discoveryFailed(
             .init(description: "TEST"),
@@ -48,9 +48,9 @@ extension DiscoveryModelState where ID == CBUUID, S == DescriptorModelState, M =
     
     
     public static func makeSuccessfulStub() -> Self {
-        .discovered(StateMachineArray([
+        .discovered([
             StubDescriptorModel(state: .makeStub()).eraseToAny(),
             StubDescriptorModel(state: .makeStub()).eraseToAny(),
-        ]))
+        ])
     }
 }

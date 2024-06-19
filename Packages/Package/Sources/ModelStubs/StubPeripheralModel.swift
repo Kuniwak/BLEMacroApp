@@ -3,27 +3,22 @@ import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothStub
 import Models
+import ModelFoundation
 import Catalogs
 
 
 public actor StubPeripheralModel: PeripheralModelProtocol {
-    nonisolated public let initialState: State
-    
     nonisolated public let id: UUID
     
-    public var state: State {
-        get async { await stateDidChangeSubject.value }
-    }
-    public let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
+    nonisolated public var state: State { stateDidChangeSubject.projected }
+    nonisolated public let stateDidChangeSubject: ProjectedValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
     
     public init(state: State = .makeStub(), identifiedBy uuid: UUID = StubUUID.zero) {
-        self.initialState = state
-        
         self.id = uuid
         
-        let stateDidChangeSubject = ConcurrentValueSubject<State, Never>(state)
+        let stateDidChangeSubject = ProjectedValueSubject<State, Never>(state)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }
@@ -43,7 +38,7 @@ extension PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         manufacturerData: ManufacturerData? = nil,
         connection: ConnectionModelState = .makeStub(),
-        discovery: DiscoveryModelState<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
+        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
     ) -> Self {
         .init(
             uuid: uuid,
@@ -62,10 +57,10 @@ extension PeripheralModelState {
         rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
         manufacturerData: ManufacturerData? = nil,
         connection: ConnectionModelState = .makeSuccessfulStub(),
-        discovery: DiscoveryModelState<CBUUID, ServiceModelState, AnyServiceModel, PeripheralModelFailure> = .discovered(StateMachineArray([
+        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discovered([
             StubServiceModel().eraseToAny(),
             StubServiceModel().eraseToAny(),
-        ]))
+        ])
     ) -> Self {
         .init(
             uuid: uuid,
