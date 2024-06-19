@@ -1,4 +1,5 @@
 import Combine
+import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
 
@@ -27,11 +28,6 @@ public enum DiscoveryModelState<V, E: Error> {
         case .discovered, .notDiscoveredYet, .discoveryFailed:
             return false
         }
-    }
-    
-    
-    public static func initialState() -> Self {
-        return .notDiscoveredYet
     }
 }
 
@@ -96,11 +92,10 @@ extension DiscoveryModelState: CustomDebugStringConvertible where E: CustomStrin
 }
 
 
-public protocol DiscoveryModelProtocol<Value, Error>: Actor, Identifiable<CBUUID>, ObservableObject where ObjectWillChangePublisher == AnyPublisher<Void, Never> {
+public protocol DiscoveryModelProtocol<Value, Error>: StateMachine, Identifiable<CBUUID> where State == DiscoveryModelState<Value, Error> {
     associatedtype Value
     associatedtype Error: Swift.Error
     
-    nonisolated var stateDidUpdate: AnyPublisher<DiscoveryModelState<Value, Error>, Never> { get }
     func discover()
 }
 
@@ -115,6 +110,8 @@ extension DiscoveryModelProtocol {
 public actor AnyDiscoveryModel<Value, Error: Swift.Error>: DiscoveryModelProtocol {
     private let base: any DiscoveryModelProtocol<Value, Error>
     
+    nonisolated public var initialState: State { base.initialState }
+
     public init(_ base: any DiscoveryModelProtocol<Value, Error>) {
         self.base = base
     }
@@ -129,13 +126,6 @@ public actor AnyDiscoveryModel<Value, Error: Swift.Error>: DiscoveryModelProtoco
 }
 
 
-extension AnyDiscoveryModel: ObservableObject {
-    nonisolated public var objectWillChange: AnyPublisher<Void, Never> {
-        base.objectWillChange
-    }
-}
-
-
 extension AnyDiscoveryModel: Identifiable {
     nonisolated public var id: CBUUID {
         base.id
@@ -144,15 +134,19 @@ extension AnyDiscoveryModel: Identifiable {
 
 
 public actor DiscoveryModel<Value, Failure: Error & CustomStringConvertible>: DiscoveryModelProtocol {
+    public typealias Value = Value
+    public typealias Error = Failure
+    public typealias State = DiscoveryModelState<Value, Failure>
+    
     private let peripheral: any PeripheralProtocol
-    
-    nonisolated public let id: CBUUID
-    nonisolated public let objectWillChange: AnyPublisher<Void, Never>
-
-    nonisolated private let stateDidUpdateSubject: ConcurrentValueSubject<DiscoveryModelState<Value, Failure>, Never>
-    nonisolated public let stateDidUpdate: AnyPublisher<DiscoveryModelState<Value, Failure>, Never>
-    
     private let discoverStrategy: (any PeripheralProtocol) async -> Result<[Value], Failure>
+
+    nonisolated public let id: CBUUID
+
+    private let stateDidUpdateSubject: ConcurrentValueSubject<State, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
+    
+    nonisolated public let initialState: State
 
 
     public init(
@@ -164,10 +158,11 @@ public actor DiscoveryModel<Value, Failure: Error & CustomStringConvertible>: Di
         self.peripheral = peripheral
         self.discoverStrategy = discoverStrategy
         
-        let initialState = DiscoveryModelState<Value, Failure>.initialState()
+        let initialState: State = .notDiscoveredYet
+        self.initialState = initialState
+        
         self.stateDidUpdateSubject = ConcurrentValueSubject(initialState)
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-        self.objectWillChange = stateDidUpdateSubject.map { _ in () }.eraseToAnyPublisher()
     }
     
     

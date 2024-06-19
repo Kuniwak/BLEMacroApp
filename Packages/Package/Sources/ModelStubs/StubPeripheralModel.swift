@@ -7,35 +7,29 @@ import Models
 
 
 public actor StubPeripheralModel: PeripheralModelProtocol {
-    nonisolated public var state: PeripheralModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            stateDidUpdateSubject.value = newValue
-        }
+    public var state: PeripheralModelState {
+        get async { stateDidUpdateSubject.value }
     }
     nonisolated public let stateDidUpdate: AnyPublisher<PeripheralModelState, Never>
     nonisolated public let stateDidUpdateSubject: CurrentValueSubject<PeripheralModelState, Never>
     
+    nonisolated public let id: UUID
+    nonisolated public let initialState: PeripheralModelState
+    
     
     public init(state: PeripheralModelState = .makeStub()) {
+        self.initialState = state
+        self.id = state.uuid
+        
         let stateDidUpdateSubject = CurrentValueSubject<PeripheralModelState, Never>(state)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
     }
     
     
-    public func connect() {
-    }
-    
-    
-    public func disconnect() {
-    }
-    
-    
-    public func discoverServices() {
-    }
+    public func connect() {}
+    public func disconnect() {}
+    public func discoverServices() {}
 }
 
 

@@ -3,28 +3,27 @@ import Combine
 import Logger
 import Models
 import ModelStubs
+import SFSymbol
 
 
 public struct CharacteristicsView: View {
-    @ObservedObject private var model: AnyServiceModel
+    @ObservedObject private var model: StateProjection<ServiceModelState>
     private let modelLogger: ServiceModelLogger
     private let logger: any LoggerProtocol
     
     
     public init(
         observing model: any ServiceModelProtocol,
-        connecingBy peripheralModel: any PeripheralModel,
         loggingBy logger: any LoggerProtocol
     ) {
-        self.model = model.eraseToAny()
-        self.peripheralModel = peripheralModel.eraseToAny()
+        self.model = StateProjection(projecting: model)
         self.modelLogger = ServiceModelLogger(observing: model, loggingBy: logger)
     }
     
     
     public var body: some View {
         List {
-            switch model.state.characteristicsState {
+            switch model.state.discovery {
             case .notDiscoveredYet:
                 Text("Not discovered yet")
                     .foregroundStyle(Color(.weak))

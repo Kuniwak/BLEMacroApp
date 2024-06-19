@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
 
@@ -135,8 +136,7 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
 }
 
 
-public protocol PeripheralDiscoveryModelProtocol: Actor, ObservableObject where ObjectWillChangePublisher == AnyPublisher<Void, Never> {
-    nonisolated var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { get }
+public protocol PeripheralDiscoveryModelProtocol: StateMachine where State == PeripheralDiscoveryModelState {
     func startScan()
     func stopScan()
 }
@@ -152,8 +152,8 @@ extension PeripheralDiscoveryModelProtocol {
 public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let base: any PeripheralDiscoveryModelProtocol
     
-    nonisolated public var stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never> { base.stateDidUpdate }
-    nonisolated public var objectWillChange: AnyPublisher<Void, Never> { base.objectWillChange }
+    nonisolated public var initialState: State { base.initialState }
+    nonisolated public var stateDidUpdate: AnyPublisher<State, Never> { base.stateDidUpdate }
 
     
     public init(_ base: any PeripheralDiscoveryModelProtocol) {
@@ -176,9 +176,10 @@ public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
 public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let centralManager: any CentralManagerProtocol
     
+    nonisolated public let initialState: State
+    
     private let stateDidUpdateSubject: ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>
     nonisolated public let stateDidUpdate: AnyPublisher<PeripheralDiscoveryModelState, Never>
-    nonisolated public let objectWillChange: AnyPublisher<Void, Never>
     
     
     private var cancellables = Set<AnyCancellable>()
@@ -186,11 +187,12 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     
     public init(observing centralManager: any CentralManagerProtocol) {
         self.centralManager = centralManager
+        let initialState: State = .idle
+        self.initialState = initialState
         
-        let stateDidUpdateSubject = ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>(.idle)
+        let stateDidUpdateSubject = ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>(initialState)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-        self.objectWillChange = stateDidUpdateSubject.map { _ in () }.eraseToAnyPublisher()
         
         var mutableCancellables = Set<AnyCancellable>()
         

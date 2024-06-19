@@ -4,6 +4,7 @@ import BLEInternal
 import CoreBluetooth
 import CoreBluetoothTestable
 import Catalogs
+import ConcurrentCombine
 
 
 public struct PeripheralModelFailure: Error, Equatable, CustomStringConvertible {
@@ -206,8 +207,8 @@ extension PeripheralModelState: CustomDebugStringConvertible {
 }
 
 
-public protocol PeripheralModelProtocol: Actor, Identifiable, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {
-    nonisolated var stateDidUpdate: AnyPublisher<PeripheralModelState, Never> { get }
+public protocol PeripheralModelProtocol: StateMachine, Identifiable where State == PeripheralModelState {
+    var state: State { get async }
     
     func connect()
     func disconnect()
@@ -224,9 +225,12 @@ extension PeripheralModelProtocol {
 public actor AnyPeripheralModel: PeripheralModelProtocol {
     private let base: any PeripheralModelProtocol
     
+    public var state: PeripheralModelState {
+        get async { await base.state }
+    }
     nonisolated public var stateDidUpdate: AnyPublisher<PeripheralModelState, Never> { base.stateDidUpdate }
-    nonisolated public var objectWillChange: ObservableObjectPublisher { base.objectWillChange }
-    
+    nonisolated public var initialState: PeripheralModelState { base.initialState }
+
     
     public init(_ base: any PeripheralModelProtocol) {
         self.base = base
@@ -266,11 +270,16 @@ public actor PeripheralModel: PeripheralModelProtocol {
     private let centralManager: any CentralManagerProtocol
     nonisolated public let id: UUID
     
+    public var state: PeripheralModelState {
+        get async { await stateDidUpdateSubject.value }
+    }
+    
     private let stateDidUpdateSubject: ConcurrentValueSubject<PeripheralModelState, Never>
     nonisolated public let stateDidUpdate: AnyPublisher<PeripheralModelState, Never>
     
-    nonisolated public let objectWillChange = ObservableObjectPublisher()
     private var cancellables = Set<AnyCancellable>()
+    
+    nonisolated public let initialState: PeripheralModelState
     
     
     public init(
@@ -282,6 +291,7 @@ public actor PeripheralModel: PeripheralModelProtocol {
         self.peripheral = peripheral
         self.id = peripheral.identifier
         
+        self.initialState = initialState
         let didUpdateSubject = ConcurrentValueSubject<PeripheralModelState, Never>(initialState)
         self.stateDidUpdateSubject = didUpdateSubject
         self.stateDidUpdate = didUpdateSubject.eraseToAnyPublisher()

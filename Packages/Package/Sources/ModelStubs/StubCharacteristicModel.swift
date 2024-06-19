@@ -1,60 +1,77 @@
 import Combine
+import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothStub
 import Models
 
 
-public class StubCharacteristicModel: CharacteristicModelProtocol {
-    public let uuid: CBUUID
+public actor StubCharacteristicModel: CharacteristicModelProtocol {
+    nonisolated public let initialState: State
     
-    public var state: Models.CharacteristicModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            stateDidUpdateSubject.value = newValue
-        }
-    }
+    nonisolated public let id: CBUUID
     
-    public let stateDidUpdateSubject: CurrentValueSubject<CharacteristicModelState, Never>
-    public let stateDidUpdate: AnyPublisher<CharacteristicModelState, Never>
+    public let stateDidUpdateSubject: ConcurrentValueSubject<State, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
     
     
-    public init(state: CharacteristicModelState = .makeStub(), identifiedBy uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero)) {
-        let stateDidUpdateSubject = CurrentValueSubject<Models.CharacteristicModelState, Never>(state)
+    public init(state: State = .makeStub(), identifiedBy uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero)) {
+        self.initialState = state
+        
+        self.id = uuid
+        
+        let stateDidUpdateSubject = ConcurrentValueSubject<State, Never>(state)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-        self.uuid = uuid
     }
     
     
-    public func discoverDescriptors() {
-    }
-    
-    
-    public func refresh() {
-    }
+    public func discover() {}
+    public func connect() {}
+    public func disconnect() {}
 }
 
 
 extension CharacteristicModelState {
     public static func makeStub(
-        discoveryState: DescriptorDiscoveryState = .discoverFailed(.init(description: "TEST")),
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
-        name: String? = nil
+        name: String? = nil,
+        discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
+        peripheral: PeripheralModelState = .makeStub()
     ) -> Self {
-        .init(discoveryState: discoveryState, uuid: uuid, name: name)
+        .init(uuid: uuid, name: name, peripheral: peripheral, discovery: discovery)
     }
     
     
     public static func makeSuccessfulStub(
-        discoveryState: DescriptorDiscoveryState = .discovered([
+        uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
+        name: String? = "Example",
+        discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> = .discovered([
             StubDescriptorModel().eraseToAny(),
             StubDescriptorModel().eraseToAny(),
         ]),
-        uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
-        name: String? = nil
+        peripheral: PeripheralModelState = .makeStub()
     ) -> Self {
-        .init(discoveryState: discoveryState, uuid: uuid, name: name)
+        .init(uuid: uuid, name: name, peripheral: peripheral, discovery: discovery)
+    }
+}
+
+
+extension AttributeDiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> {
+    public static func makeStub(
+        discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
+        peripheral: PeripheralModelState = .makeStub()
+    ) -> Self {
+        .init(discovery: discovery, peripheral: peripheral)
+    }
+    
+    
+    public static func makeSuccessfulStub(
+        discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> = .discovered([
+                StubDescriptorModel().eraseToAny(),
+                StubDescriptorModel().eraseToAny(),
+            ]),
+        peripheral: PeripheralModelState = .makeStub()
+    ) -> Self {
+        .init(discovery: discovery, peripheral: peripheral)
     }
 }

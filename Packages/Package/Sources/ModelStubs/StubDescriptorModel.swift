@@ -5,41 +5,39 @@ import Models
 
 
 
-public class StubDescriptorModel: DescriptorModelProtocol {
-    public let uuid: CBUUID
-    
+public actor StubDescriptorModel: DescriptorModelProtocol {
     public var state: DescriptorModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            stateDidUpdateSubject.value = newValue
-        }
+        get async { stateDidUpdateSubject.value }
     }
     
-    public let stateDidUpdateSubject: CurrentValueSubject<DescriptorModelState, Never>
-    public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
+    nonisolated public let stateDidUpdateSubject: CurrentValueSubject<DescriptorModelState, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
     
+    nonisolated public let id: CBUUID
+    nonisolated public let initialState: DescriptorModelState
+
     
     public init(state: DescriptorModelState = .makeStub(), identifiedBy uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero)) {
+        self.initialState = state
+        self.id = uuid
+        
         let stateDidUpdateSubject = CurrentValueSubject<DescriptorModelState, Never>(state)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-        self.uuid = uuid
     }
     
     
-    public func refresh() {
-    }
+    public func read() {}
+    public func write(value: Data) {}
 }
 
 
 extension DescriptorModelState {
     public static func makeStub(
-        value: Result<Any?, DescriptorModelFailure> = .failure(.init(description: "TEST")),
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
-        name: String? = nil
+        name: String? = nil,
+        value: Result<Any?, DescriptorModelFailure> = .failure(.init(description: "TEST"))
     ) -> Self {
-        .init(value: value, uuid: uuid, name: name)
+        .init(uuid: uuid, name: name, value: value)
     }
 }

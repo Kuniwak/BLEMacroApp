@@ -6,6 +6,7 @@ let package = Package(
     name: "Package",
     platforms: [
         .iOS(.v17),
+        .macOS(.v14),
     ],
     products: [
         .library(
@@ -25,11 +26,13 @@ let package = Package(
         .package(url: "https://github.com/cezheng/Fuzi.git", .upToNextMajor(from: "3.1.3")),
         .package(url: "https://github.com/Kuniwak/MirrorDiffKit.git", .upToNextMajor(from: "6.0.0")),
         .package(url: "https://github.com/Nirma/SFSymbol.git", .upToNextMajor(from: "2.3.0")),
+        .package(url: "https://github.com/apple/swift-testing.git", .upToNextMajor(from: "0.10.0")),
     ],
     targets: [
         .target(
             name: "Catalogs",
             dependencies: [
+                .bleInternal,
                 .bleAssignedNumbers,
             ],
             swiftSettings: SwiftSetting.allCases
@@ -39,6 +42,7 @@ let package = Package(
             dependencies: [
                 .catalogs,
                 .bleAssignedNumbers,
+                .testing,
             ],
             swiftSettings: SwiftSetting.allCases
         ),
@@ -46,6 +50,7 @@ let package = Package(
             name: "CoreBluetoothTasks",
             dependencies: [
                 .coreBluetoothTestable,
+                .testing,
             ],
             swiftSettings: SwiftSetting.allCases
         ),
@@ -53,14 +58,36 @@ let package = Package(
             name: "ConcurrentCombine",
             swiftSettings: SwiftSetting.allCases
         ),
+        .testTarget(
+            name: "ConcurrentCombineTests",
+            dependencies: [
+                .concurrentCombine,
+                .taskExtensions,
+                .testing,
+            ],
+            swiftSettings: SwiftSetting.allCases
+        ),
+        .target(
+            name: "TaskExtensions",
+            swiftSettings: SwiftSetting.allCases
+        ),
+        .testTarget(
+            name: "TaskExtensionTests",
+            dependencies: [
+                .taskExtensions,
+                .testing,
+            ],
+            swiftSettings: SwiftSetting.allCases
+        ),
         .target(
             name: "Models",
             dependencies: [
                 .logger,
                 .fuzi,
+                .concurrentCombine,
+                .taskExtensions,
                 .coreBluetoothTestable,
                 .coreBluetoothTasks,
-                .concurrentCombine,
                 .bleAssignedNumbers,
                 .bleMacro,
                 .bleMacroCompiler,
@@ -93,6 +120,7 @@ let package = Package(
                 .models,
                 .modelStubs,
                 .mirrorDiffKit,
+                .testing,
             ],
             swiftSettings: SwiftSetting.allCases
         ),
@@ -134,6 +162,7 @@ private extension Target.Dependency {
     static let coreBluetoothStub: Self = .product(name: "CoreBluetoothStub", package: "core-bluetooth-testable")
     static let coreBluetoothTasks: Self = "CoreBluetoothTasks"
     static let concurrentCombine: Self = "ConcurrentCombine"
+    static let taskExtensions: Self = "TaskExtensions"
     static let bleAssignedNumbers: Self = .product(name: "BLEAssignedNumbers", package: "swift-ble-assigned-numbers")
     static let bleMacro: Self = .product(name: "BLEMacro", package: "swift-ble-macro")
     static let bleCommand: Self = .product(name: "BLECommand", package: "swift-ble-macro")
@@ -145,6 +174,7 @@ private extension Target.Dependency {
     static let mirrorDiffKit: Self = .product(name: "MirrorDiffKit", package: "MirrorDiffKit")
     static let fuzi: Self = .product(name: "Fuzi", package: "Fuzi")
     static let sfSymbol: Self = "SFSymbol"
+    static let testing: Self = .product(name: "Testing", package: "swift-testing")
 }
 
 

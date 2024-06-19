@@ -5,11 +5,11 @@ import PreviewHelper
 
 
 public struct ServiceRow: View {
-    @ObservedObject private var model: AnyServiceModel
+    @ObservedObject private var model: StateProjection<ServiceModelState>
     
     
     public init(observing model: any ServiceModelProtocol) {
-        self.model = model.eraseToAny()
+        self.model = StateProjection(projecting: model)
     }
     
     
@@ -25,7 +25,7 @@ public struct ServiceRow: View {
                     .foregroundStyle(Color(.weak))
             }
             
-            Text(model.uuid.uuidString)
+            Text(model.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
@@ -39,8 +39,8 @@ public struct ServiceRow: View {
         .map { name -> AnyServiceModel in
             StubServiceModel(
                 state: .makeStub(
-                    discoveryState: .notDiscoveredYet,
-                    name: name
+                    name: name,
+                    discovery: .notDiscoveredYet
                 )
             ).eraseToAny()
         }

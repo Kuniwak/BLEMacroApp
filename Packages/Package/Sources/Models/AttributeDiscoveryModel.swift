@@ -5,19 +5,84 @@ import CoreBluetooth
 public struct AttributeDiscoveryModelState<Attribute, Failure: Error> {
     public let discovery: DiscoveryModelState<Attribute, Failure>
     public let peripheral: PeripheralModelState
+    
+    
+    public init(discovery: DiscoveryModelState<Attribute, Failure>, peripheral: PeripheralModelState) {
+        self.discovery = discovery
+        self.peripheral = peripheral
+    }
 }
 
 
-public actor AttributeDiscoveryModel<Attribute, Failure: Error>: Identifiable, ObservableObject {
+public protocol AttributeDiscoveryModelProtocol<Attribute, Failure>: StateMachine, Identifiable<CBUUID> where State == AttributeDiscoveryModelState<Attribute, Failure> {
+    associatedtype Attribute
+    associatedtype Failure: Error
+    
+    func discover()
+    func connect()
+    func disconnect()
+}
+
+
+extension AttributeDiscoveryModelProtocol {
+    nonisolated public func eraseToAny() -> AnyAttributeDiscoveryModel<Attribute, Failure> {
+        AnyAttributeDiscoveryModel(self)
+    }
+}
+
+
+public actor AnyAttributeDiscoveryModel<Attribute, Failure: Error>: AttributeDiscoveryModelProtocol {
+    public typealias Attribute = Attribute
+    public typealias Failure = Failure
+    public typealias State = AttributeDiscoveryModelState<Attribute, Failure>
+    
+    private let base: any AttributeDiscoveryModelProtocol<Attribute, Failure>
+    
+    nonisolated public var stateDidUpdate: AnyPublisher<State, Never> { base.stateDidUpdate }
+    nonisolated public var id: CBUUID { base.id }
+    nonisolated public var initialState: State { base.initialState }
+
+    
+    public init(_ base: any AttributeDiscoveryModelProtocol<Attribute, Failure>) {
+        self.base = base
+    }
+    
+    
+    public func discover() {
+        Task { await base.discover() }
+    }
+    
+    
+    public func connect() {
+        Task { await base.connect() }
+    }
+    
+    
+    public func disconnect() {
+        Task { await base.disconnect() }
+    }
+}
+
+
+public actor AttributeDiscoveryModel<Attribute, Failure: Error>: AttributeDiscoveryModelProtocol {
+    public typealias Attribute = Attribute
+    public typealias Failure = Failure
+    
     private let discovery: any DiscoveryModelProtocol<Attribute, Failure>
     private let peripheral: any PeripheralModelProtocol
     private var discoveryRequested = false
     
-    
     nonisolated public let id: CBUUID
-    nonisolated public let stateDidChange: AnyPublisher<AttributeDiscoveryModelState<Attribute, Failure>, Never>
-    nonisolated public let objectWillChange: AnyPublisher<Void, Never>
-    public var cancellables = Set<AnyCancellable>()
+    
+    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
+    private var cancellables = Set<AnyCancellable>()
+    
+    nonisolated public var initialState: State {
+        AttributeDiscoveryModelState(
+            discovery: discovery.initialState,
+            peripheral: peripheral.initialState
+        )
+    }
     
     
     public init(
@@ -29,7 +94,7 @@ public actor AttributeDiscoveryModel<Attribute, Failure: Error>: Identifiable, O
         self.discovery = discovery
         self.peripheral = peripheral
         
-        let stateDidChange = discovery.stateDidUpdate
+        let stateDidUpdate = discovery.stateDidUpdate
             .combineLatest(peripheral.stateDidUpdate)
             .map { discoveryState, peripheralState in
                 AttributeDiscoveryModelState(
@@ -38,12 +103,11 @@ public actor AttributeDiscoveryModel<Attribute, Failure: Error>: Identifiable, O
                 )
             }
         
-        self.stateDidChange = stateDidChange.eraseToAnyPublisher()
-        self.objectWillChange = stateDidChange.map { _ in () }.eraseToAnyPublisher()
+        self.stateDidUpdate = stateDidUpdate.eraseToAnyPublisher()
         
         var mutableCancellables = Set<AnyCancellable>()
         
-        stateDidChange
+        stateDidUpdate
             .sink { [weak self] state in
                 guard let self = self else { return }
                 
@@ -65,7 +129,14 @@ public actor AttributeDiscoveryModel<Attribute, Failure: Error>: Identifiable, O
     
     
     public func discover() {
-        Task { await discovery.discover() }
+        Task {
+            if await peripheral.state.connectionState.isConnected {
+                await discovery.discover()
+            } else {
+                self.discoveryRequested = true
+                await peripheral.connect()
+            }
+        }
     }
     
     

@@ -20,6 +20,11 @@ public actor ConcurrentValueSubject<Output, Failure: Error>: Publisher {
     }
     
     
+    public func send(completion: Subscribers.Completion<Failure>) {
+        subject.send(completion: completion)
+    }
+    
+    
     nonisolated public func receive<S>(subscriber: S) where S : Subscriber, Failure == S.Failure, Output == S.Input {
         Task { await subject.receive(subscriber: subscriber) }
     }

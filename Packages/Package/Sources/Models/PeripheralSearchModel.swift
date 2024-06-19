@@ -2,6 +2,7 @@ import Combine
 import ConcurrentCombine
 import BLEInternal
 import CoreBluetoothTestable
+import TaskExtensions
 
 
 public struct SearchQuery: RawRepresentable {
@@ -10,11 +11,6 @@ public struct SearchQuery: RawRepresentable {
     
     public init(rawValue: String) {
         self.rawValue = rawValue.uppercased()
-    }
-    
-    
-    public static func filter(state: PeripheralDiscoveryModelState, bySearchQuery searchQuery: SearchQuery) -> PeripheralDiscoveryModelState {
-        
     }
     
     
@@ -53,95 +49,45 @@ public struct SearchQuery: RawRepresentable {
         
         return false
     }
-}
-
-
-public enum PeripheralSearchModelDiscoveryState {
-    case idle
-    case ready
-    case discovering([SearchablePeripheralModel])
-    case discovered([SearchablePeripheralModel])
-    case discoveryFailed(PeripheralDiscoveryModelFailure)
-
-    
-    public static func initialState() -> Self {
-        .idle
-    }
-
-
-    public var models: Result<[SearchablePeripheralModel], PeripheralDiscoveryModelFailure> {
-        switch self {
-        case .discovering(let peripherals), .discovered(let peripherals):
-            return .success(peripherals)
-        case .idle, .ready:
-            return .success([])
-        case .discoveryFailed(let error):
-            return .failure(error)
-        }
-    }
     
     
-    public var isScanning: Bool {
-        switch self {
-        case .discovering:
-            return true
-        case .idle, .ready, .discoveryFailed, .discovered:
-            return false
-        }
-    }
-    
-    
-    public var canStartScan: Bool {
-        switch self {
-        case .ready, .discovered, .discoveryFailed(.unspecified):
-            return true
-        case .idle, .discovering, .discoveryFailed(.powerOff), .discoveryFailed(.unauthorized), .discoveryFailed(.unsupported):
-            return false
-        }
-    }
-    
-    
-    public var canStopScan: Bool {
-        switch self {
-        case .idle, .ready, .discoveryFailed, .discovered:
-            return false
-        case .discovering:
-            return true
-        }
-    }
-}
-
-
-extension PeripheralSearchModelDiscoveryState: CustomStringConvertible {
-    public var description: String {
-        switch self {
+    public static func filter(state: PeripheralDiscoveryModelState, bySearchQuery searchQuery: SearchQuery) async -> PeripheralDiscoveryModelState {
+        switch state {
         case .idle:
-            return ".idle"
+            return .idle
         case .ready:
-            return ".ready"
+            return .ready
         case .discovering(let peripherals):
-            return ".discovering([\(peripherals.count) peripherals])"
+            return .discovering(await filter(peripherals: peripherals, bySearchQuery: searchQuery))
         case .discovered(let peripherals):
-            return ".discovered([\(peripherals.count) peripherals])"
+            return .discovered(await filter(peripherals: peripherals, bySearchQuery: searchQuery))
         case .discoveryFailed(let error):
-            return ".discoveryFailed(\(error))"
+            return .discoveryFailed(error)
         }
+    }
+
+    
+    private static func filter(peripherals: [AnyPeripheralModel], bySearchQuery searchQuery: SearchQuery) async -> [AnyPeripheralModel] {
+        let states = await Task.all(peripherals.map { peripheral in Task { await peripheral.state } } )
+        return zip(peripherals, states.map { match(searchQuery: searchQuery, state: $0) } )
+            .filter(\.1)
+            .map(\.0)
     }
 }
 
 
 public struct PeripheralSearchModelState {
-    public var discovery: PeripheralSearchModelDiscoveryState
-    public var searchQuery: String
+    public var discovery: PeripheralDiscoveryModelState
+    public var searchQuery: SearchQuery
     
     
-    public init(discovery: PeripheralSearchModelDiscoveryState, searchQuery: String) {
+    public init(discovery: PeripheralDiscoveryModelState, searchQuery: SearchQuery) {
         self.discovery = discovery
         self.searchQuery = searchQuery
     }
     
     
-    public static func initialState(searchQuery: String) -> Self {
+    public static func initialState(searchQuery: SearchQuery) -> Self {
         .init(
             discovery: .initialState(),
             searchQuery: searchQuery
@@ -157,9 +103,8 @@ extension PeripheralSearchModelState: CustomStringConvertible {
 }
 
 
-public protocol PeripheralSearchModelProtocol: Actor, ObservableObject where ObjectWillChangePublisher == AnyPublisher<Void, Never> {
-    nonisolated var stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never> { get }
-    nonisolated var searchQuery: ConcurrentValueSubject<String, Never> { get }
+public protocol PeripheralSearchModelProtocol: StateMachine where State == PeripheralSearchModelState {
+    nonisolated var searchQuery: ConcurrentValueSubject<SearchQuery, Never> { get }
     func startScan()
     func stopScan()
 }
@@ -173,12 +118,13 @@ extension PeripheralSearchModelProtocol {
 
 
 public actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
-    nonisolated private let base: any PeripheralSearchModelProtocol
+    private let base: any PeripheralSearchModelProtocol
     
-    nonisolated public var stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never> { base.stateDidUpdate }
-    nonisolated public var objectWillChange: AnyPublisher<Void, Never> { base.objectWillChange }
-    nonisolated public var searchQuery: ConcurrentValueSubject<String, Never> { base.searchQuery }
+    nonisolated public var initialState: State { base.initialState }
     
+    nonisolated public var stateDidUpdate: AnyPublisher<State, Never> { base.stateDidUpdate }
+    nonisolated public var searchQuery: ConcurrentValueSubject<SearchQuery, Never> { base.searchQuery }
+   
     
     public init(_ base: any PeripheralSearchModelProtocol) {
         self.base = base
@@ -196,34 +142,50 @@ public actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
 
 
 public actor PeripheralSearchModel: PeripheralSearchModelProtocol {
-    nonisolated public let stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never>
-    nonisolated public let searchQuery: ConcurrentValueSubject<String, Never>
+    nonisolated public let initialState: State
     
-    nonisolated public let objectWillChange: AnyPublisher<Void, Never>
+    private var stateDidUpdateSubject: CurrentValueSubject<State, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
+    public let searchQuery: ConcurrentValueSubject<SearchQuery, Never>
     
     private let discoveryModel: any PeripheralDiscoveryModelProtocol
     
+    private var cancellables = Set<AnyCancellable>()
     
-    public init(observing discoveryModel: any PeripheralDiscoveryModelProtocol, initialSearchQuery: String) {
-        self.searchQuery = ConcurrentValueSubject<String, Never>(initialSearchQuery)
+    
+    public init(observing discoveryModel: any PeripheralDiscoveryModelProtocol, initialSearchQuery: SearchQuery) {
+        self.initialState = PeripheralSearchModelState(discovery: discoveryModel.initialState, searchQuery: initialSearchQuery)
+        self.searchQuery = ConcurrentValueSubject<SearchQuery, Never>(initialSearchQuery)
         
         self.discoveryModel = discoveryModel
         
-        let stateDidUpdate = discoveryModel
+        let stateDidUpdateSubject = CurrentValueSubject<State, Never>(.initialState(searchQuery: initialSearchQuery))
+        self.stateDidUpdateSubject = stateDidUpdateSubject
+        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        
+        var mutableCancellables = Set<AnyCancellable>()
+        
+        discoveryModel
             .stateDidUpdate
             .combineLatest(searchQuery)
-            .map { pair -> PeripheralSearchModelState in
-                .from(discovery: pair.0, searchQuery: pair.1)
+            .mapAsync { (state, searchQuery) async in
+                PeripheralSearchModelState(
+                    discovery: await SearchQuery.filter(state: state, bySearchQuery: searchQuery),
+                    searchQuery: searchQuery
+                )
             }
-            .eraseToAnyPublisher()
+            .assign(to: \.value, on: stateDidUpdateSubject)
+            .store(in: &mutableCancellables)
         
-        self.objectWillChange = discoveryModel.stateDidUpdate
-            .map { _ in () }
-            .merge(with: searchQuery.map { _ in () })
-            .eraseToAnyPublisher()
+        let cancellables = mutableCancellables
+        Task { await self.store(cancellables: cancellables) }
+    }
+    
+    
+    private func store(cancellables: Set<AnyCancellable>) {
+        self.cancellables.formUnion(cancellables)
     }
    
-    
     
     public func startScan() {
         Task { await discoveryModel.startScan() }

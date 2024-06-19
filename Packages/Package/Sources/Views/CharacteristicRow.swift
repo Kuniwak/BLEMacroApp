@@ -9,11 +9,11 @@ import PreviewHelper
 
 
 public struct CharacteristicRow: View {
-    @ObservedObject private var model: AnyCharacteristicModel
+    @ObservedObject private var model: StateProjection<CharacteristicModelState>
     
     
     public init(observing model: any CharacteristicModelProtocol) {
-        self.model = model.eraseToAny()
+        self.model = StateProjection(projecting: model)
     }
     
     
@@ -29,7 +29,7 @@ public struct CharacteristicRow: View {
                     .foregroundStyle(Color(.weak))
             }
             
-            Text(model.uuid.uuidString)
+            Text(model.state.uuid.uuidString)
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
@@ -42,14 +42,8 @@ public struct CharacteristicRow: View {
     NavigationStack {
         List {
             let states: [CharacteristicModelState] = [
-                .makeStub(
-                    uuid: CBUUID(nsuuid: StubUUID.zero),
-                    name: "Example"
-                ),
-                .makeStub(
-                    uuid: CBUUID(nsuuid: StubUUID.zero),
-                    name: nil
-                ),
+                .makeStub(name: "Example"),
+                .makeStub(name: nil),
             ]
             
             let wrappers: [Previewable] = states.map { state in

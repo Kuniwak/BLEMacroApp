@@ -3,34 +3,23 @@ import Models
 
 
 
-public class StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
-    public var state: PeripheralDiscoveryModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            self.objectWillChange.send()
-            stateDidUpdateSubject.value = newValue
-        }
-    }
-    public let objectWillChange = ObjectWillChangePublisher()
-    public let stateDidUpdateSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
-    public let stateDidUpdate: AnyPublisher<Models.PeripheralDiscoveryModelState, Never>
+public actor StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
+    nonisolated public let initialState: State
+    nonisolated public let stateDidUpdateSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<Models.PeripheralDiscoveryModelState, Never>
 
     
     public init(state: PeripheralDiscoveryModelState = .makeStub()) {
+        self.initialState = state
+        
         let stateDidUpdateSubject = CurrentValueSubject<PeripheralDiscoveryModelState, Never>(state)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
     }
     
     
-    public func startScan() {
-    }
-    
-    
-    public func stopScan() {
-    }
+    public func startScan() {}
+    public func stopScan() {}
 }
 
 

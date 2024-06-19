@@ -8,13 +8,13 @@ import SFSymbol
 
 
 public struct ServicesView: View {
-    @ObservedObject private var model: AnyPeripheralModel
+    @ObservedObject private var model: StateProjection<PeripheralModelState>
     private let logger: any LoggerProtocol
     private let modelLogger: PeripheralModelLogger
     
     
     public init(observing model: any PeripheralModelProtocol, loggingBy logger: any LoggerProtocol) {
-        self.model = model.eraseToAny()
+        self.model = StateProjection(projecting: model)
         self.logger = logger
         self.modelLogger = PeripheralModelLogger(observing: model, loggingBy: logger)
     }
@@ -22,7 +22,7 @@ public struct ServicesView: View {
     
     public var body: some View {
         List {
-            switch model.state.discoveryState {
+            switch model.state.connectionState {
             case .notConnectable:
                 HStack {
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
@@ -30,10 +30,13 @@ public struct ServicesView: View {
                     Text("Not connectable")
                         .foregroundStyle(Color(.error))
                 }
-            case .disconnected(.some(let services)), .connecting(shouldDiscover: _, .some(let services)), .connected(.some(let services)), .disconnecting(.some(let services)), .connectionFailed(_, .some(let services)):
+            default:
+                if model.state.
                 ForEach(services) { service in
                     ServiceRow(observing: service)
                 }
+            }
+            case .disconnected(.some(let services)), .connecting(shouldDiscover: _, .some(let services)), .connected(.some(let services)), .disconnecting(.some(let services)), .connectionFailed(_, .some(let services)):
             case .disconnected(.none), .connecting(shouldDiscover: _, .none), .connected(.none), .disconnecting(.none), .connectionFailed(_, .none):
                 Text("No services")
                     .foregroundStyle(Color(.weak))
@@ -77,7 +80,7 @@ public struct ServicesView: View {
     
     private func characteristicsView(model: any ServiceModelProtocol) -> some View {
         // TODO
-        Text(model.uuid.uuidString)
+        Text(model.state.uuid.uuidString)
     }
     
     

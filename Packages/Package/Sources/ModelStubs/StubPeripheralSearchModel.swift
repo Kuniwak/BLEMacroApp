@@ -1,45 +1,38 @@
 import Combine
+import ConcurrentCombine
 import Models
 
 
-public class StubPeripheralSearchModel: PeripheralSearchModelProtocol {
-    public let stateDidUpdateSubject: CurrentValueSubject<PeripheralSearchModelState, Never>
-    public var state: PeripheralSearchModelState {
-        get {
-            stateDidUpdateSubject.value
-        }
-        set {
-            stateDidUpdateSubject.value = newValue
-        }
-    }
-    public let stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never>
+public actor StubPeripheralSearchModel: PeripheralSearchModelProtocol {
+    nonisolated public let initialState: State
     
-    public let searchQuery: CurrentValueSubject<String, Never>
-    public let objectWillChange: ObservableObjectPublisher = ObservableObjectPublisher()
+    nonisolated public let stateDidUpdateSubject: CurrentValueSubject<PeripheralSearchModelState, Never>
+    nonisolated public let stateDidUpdate: AnyPublisher<PeripheralSearchModelState, Never>
+    
+    nonisolated public let searchQuery: ConcurrentValueSubject<SearchQuery, Never>
     
     
     public init(state: PeripheralSearchModelState = .makeStub()) {
+        self.initialState = state
+        
         let stateDidUpdateSubject = CurrentValueSubject<PeripheralSearchModelState, Never>(state)
         self.stateDidUpdateSubject = stateDidUpdateSubject
         self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
         
-        self.searchQuery = CurrentValueSubject<String, Never>(state.searchQuery)
+        self.searchQuery = ConcurrentValueSubject<SearchQuery, Never>(state.searchQuery)
     }
     
     
-    public func startScan() {
-    }
-    
-    public func stopScan() {
-    }
+    public func startScan() {}
+    public func stopScan() {}
 }
 
 
 extension PeripheralSearchModelState {
     public static func makeStub(
-        discoveryState: PeripheralDiscoveryModelState = .makeStub(),
-        searchQuery: String = ""
+        discovery: PeripheralDiscoveryModelState = .makeStub(),
+        searchQuery: SearchQuery = SearchQuery(rawValue: "")
     ) -> Self {
-        .init(discoveryState: discoveryState, searchQuery: searchQuery)
+        .init(discovery: discovery, searchQuery: searchQuery)
     }
 }

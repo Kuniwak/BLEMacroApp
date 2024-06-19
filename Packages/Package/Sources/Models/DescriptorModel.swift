@@ -1,4 +1,5 @@
 import Combine
+import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
 import Catalogs
@@ -29,23 +30,23 @@ public struct DescriptorModelFailure: Error, CustomStringConvertible {
 
 
 public struct DescriptorModelState {
-    public var value: Result<Any?, DescriptorModelFailure>
     public let uuid: CBUUID
     public let name: String?
+    public var value: Result<Any?, DescriptorModelFailure>
+
     
-    
-    public init(value: Result<Any?, DescriptorModelFailure>, uuid: CBUUID, name: String?) {
-        self.value = value
+    public init(uuid: CBUUID, name: String?, value: Result<Any?, DescriptorModelFailure>) {
         self.uuid = uuid
         self.name = name
+        self.value = value
     }
     
     
     public static func initialState(fromDescriptorUUID cbuuid: CBUUID) -> Self {
         DescriptorModelState(
-            value: .success(nil),
             uuid: cbuuid,
-            name: DescriptorCatalog.from(cbuuid: cbuuid)?.name
+            name: DescriptorCatalog.from(cbuuid: cbuuid)?.name,
+            value: .success(nil)
         )
     }
 }
@@ -79,8 +80,8 @@ extension DescriptorModelState: CustomDebugStringConvertible {
 }
 
 
-public protocol DescriptorModelProtocol: Actor, Identifiable<CBUUID>, ObservableObject where ObjectWillChangePublisher == AnyPublisher<Any, Never>{
-    nonisolated var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> { get }
+public protocol DescriptorModelProtocol: StateMachine, Identifiable<CBUUID> where State == DescriptorModelState {
+    var state: DescriptorModelState { get async }
     
     func read()
     func write(value: Data)
@@ -95,21 +96,22 @@ extension DescriptorModelProtocol {
 
 
 public actor AnyDescriptorModel: DescriptorModelProtocol {
-    private let base: any DescriptorModelProtocol
+    public var state: DescriptorModelState {
+        get async { await base.state }
+    }
     
+    nonisolated public var id: CBUUID { base.id }
+    nonisolated public var initialState: DescriptorModelState { base.initialState }
+
+    private let base: any DescriptorModelProtocol
+
     public init(_ base: any DescriptorModelProtocol) {
         self.base = base
     }
     
-    nonisolated public var stateDidUpdate: AnyPublisher<DescriptorModelState, Never> {
+    nonisolated public var stateDidUpdate: AnyPublisher<State, Never> {
         base.stateDidUpdate
     }
-    
-    nonisolated public var objectWillChange: AnyPublisher<Any, Never> {
-        base.objectWillChange
-    }
-    
-    nonisolated public var id: CBUUID { base.id }
     
     public func read() {
         Task { await base.read() }
@@ -126,17 +128,24 @@ public actor DescriptorModel: DescriptorModelProtocol {
     private let peripheral: any PeripheralProtocol
     nonisolated public let id: CBUUID
     
+    public var state: DescriptorModelState {
+        get async { await stateDidUpdateSubject.value }
+    }
+    
+    nonisolated public let initialState: DescriptorModelState
+    
     private let stateDidUpdateSubject: ConcurrentValueSubject<DescriptorModelState, Never>
     nonisolated public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
-    nonisolated public let objectWillChange: AnyPublisher<Any, Never>
 
     private var cancellables = Set<AnyCancellable>()
     
     public init(
         startsWith initialState: DescriptorModelState,
-        descriptor: any DescriptorProtocol,
-        peripheral: any PeripheralProtocol
+        representing descriptor: any DescriptorProtocol,
+        onPeripheral peripheral: any PeripheralProtocol
    ) {
+       self.initialState = initialState
+       
        self.descriptor = descriptor
        self.peripheral = peripheral
        self.id = descriptor.uuid
@@ -144,7 +153,6 @@ public actor DescriptorModel: DescriptorModelProtocol {
        let stateDidUpdateSubject = ConcurrentValueSubject<DescriptorModelState, Never>(initialState)
        self.stateDidUpdateSubject = stateDidUpdateSubject
        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
-       self.objectWillChange = stateDidUpdateSubject.map { _ in () }.eraseToAnyPublisher()
        
        var mutableCancellables = Set<AnyCancellable>()
        
@@ -164,6 +172,9 @@ public actor DescriptorModel: DescriptorModelProtocol {
                }
            }
            .store(in: &mutableCancellables)
+       
+       let cancellables = mutableCancellables
+       Task { await self.store(cancellables: cancellables) }
     }
     
     
