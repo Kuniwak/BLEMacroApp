@@ -2,14 +2,14 @@ import Combine
 import Logger
 
 
-public class CharacteristicModelLogger {
+public actor CharacteristicModelLogger {
     private var cancellables = Set<AnyCancellable>()
     
     
     public init(observing characteristicModel: any CharacteristicModelProtocol, loggingBy logger: any LoggerProtocol) {
-        characteristicModel.stateDidUpdate
+        characteristicModel.stateDidChange
             .sink { state in
-                logger.debug("CharacteristicModel#stateDidUpdate: \(state)")
+                logger.debug("CharacteristicModel#stateDidChange: \(state)")
             }
             .store(in: &cancellables)
     }

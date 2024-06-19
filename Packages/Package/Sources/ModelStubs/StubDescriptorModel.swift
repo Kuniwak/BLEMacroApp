@@ -7,11 +7,11 @@ import Models
 
 public actor StubDescriptorModel: DescriptorModelProtocol {
     public var state: DescriptorModelState {
-        get async { stateDidUpdateSubject.value }
+        get async { stateDidChangeSubject.value }
     }
     
-    nonisolated public let stateDidUpdateSubject: CurrentValueSubject<DescriptorModelState, Never>
-    nonisolated public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
+    nonisolated public let stateDidChangeSubject: CurrentValueSubject<DescriptorModelState, Never>
+    nonisolated public let stateDidChange: AnyPublisher<DescriptorModelState, Never>
     
     nonisolated public let id: CBUUID
     nonisolated public let initialState: DescriptorModelState
@@ -21,9 +21,9 @@ public actor StubDescriptorModel: DescriptorModelProtocol {
         self.initialState = state
         self.id = uuid
         
-        let stateDidUpdateSubject = CurrentValueSubject<DescriptorModelState, Never>(state)
-        self.stateDidUpdateSubject = stateDidUpdateSubject
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        let stateDidChangeSubject = CurrentValueSubject<DescriptorModelState, Never>(state)
+        self.stateDidChangeSubject = stateDidChangeSubject
+        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }
     
     

@@ -8,16 +8,18 @@ import PreviewHelper
 
 
 public struct PeripheralsView: View {
-    @ObservedObject private var model: AnyPeripheralSearchModel
+    @ObservedObject private var projection: StateProjection<PeripheralSearchModelState>
+    private let model: any PeripheralSearchModelProtocol
     private let logger: any LoggerProtocol
-    private let modelLogger: PeripheralSearchModelLogger
+    private let projectionLogger: PeripheralSearchModelLogger
     
     
-    public init(observing model: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
-        self.model = model.eraseToAny()
+    public init(observing projection: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
+        self.projection = StateProjection(projecting: projection)
+        self.model = projection
         self.logger = logger
-        self.modelLogger = PeripheralSearchModelLogger(
-            observing: model,
+        self.projectionLogger = PeripheralSearchModelLogger(
+            observing: projection,
             loggingBy: logger
         )
     }
@@ -34,7 +36,7 @@ public struct PeripheralsView: View {
     
     private var content: some View {
         List {
-            switch model.state.discoveryState {
+            switch projection.state.discovery {
             case .idle:
                 HStack {
                     Spacer()
@@ -45,7 +47,8 @@ public struct PeripheralsView: View {
                 HStack {
                     Spacer()
                     Text("Not Scanning.").foregroundStyle(Color(.weak))
-                    Button("Scan", action: model.startScan).foregroundStyle(.tint)
+                    Button("Scan") { Task { await model.startScan() } }
+                        .foregroundStyle(.tint)
                     Spacer()
                 }
             case .discovering(let peripherals), .discovered(let peripherals):
@@ -58,7 +61,7 @@ public struct PeripheralsView: View {
                     .foregroundStyle(Color(.weak))
                 } else {
                     ForEach(peripherals) { peripheral in
-                        if peripheral.state.discoveryState.canConnect {
+                        if peripheral.state.connection.canConnect {
                             NavigationLink(destination: servicesView(peripheral)) {
                                 PeripheralRow(observing: peripheral)
                             }
@@ -94,7 +97,8 @@ public struct PeripheralsView: View {
             }
         }
         .searchable(
-            text: model.searchQuery.binding(),
+            text: ConcurrentValueSubjectBinding(model.searchQuery)
+                .mapBind(\.rawValue, SearchQuery.init(rawValue:)),
             prompt: "Name or UUID or Manufacturer Name"
         )
     }
@@ -102,13 +106,13 @@ public struct PeripheralsView: View {
     
     private var trailingNavigationBarItem: some View {
         HStack {
-            if model.state.discoveryState.isScanning {
+            if projection.state.discovery.isScanning {
                 ProgressView()
-                Button("Stop", action: model.stopScan)
-                    .disabled(!model.state.discoveryState.canStopScan)
+                Button("Stop", action: { Task { await model.stopScan() } })
+                    .disabled(!projection.state.discovery.canStopScan)
             } else {
-                Button("Scan", action: model.startScan)
-                    .disabled(!model.state.discoveryState.canStartScan)
+                Button("Scan", action: { Task { await model.startScan() } })
+                    .disabled(!projection.state.discovery.canStartScan)
             }
         }
     }
@@ -119,7 +123,7 @@ public struct PeripheralsView: View {
         return ServicesView(observing: peripheral, loggingBy: logger)
             .onAppear() {
                 model.stopScan()
-                peripheral.discoverServices()
+                peripheral.discover()
             }
             .onDisappear() {
                 peripheral.disconnect()
@@ -150,7 +154,10 @@ internal struct PeripheralsView_Previews: PreviewProvider {
         
         let wrappers: [Previewable] = discoveryStates.map {
             Previewable(
-                PeripheralSearchModelState(discoveryState: $0, searchQuery: "Example"),
+                PeripheralSearchModelState(
+                    discovery: $0,
+                    searchQuery: SearchQuery(rawValue: "Example")
+                ),
                 describing: $0.description
             )
         }

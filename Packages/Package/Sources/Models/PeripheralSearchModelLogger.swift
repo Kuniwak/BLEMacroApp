@@ -7,9 +7,9 @@ public actor PeripheralSearchModelLogger {
     
     
     public init(observing searchModel: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
-        searchModel.stateDidUpdate
+        searchModel.stateDidChange
             .sink { state in
-                logger.debug("PeripheralSearchModel#stateDidUpdate: \(state)")
+                logger.debug("PeripheralSearchModel#stateDidChange: \(state)")
             }
             .store(in: &cancellables)
         

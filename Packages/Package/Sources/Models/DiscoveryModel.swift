@@ -92,10 +92,11 @@ extension DiscoveryModelState: CustomDebugStringConvertible where E: CustomStrin
 }
 
 
-public protocol DiscoveryModelProtocol<Value, Error>: StateMachine, Identifiable<CBUUID> where State == DiscoveryModelState<Value, Error> {
+public protocol DiscoveryModelProtocol<Value, Error>: StateMachine  where State == DiscoveryModelState<Value, Error> {
     associatedtype Value
     associatedtype Error: Swift.Error
     
+    var state: State { get async }
     func discover()
 }
 
@@ -111,24 +112,21 @@ public actor AnyDiscoveryModel<Value, Error: Swift.Error>: DiscoveryModelProtoco
     private let base: any DiscoveryModelProtocol<Value, Error>
     
     nonisolated public var initialState: State { base.initialState }
+    
+    public var state: State {
+        get async { await base.state }
+    }
 
     public init(_ base: any DiscoveryModelProtocol<Value, Error>) {
         self.base = base
     }
     
-    nonisolated public var stateDidUpdate: AnyPublisher<DiscoveryModelState<Value, Error>, Never> {
-        base.stateDidUpdate
+    nonisolated public var stateDidChange: AnyPublisher<DiscoveryModelState<Value, Error>, Never> {
+        base.stateDidChange
     }
     
     public func discover() {
         Task { await base.discover() }
-    }
-}
-
-
-extension AnyDiscoveryModel: Identifiable {
-    nonisolated public var id: CBUUID {
-        base.id
     }
 }
 
@@ -140,47 +138,47 @@ public actor DiscoveryModel<Value, Failure: Error & CustomStringConvertible>: Di
     
     private let peripheral: any PeripheralProtocol
     private let discoverStrategy: (any PeripheralProtocol) async -> Result<[Value], Failure>
+    
+    public var state: State {
+        get async { await stateDidChangeSubject.value }
+    }
 
-    nonisolated public let id: CBUUID
-
-    private let stateDidUpdateSubject: ConcurrentValueSubject<State, Never>
-    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
+    private let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
     nonisolated public let initialState: State
 
 
     public init(
-        identifiedBy uuid: CBUUID,
         discoveringBy discoverStrategy: @escaping (any PeripheralProtocol) async -> Result<[Value], Failure>,
         thatTakes peripheral: any PeripheralProtocol
     ) {
-        self.id = uuid
         self.peripheral = peripheral
         self.discoverStrategy = discoverStrategy
         
         let initialState: State = .notDiscoveredYet
         self.initialState = initialState
         
-        self.stateDidUpdateSubject = ConcurrentValueSubject(initialState)
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        self.stateDidChangeSubject = ConcurrentValueSubject(initialState)
+        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }
     
     
     public func discover() {
         Task {
-            await self.stateDidUpdateSubject.change { prev in
+            await self.stateDidChangeSubject.change { prev in
                 guard !prev.isDiscovering else { return prev }
                 return .discovering(prev.values)
             }
             
             switch await self.discoverStrategy(peripheral) {
             case .success(let values):
-                await self.stateDidUpdateSubject.change { prev in
+                await self.stateDidChangeSubject.change { prev in
                     guard case .discovering = prev else { return prev }
                     return .discovered(values)
                 }
             case .failure(let error):
-                await self.stateDidUpdateSubject.change { prev in
+                await self.stateDidChangeSubject.change { prev in
                     guard case .discovering = prev else { return prev }
                     return .discoveryFailed(error, prev.values)
                 }

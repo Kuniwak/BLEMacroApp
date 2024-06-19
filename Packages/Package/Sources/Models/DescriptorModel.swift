@@ -109,8 +109,8 @@ public actor AnyDescriptorModel: DescriptorModelProtocol {
         self.base = base
     }
     
-    nonisolated public var stateDidUpdate: AnyPublisher<State, Never> {
-        base.stateDidUpdate
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> {
+        base.stateDidChange
     }
     
     public func read() {
@@ -129,13 +129,13 @@ public actor DescriptorModel: DescriptorModelProtocol {
     nonisolated public let id: CBUUID
     
     public var state: DescriptorModelState {
-        get async { await stateDidUpdateSubject.value }
+        get async { await stateDidChangeSubject.value }
     }
     
     nonisolated public let initialState: DescriptorModelState
     
-    private let stateDidUpdateSubject: ConcurrentValueSubject<DescriptorModelState, Never>
-    nonisolated public let stateDidUpdate: AnyPublisher<DescriptorModelState, Never>
+    private let stateDidChangeSubject: ConcurrentValueSubject<DescriptorModelState, Never>
+    nonisolated public let stateDidChange: AnyPublisher<DescriptorModelState, Never>
 
     private var cancellables = Set<AnyCancellable>()
     
@@ -150,9 +150,9 @@ public actor DescriptorModel: DescriptorModelProtocol {
        self.peripheral = peripheral
        self.id = descriptor.uuid
        
-       let stateDidUpdateSubject = ConcurrentValueSubject<DescriptorModelState, Never>(initialState)
-       self.stateDidUpdateSubject = stateDidUpdateSubject
-       self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+       let stateDidChangeSubject = ConcurrentValueSubject<DescriptorModelState, Never>(initialState)
+       self.stateDidChangeSubject = stateDidChangeSubject
+       self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
        
        var mutableCancellables = Set<AnyCancellable>()
        
@@ -160,7 +160,7 @@ public actor DescriptorModel: DescriptorModelProtocol {
            .sink { [weak self] descriptor, error in
                guard let self = self else { return }
                Task {
-                   await self.stateDidUpdateSubject.change { prev in
+                   await self.stateDidChangeSubject.change { prev in
                        var new = prev
                        if let error {
                            new.value = .failure(.init(wrapping: error))

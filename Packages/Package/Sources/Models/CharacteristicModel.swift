@@ -32,19 +32,19 @@ public struct CharacteristicModelFailure: Error, CustomStringConvertible {
 public struct CharacteristicModelState {
     public let uuid: CBUUID
     public let name: String?
-    public let peripheral: PeripheralModelState
+    public let connection: ConnectionModelState
     public let discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure>
     
     
     public init(
         uuid: CBUUID,
         name: String?,
-        peripheral: PeripheralModelState,
+        connection: ConnectionModelState,
         discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure>
     ) {
         self.uuid = uuid
         self.name = name
-        self.peripheral = peripheral
+        self.connection = connection
         self.discovery = discovery
     }
 }
@@ -69,7 +69,7 @@ public actor AnyCharacteristicModel: CharacteristicModelProtocol {
     
     nonisolated public var initialState: State { base.initialState }
     nonisolated public var id: CBUUID { base.id }
-    nonisolated public var stateDidUpdate: AnyPublisher<State, Never> { base.stateDidUpdate }
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
     
     
     public init(_ base: any CharacteristicModelProtocol) {
@@ -94,19 +94,18 @@ public actor AnyCharacteristicModel: CharacteristicModelProtocol {
 
 
 public actor CharacteristicModel: CharacteristicModelProtocol {
-    private let model: any AttributeDiscoveryModelProtocol<AnyDescriptorModel, CharacteristicModelFailure>
+    private let model: any ConnectableDiscoveryModelProtocol<AnyDescriptorModel, CharacteristicModelFailure>
     nonisolated public let id: CBUUID
     
-    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
     nonisolated public let initialState: State
     
     public init(
         characteristic: any CharacteristicProtocol,
         onPeripheral peripheral: any PeripheralProtocol,
-        controlledBy peripheralModel: any PeripheralModelProtocol
+        connectingBy connectionModel: any ConnectionModelProtocol
     ) {
         let discoveryModel = DiscoveryModel<AnyDescriptorModel, CharacteristicModelFailure>(
-            identifiedBy: characteristic.uuid,
             discoveringBy: descriptorDiscoveryStrategy(forCharacteristic: characteristic),
             thatTakes: peripheral
         )
@@ -116,25 +115,24 @@ public actor CharacteristicModel: CharacteristicModelProtocol {
         let initialState: State = .init(
             uuid: characteristic.uuid,
             name: name,
-            peripheral: peripheralModel.initialState,
+            connection: connectionModel.initialState,
             discovery: discoveryModel.initialState
         )
         self.initialState = initialState
         
         self.id = characteristic.uuid
-        let model = AttributeDiscoveryModel(
-            identifiedBy: characteristic.uuid,
+        let model = ConnectableDiscoveryModel(
             discoveringBy: discoveryModel,
-            connectingBy: peripheralModel
+            connectingBy: connectionModel
         )
         self.model = model
         
-        self.stateDidUpdate = model.stateDidUpdate
+        self.stateDidChange = model.stateDidChange
             .map { state in
                 CharacteristicModelState(
                     uuid: characteristic.uuid,
                     name: name,
-                    peripheral: state.peripheral,
+                    connection: state.connection,
                     discovery: state.discovery
                 )
             }

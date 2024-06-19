@@ -1,4 +1,5 @@
 import Foundation
+import CoreBluetooth
 import BLEInternal
 import BLEAssignedNumbers
 
@@ -6,6 +7,15 @@ import BLEAssignedNumbers
 public enum ManufacturerData: Equatable {
     case knownName(String, Data)
     case data(Data)
+    
+    
+    public static func from(advertisementData: [String: Any]) -> ManufacturerData? {
+        if let manufacturerRawData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
+            return ManufacturerCatalog.from(data: manufacturerRawData)
+        } else {
+            return nil
+        }
+    }
 }
 
 

@@ -5,36 +5,49 @@ import ConcurrentCombine
 
 
 public class ConcurrentValueSubjectBinding<Value> {
-    public private(set) var binding: Binding<Value?>! = nil
     private var cancellables = Set<AnyCancellable>()
-    private var projected: Value? = nil
+    private var projected: Value
+    private var subject: ConcurrentValueSubject<Value, Never>
     
     
     public init(_ subject: ConcurrentValueSubject<Value, Never>) {
+        self.projected = subject.initialValue
+        self.subject = subject
+        
         subject
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] value in
                 guard let self else { return }
                 self.projected = value
             }
             .store(in: &cancellables)
-        
-        self.binding = Binding(
-            get: { [weak self] in self?.projected },
-            set: { newValue in
+    }
+    
+    
+    public func mapBind<NewValue>(_ get: @escaping (Value) -> (NewValue), _ set: @escaping (NewValue) -> (Value)) -> Binding<NewValue> {
+        Binding(
+            get: { [self] in get(self.projected) },
+            set: { [self] newValue in
                 Task {
-                    await subject.change { prev in
-                        guard let newValue else { return prev }
-                        return newValue
+                    await self.subject.change { value in
+                        return set(newValue)
                     }
                 }
             }
         )
     }
-}
-
-
-extension ConcurrentValueSubject where Failure == Never {
-    nonisolated public func binding() -> ConcurrentValueSubjectBinding<Output> {
-        ConcurrentValueSubjectBinding<Output>(self)
+    
+    
+    public func bind() -> Binding<Value> {
+        Binding(
+            get: { [self] in self.projected },
+            set: { [self] newValue in
+                Task {
+                    await self.subject.change { _ in
+                        return newValue
+                    }
+                }
+            }
+        )
     }
 }

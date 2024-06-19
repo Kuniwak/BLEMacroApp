@@ -1,79 +1,79 @@
-import Foundation
 import Combine
+import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothStub
-import Catalogs
 import Models
+import Catalogs
 
 
 public actor StubPeripheralModel: PeripheralModelProtocol {
-    public var state: PeripheralModelState {
-        get async { stateDidUpdateSubject.value }
-    }
-    nonisolated public let stateDidUpdate: AnyPublisher<PeripheralModelState, Never>
-    nonisolated public let stateDidUpdateSubject: CurrentValueSubject<PeripheralModelState, Never>
+    nonisolated public let initialState: State
     
     nonisolated public let id: UUID
-    nonisolated public let initialState: PeripheralModelState
+    
+    public var state: State {
+        get async { await stateDidChangeSubject.value }
+    }
+    public let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
     
-    public init(state: PeripheralModelState = .makeStub()) {
+    public init(state: State = .makeStub(), identifiedBy uuid: UUID = StubUUID.zero) {
         self.initialState = state
-        self.id = state.uuid
         
-        let stateDidUpdateSubject = CurrentValueSubject<PeripheralModelState, Never>(state)
-        self.stateDidUpdateSubject = stateDidUpdateSubject
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        self.id = uuid
+        
+        let stateDidChangeSubject = ConcurrentValueSubject<State, Never>(state)
+        self.stateDidChangeSubject = stateDidChangeSubject
+        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }
     
     
+    public func readRSSI() {}
+    public func discover() {}
     public func connect() {}
     public func disconnect() {}
-    public func discoverServices() {}
 }
 
 
 extension PeripheralModelState {
     public static func makeStub(
+        uuid: UUID = StubUUID.zero,
         name: Result<String?, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         rssi: Result<NSNumber, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         manufacturerData: ManufacturerData? = nil,
-        connectionState: ConnectionState = .connectionFailed(.init(description: "TEST"))
+        connection: ConnectionModelState = .makeStub(),
+        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
     ) -> Self {
         .init(
-            uuid: StubUUID.zero,
+            uuid: uuid,
             name: name,
             rssi: rssi,
             manufacturerData: manufacturerData,
-            connectionState: connectionState
+            connection: connection,
+            discovery: discovery
         )
     }
     
     
     public static func makeSuccessfulStub(
-        name: Result<String?, PeripheralModelFailure> = .success("Example Device"),
+        uuid: UUID = StubUUID.zero,
+        name: Result<String?, PeripheralModelFailure> = .success("Example"),
         rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
-        manufacturerData: ManufacturerData? = .knownName("Example Inc.", Data()),
-        connectionState: ConnectionState = .makeSuccessfulStub()
+        manufacturerData: ManufacturerData? = nil,
+        connection: ConnectionModelState = .makeSuccessfulStub(),
+        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discovered([
+            StubServiceModel().eraseToAny(),
+            StubServiceModel().eraseToAny(),
+        ])
     ) -> Self {
         .init(
-            uuid: StubUUID.zero,
+            uuid: uuid,
             name: name,
             rssi: rssi,
             manufacturerData: manufacturerData,
-            connectionState: connectionState
+            connection: connection,
+            discovery: discovery
         )
-    }
-}
-
-
-extension ConnectionState {
-    public static func makeStub() -> Self {
-        .connectionFailed(.init(description: "TEST"))
-    }
-    
-    
-    public static func makeSuccessfulStub() -> Self {
-        .connected
     }
 }

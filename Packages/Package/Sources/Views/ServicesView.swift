@@ -22,7 +22,7 @@ public struct ServicesView: View {
     
     public var body: some View {
         List {
-            switch model.state.connectionState {
+            switch model.state.connection {
             case .notConnectable:
                 HStack {
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
@@ -31,15 +31,14 @@ public struct ServicesView: View {
                         .foregroundStyle(Color(.error))
                 }
             default:
-                if model.state.
-                ForEach(services) { service in
+                if model.state.discovery.values.isEmpty {
+                    Text("No services")
+                        .foregroundStyle(Color(.weak))
+                } else {
+                    ForEach(services) { service in
                     ServiceRow(observing: service)
                 }
             }
-            case .disconnected(.some(let services)), .connecting(shouldDiscover: _, .some(let services)), .connected(.some(let services)), .disconnecting(.some(let services)), .connectionFailed(_, .some(let services)):
-            case .disconnected(.none), .connecting(shouldDiscover: _, .none), .connected(.none), .disconnecting(.none), .connectionFailed(_, .none):
-                Text("No services")
-                    .foregroundStyle(Color(.weak))
             case .discovered(let services):
                 ForEach(services) { service in
                     NavigationLink(destination: characteristicsView(model: service)) {
@@ -140,15 +139,15 @@ internal struct ServicesView_Previews: PreviewProvider {
             ]),
         ]
         
-        let names: [Result<String?, PeripheralModelFailure>] = [
+        let names: [Result<String?, ConnectionModelFailure>] = [
             .success("Example"),
             .success(nil),
             .failure(.init(description: "TEST")),
         ]
         
         
-        let states1: [PeripheralModelState] = discoveryState.map { discoveryState in
-            PeripheralModelState(
+        let states1: [ConnectionModelState] = discoveryState.map { discoveryState in
+            ConnectionModelState(
                 uuid: StubUUID.zero,
                 discoveryState: discoveryState,
                 rssi: .success(-50),
@@ -158,8 +157,8 @@ internal struct ServicesView_Previews: PreviewProvider {
             )
         }
         
-        let states2: [PeripheralModelState] = names.map { name in
-            PeripheralModelState(
+        let states2: [ConnectionModelState] = names.map { name in
+            ConnectionModelState(
                 uuid: StubUUID.zero,
                 discoveryState: .disconnected(.none),
                 rssi: .success(-50),
@@ -189,7 +188,7 @@ internal struct ServicesView_Previews: PreviewProvider {
             ForEach(wrappers) { wrapper in
                 NavigationStack {
                     ServicesView(
-                        observing: StubPeripheralModel(state: wrapper.value),
+                        observing: StubConnectionModel(state: wrapper.value),
                         loggingBy: NullLogger()
                     )
                 }

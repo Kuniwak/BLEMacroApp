@@ -10,20 +10,20 @@ public actor StubServiceModel: ServiceModelProtocol {
     nonisolated public let id: CBUUID
     
     public var state: State {
-        get async { await stateDidUpdateSubject.value }
+        get async { await stateDidChangeSubject.value }
     }
     nonisolated public let initialState: State
     
-    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
-    public let stateDidUpdateSubject: ConcurrentValueSubject<State, Never>
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
+    public let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
     
     
     public init(state: State = .makeStub(), identifiedBy uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero)) {
         self.initialState = state
         
-        let stateDidUpdateSubject = ConcurrentValueSubject<State, Never>(state)
-        self.stateDidUpdateSubject = stateDidUpdateSubject
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        let stateDidChangeSubject = ConcurrentValueSubject<State, Never>(state)
+        self.stateDidChangeSubject = stateDidChangeSubject
+        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         
         self.id = uuid
     }
@@ -40,9 +40,14 @@ extension ServiceModelState {
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = nil,
         discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
-        peripheral: PeripheralModelState = .makeStub()
+        connection: ConnectionModelState = .makeStub()
     ) -> Self {
-        .init(uuid: uuid, name: name, discovery: discovery, peripheral: peripheral)
+        .init(
+            uuid: uuid,
+            name: name,
+            discovery: discovery,
+            connection: connection
+        )
     }
     
     
@@ -53,19 +58,24 @@ extension ServiceModelState {
             StubCharacteristicModel().eraseToAny(),
             StubCharacteristicModel().eraseToAny(),
         ]),
-        peripheral: PeripheralModelState = .makeStub()
+        connection: ConnectionModelState = .makeStub()
     ) -> Self {
-        .init(uuid: uuid, name: name, discovery: discovery, peripheral: peripheral)
+        .init(
+            uuid: uuid,
+            name: name,
+            discovery: discovery,
+            connection: connection
+        )
     }
 }
 
 
-extension AttributeDiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> {
+extension ConnectableDiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> {
     public static func makeStub(
         discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
-        peripheral: PeripheralModelState = .makeStub()
+        connection: ConnectionModelState = .makeStub()
     ) -> Self {
-        .init(discovery: discovery, peripheral: peripheral)
+        .init(discovery: discovery, connection: connection)
     }
     
     
@@ -74,8 +84,8 @@ extension AttributeDiscoveryModelState<AnyCharacteristicModel, ServiceModelFailu
                 StubCharacteristicModel().eraseToAny(),
                 StubCharacteristicModel().eraseToAny(),
             ]),
-        peripheral: PeripheralModelState = .makeStub()
+        connection: ConnectionModelState = .makeStub()
     ) -> Self {
-        .init(discovery: discovery, peripheral: peripheral)
+        .init(discovery: discovery, connection: connection)
     }
 }

@@ -2,14 +2,14 @@ import Combine
 import Logger
 
 
-public class ServiceModelLogger {
+public actor ServiceModelLogger {
     private var cancellables = Set<AnyCancellable>()
     
     
     public init(observing serviceModel: any ServiceModelProtocol, loggingBy logger: any LoggerProtocol) {
-        serviceModel.stateDidUpdate
+        serviceModel.stateDidChange
             .sink { state in
-                logger.debug("ServiceModel#stateDidUpdate: \(state)")
+                logger.debug("ServiceModel#stateDidChange: \(state)")
             }
             .store(in: &cancellables)
     }

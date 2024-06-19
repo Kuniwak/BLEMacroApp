@@ -5,12 +5,14 @@ public actor ConcurrentValueSubject<Output, Failure: Error>: Publisher {
     public typealias Output = Output
     public typealias Failure = Failure
     private let subject: CurrentValueSubject<Output, Failure>
+    nonisolated public let initialValue: Output
     
     
     public var value: Output { subject.value }
     
     
     public init(_ value: Output) {
+        self.initialValue = value
         self.subject = CurrentValueSubject<Output, Failure>(value)
     }
     

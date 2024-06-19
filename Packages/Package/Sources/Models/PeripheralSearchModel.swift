@@ -111,7 +111,7 @@ public protocol PeripheralSearchModelProtocol: StateMachine where State == Perip
 
 
 extension PeripheralSearchModelProtocol {
-    public func eraseToAny() -> AnyPeripheralSearchModel {
+    nonisolated public func eraseToAny() -> AnyPeripheralSearchModel {
         AnyPeripheralSearchModel(self)
     }
 }
@@ -122,7 +122,7 @@ public actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
     
     nonisolated public var initialState: State { base.initialState }
     
-    nonisolated public var stateDidUpdate: AnyPublisher<State, Never> { base.stateDidUpdate }
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
     nonisolated public var searchQuery: ConcurrentValueSubject<SearchQuery, Never> { base.searchQuery }
    
     
@@ -144,8 +144,8 @@ public actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
 public actor PeripheralSearchModel: PeripheralSearchModelProtocol {
     nonisolated public let initialState: State
     
-    private var stateDidUpdateSubject: CurrentValueSubject<State, Never>
-    nonisolated public let stateDidUpdate: AnyPublisher<State, Never>
+    private var stateDidChangeSubject: CurrentValueSubject<State, Never>
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
     public let searchQuery: ConcurrentValueSubject<SearchQuery, Never>
     
     private let discoveryModel: any PeripheralDiscoveryModelProtocol
@@ -159,14 +159,14 @@ public actor PeripheralSearchModel: PeripheralSearchModelProtocol {
         
         self.discoveryModel = discoveryModel
         
-        let stateDidUpdateSubject = CurrentValueSubject<State, Never>(.initialState(searchQuery: initialSearchQuery))
-        self.stateDidUpdateSubject = stateDidUpdateSubject
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        let stateDidChangeSubject = CurrentValueSubject<State, Never>(.initialState(searchQuery: initialSearchQuery))
+        self.stateDidChangeSubject = stateDidChangeSubject
+        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         
         var mutableCancellables = Set<AnyCancellable>()
         
         discoveryModel
-            .stateDidUpdate
+            .stateDidChange
             .combineLatest(searchQuery)
             .mapAsync { (state, searchQuery) async in
                 PeripheralSearchModelState(
@@ -174,7 +174,7 @@ public actor PeripheralSearchModel: PeripheralSearchModelProtocol {
                     searchQuery: searchQuery
                 )
             }
-            .assign(to: \.value, on: stateDidUpdateSubject)
+            .assign(to: \.value, on: stateDidChangeSubject)
             .store(in: &mutableCancellables)
         
         let cancellables = mutableCancellables

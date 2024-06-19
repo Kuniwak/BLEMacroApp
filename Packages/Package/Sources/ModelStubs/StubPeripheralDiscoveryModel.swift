@@ -5,16 +5,16 @@ import Models
 
 public actor StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     nonisolated public let initialState: State
-    nonisolated public let stateDidUpdateSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
-    nonisolated public let stateDidUpdate: AnyPublisher<Models.PeripheralDiscoveryModelState, Never>
+    nonisolated public let stateDidChangeSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
+    nonisolated public let stateDidChange: AnyPublisher<Models.PeripheralDiscoveryModelState, Never>
 
     
     public init(state: PeripheralDiscoveryModelState = .makeStub()) {
         self.initialState = state
         
-        let stateDidUpdateSubject = CurrentValueSubject<PeripheralDiscoveryModelState, Never>(state)
-        self.stateDidUpdateSubject = stateDidUpdateSubject
-        self.stateDidUpdate = stateDidUpdateSubject.eraseToAnyPublisher()
+        let stateDidChangeSubject = CurrentValueSubject<PeripheralDiscoveryModelState, Never>(state)
+        self.stateDidChangeSubject = stateDidChangeSubject
+        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }
     
     

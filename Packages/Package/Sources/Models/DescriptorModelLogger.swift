@@ -2,14 +2,14 @@ import Combine
 import Logger
 
 
-public class DescriptorModelLogger {
+public actor DescriptorModelLogger {
     private var cancellables = Set<AnyCancellable>()
     
     
     public init(observing descriptorModel: any DescriptorModelProtocol, loggingBy logger: any LoggerProtocol) {
-        descriptorModel.stateDidUpdate
+        descriptorModel.stateDidChange
             .sink { state in
-                logger.debug("DescriptorModel#stateDidUpdate: \(state)")
+                logger.debug("DescriptorModel#stateDidChange: \(state)")
             }
             .store(in: &cancellables)
     }

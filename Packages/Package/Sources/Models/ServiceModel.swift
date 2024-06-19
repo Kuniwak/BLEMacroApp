@@ -33,19 +33,19 @@ public struct ServiceModelState {
     public let uuid: CBUUID
     public let name: String?
     public let discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>
-    public let peripheral: PeripheralModelState
+    public let connection: ConnectionModelState
     
     
     public init(
         uuid: CBUUID,
         name: String?,
         discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure>,
-        peripheral: PeripheralModelState
+        connection: ConnectionModelState
     ) {
         self.uuid = uuid
         self.name = name
         self.discovery = discovery
-        self.peripheral = peripheral
+        self.connection = connection
     }
 }
 
@@ -69,7 +69,7 @@ public actor AnyServiceModel: ServiceModelProtocol {
     
     nonisolated public var id: CBUUID { base.id }
     nonisolated public var initialState: ServiceModelState { base.initialState }
-    nonisolated public var stateDidUpdate: AnyPublisher<ServiceModelState, Never> { base.stateDidUpdate }
+    nonisolated public var stateDidChange: AnyPublisher<ServiceModelState, Never> { base.stateDidChange }
     
     
     public init(_ base: any ServiceModelProtocol) {
@@ -94,24 +94,23 @@ public actor AnyServiceModel: ServiceModelProtocol {
 
 
 public actor ServiceModel: ServiceModelProtocol {
-    private let model: AttributeDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>
+    private let model: ConnectableDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>
     
     nonisolated public let initialState: State
-    nonisolated public let stateDidUpdate: AnyPublisher<ServiceModelState, Never>
+    nonisolated public let stateDidChange: AnyPublisher<ServiceModelState, Never>
     
     nonisolated public let id: CBUUID
     
     
     public init(
-        service: any ServiceProtocol,
+        representing service: any ServiceProtocol,
         onPeripheral peripheral: any PeripheralProtocol,
-        controlledBy peripheralModel: any PeripheralModelProtocol
+        controlledBy connectionModel: any ConnectionModelProtocol
     ) {
         self.id = service.uuid
         
         let discoveryModel = DiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>(
-            identifiedBy: service.uuid,
-            discoveringBy: characteristicDiscoveryStrategy(forService: service, onPeripheral: peripheralModel),
+            discoveringBy: characteristicDiscoveryStrategy(forService: service, connectingBy: connectionModel),
             thatTakes: peripheral
         )
         
@@ -121,24 +120,23 @@ public actor ServiceModel: ServiceModelProtocol {
             uuid: service.uuid,
             name: name,
             discovery: discoveryModel.initialState,
-            peripheral: peripheralModel.initialState
+            connection: connectionModel.initialState
         )
         self.initialState = initialState
         
-        let model = AttributeDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>(
-            identifiedBy: service.uuid,
+        let model = ConnectableDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>(
             discoveringBy: discoveryModel,
-            connectingBy: peripheralModel
+            connectingBy: connectionModel
         )
         self.model = model
         
-        self.stateDidUpdate = model.stateDidUpdate
+        self.stateDidChange = model.stateDidChange
             .map { state in
                 ServiceModelState(
                     uuid: service.uuid,
                     name: name,
                     discovery: state.discovery,
-                    peripheral: state.peripheral
+                    connection: state.connection
                 )
             }
             .eraseToAnyPublisher()
@@ -163,7 +161,7 @@ public actor ServiceModel: ServiceModelProtocol {
 
 private func characteristicDiscoveryStrategy(
     forService Service: any ServiceProtocol,
-    onPeripheral peripheralModel: any PeripheralModelProtocol
+    connectingBy connectionModel: any ConnectionModelProtocol
 ) -> (any PeripheralProtocol) async -> Result<[AnyCharacteristicModel], ServiceModelFailure> {
     return { peripheral in
         await DiscoveryTask
@@ -173,7 +171,7 @@ private func characteristicDiscoveryStrategy(
                     CharacteristicModel(
                         characteristic: characteristic,
                         onPeripheral: peripheral,
-                        controlledBy: peripheralModel
+                        connectingBy: connectionModel
                     ).eraseToAny()
                 }
             }

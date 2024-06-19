@@ -1,13 +1,13 @@
 import Foundation
 import Combine
-import BLEInternal
+import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
+import CoreBluetoothTasks
 import Catalogs
-import ConcurrentCombine
 
 
-public struct PeripheralModelFailure: Error, Equatable, CustomStringConvertible {
+public struct PeripheralModelFailure: Error, CustomStringConvertible {
     public let description: String
     
     
@@ -31,67 +31,13 @@ public struct PeripheralModelFailure: Error, Equatable, CustomStringConvertible 
 }
 
 
-public enum ConnectionState: Equatable {
-    case notConnectable
-    case disconnected
-    case connectionFailed(PeripheralModelFailure)
-    case connecting
-    case connected
-    case disconnecting
-    
-    
-    public var canConnect: Bool {
-        switch self {
-        case .notConnectable, .connected, .connecting, .disconnecting:
-            return false
-        case .disconnected, .connectionFailed:
-            return true
-        }
-    }
-    
-    
-    public var isConnected: Bool {
-        switch self {
-        case .connected:
-            return true
-        case .disconnected, .connecting, .disconnecting, .notConnectable, .connectionFailed:
-            return false
-        }
-    }
-}
-
-
-extension ConnectionState: CustomStringConvertible {
-    public var description: String {
-        switch self {
-        case .notConnectable:
-            return ".notConnectable"
-        case .disconnected:
-            return ".disconnected"
-        case .connectionFailed(let error):
-            return ".connectionFailed(\(error.description))"
-        case .connecting:
-            return ".connecting"
-        case .connected:
-            return ".connected"
-        case .disconnecting:
-            return ".disconnecting"
-        }
-    }
-}
-
-
-extension PeripheralModelState: Identifiable {
-    public var id: UUID { uuid }
-}
-
-
 public struct PeripheralModelState {
     public var uuid: UUID
-    public var connectionState: ConnectionState
+    public var connection: ConnectionModelState
     public var name: Result<String?, PeripheralModelFailure>
     public var rssi: Result<NSNumber, PeripheralModelFailure>
     public var manufacturerData: ManufacturerData?
+    public var discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
 
     
     public init(
@@ -99,13 +45,15 @@ public struct PeripheralModelState {
         name: Result<String?, PeripheralModelFailure>,
         rssi: Result<NSNumber, PeripheralModelFailure>,
         manufacturerData: ManufacturerData?,
-        connectionState: ConnectionState
+        connection: ConnectionModelState,
+        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
     ) {
         self.uuid = uuid
         self.name = name
         self.rssi = rssi
         self.manufacturerData = manufacturerData
-        self.connectionState = connectionState
+        self.connection = connection
+        self.discovery = discovery
     }
     
     
@@ -113,31 +61,19 @@ public struct PeripheralModelState {
         uuid: UUID,
         name: String?,
         rssi: NSNumber,
-        advertisementData: [String: Any]
+        manufacturerData: ManufacturerData?,
+        isConnectable: Bool,
+        discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
     ) -> Self {
-        let isConnectable: Bool
-        if let flag = advertisementData[CBAdvertisementDataIsConnectable] as? Bool {
-            isConnectable = flag
-        } else {
-            // NOTE: Assume connectable if not specified.
-            isConnectable = true
-        }
-        
-        let manufacturerData: ManufacturerData?
-        if let manufacturerRawData = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
-            manufacturerData = ManufacturerCatalog.from(data: manufacturerRawData)
-        } else {
-            manufacturerData = nil
-        }
-        
         return PeripheralModelState(
             uuid: uuid,
             name: .success(name),
             rssi: .success(rssi),
             manufacturerData: manufacturerData,
-            connectionState: isConnectable
+            connection: isConnectable
                 ? .disconnected // T2
-                : .notConnectable // T1
+                : .notConnectable, // T1
+            discovery: discovery
         )
     }
 }
@@ -170,7 +106,7 @@ extension PeripheralModelState: CustomStringConvertible {
             manufacturerData = "nil"
         }
         
-        return "PeripheralModelState(uuid: \(uuid), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData), connectionState: \(connectionState.description))"
+        return "PeripheralModelState(uuid: \(uuid), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData), connection: \(connection.description))"
     }
 }
 
@@ -202,14 +138,15 @@ extension PeripheralModelState: CustomDebugStringConvertible {
             manufacturerData = "nil"
         }
         
-        return "PeripheralModelState(uuid: \(uuid), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData), discoveryState: \(connectionState.description))"
+        return "ConnectionModelState(uuid: \(uuid), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData), discoveryState: \(connection.description))"
     }
 }
 
 
-public protocol PeripheralModelProtocol: StateMachine, Identifiable where State == PeripheralModelState {
+public protocol PeripheralModelProtocol: StateMachine, Identifiable<UUID> where State == PeripheralModelState {
     var state: State { get async }
-    
+    func readRSSI()
+    func discover()
     func connect()
     func disconnect()
 }
@@ -223,17 +160,28 @@ extension PeripheralModelProtocol {
 
 
 public actor AnyPeripheralModel: PeripheralModelProtocol {
-    private let base: any PeripheralModelProtocol
-    
-    public var state: PeripheralModelState {
+    nonisolated public var initialState: PeripheralModelState { base.initialState }
+    nonisolated public var stateDidChange: AnyPublisher<PeripheralModelState, Never> { base.stateDidChange }
+    nonisolated public var id: UUID { base.id }
+    public var state: State {
         get async { await base.state }
     }
-    nonisolated public var stateDidUpdate: AnyPublisher<PeripheralModelState, Never> { base.stateDidUpdate }
-    nonisolated public var initialState: PeripheralModelState { base.initialState }
-
+    
+    private let base: any PeripheralModelProtocol
+    
     
     public init(_ base: any PeripheralModelProtocol) {
         self.base = base
+    }
+    
+    
+    public func readRSSI() {
+        Task { await base.readRSSI() }
+    }
+    
+    
+    public func discover() {
+        Task { await base.discover() }
     }
     
     
@@ -248,121 +196,99 @@ public actor AnyPeripheralModel: PeripheralModelProtocol {
 }
 
 
-// ```marmaid
-// stateDiagram-v2
-//     state ".notConnectable" as notconnectable
-//     state ".disconnected" as disconnected
-//     state ".connectionFailed(error)" as connectionfailed
-//     state ".connecting" as connecting
-//     state ".connected" as connected
-//
-//     [*] --> notconnectable: T1 tau
-//     [*] --> disconnected: T2 tau
-//     disconnected --> connecting: T3 connect()
-//     connecting --> connected: T4 tau
-//     connecting --> connectionfailed: T5 tau
-//     connectionfailed --> connecting: T6 connect()
-//     connected --> disconnecting: T7 disconnect()
-//     disconnecting --> disconnected: T8 tau
-// ```
 public actor PeripheralModel: PeripheralModelProtocol {
-    private let peripheral: any PeripheralProtocol
-    private let centralManager: any CentralManagerProtocol
+    nonisolated public let initialState: PeripheralModelState
+    nonisolated public let stateDidChange: AnyPublisher<PeripheralModelState, Never>
+    
     nonisolated public let id: UUID
-    
-    public var state: PeripheralModelState {
-        get async { await stateDidUpdateSubject.value }
-    }
-    
-    private let stateDidUpdateSubject: ConcurrentValueSubject<PeripheralModelState, Never>
-    nonisolated public let stateDidUpdate: AnyPublisher<PeripheralModelState, Never>
-    
+    nonisolated private let manufacturerData: ManufacturerData?
+    private let nameSubject: ConcurrentValueSubject<Result<String?, PeripheralModelFailure>, Never>
+    private let rssiSubject: ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>
+
+    private let peripheral: any PeripheralProtocol
+    private let model: any ConnectableDiscoveryModelProtocol<AnyServiceModel, PeripheralModelFailure>
     private var cancellables = Set<AnyCancellable>()
     
-    nonisolated public let initialState: PeripheralModelState
-    
-    
+    public var state: State {
+        get async {
+            let state = await model.state
+            return PeripheralModelState(
+                uuid: id,
+                name: await nameSubject.value,
+                rssi: await rssiSubject.value,
+                manufacturerData: manufacturerData,
+                connection: state.connection,
+                discovery: state.discovery
+            )
+        }
+    }
+
+
     public init(
-        startsWith initialState: PeripheralModelState,
-        centralManager: any CentralManagerProtocol,
-        peripheral: any PeripheralProtocol
+        representing peripheral: any PeripheralProtocol,
+        withRSSI rssi: NSNumber,
+        withAdvertisementData advertisementData: [String: Any],
+        connectingWith connectionModel: any ConnectionModelProtocol
     ) {
-        self.centralManager = centralManager
-        self.peripheral = peripheral
         self.id = peripheral.identifier
         
+        let manufacturerData = ManufacturerData.from(advertisementData: advertisementData)
+        self.manufacturerData = manufacturerData
+        
+        let nameSubject = ConcurrentValueSubject<Result<String?, PeripheralModelFailure>, Never>(.success(peripheral.name))
+        self.nameSubject = nameSubject
+        let rssiSubject = ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>(.success(rssi))
+        self.rssiSubject = rssiSubject
+        
+        let discoveryModel = DiscoveryModel<AnyServiceModel, PeripheralModelFailure>(
+            discoveringBy: serviceDiscoveryStrategy(connectionModel: connectionModel),
+            thatTakes: peripheral
+        )
+
+        let initialState: State = .initialState(
+            uuid: peripheral.identifier,
+            name: peripheral.name,
+            rssi: rssi,
+            manufacturerData: manufacturerData,
+            isConnectable: isConnectable(fromAdvertisementData: advertisementData),
+            discovery: discoveryModel.initialState
+        )
         self.initialState = initialState
-        let didUpdateSubject = ConcurrentValueSubject<PeripheralModelState, Never>(initialState)
-        self.stateDidUpdateSubject = didUpdateSubject
-        self.stateDidUpdate = didUpdateSubject.eraseToAnyPublisher()
+        
+        self.peripheral = peripheral
+        
+        let model = ConnectableDiscoveryModel(
+            discoveringBy: discoveryModel,
+            connectingBy: connectionModel
+        )
+        self.model = model
+        
+        self.stateDidChange = model.stateDidChange
+            .combineLatest(nameSubject, rssiSubject)
+            .map { state, name, rssi -> PeripheralModelState in
+                PeripheralModelState(
+                    uuid: peripheral.identifier,
+                    name: name,
+                    rssi: rssi,
+                    manufacturerData: manufacturerData,
+                    connection: state.connection,
+                    discovery: state.discovery
+                )
+            }
+            .eraseToAnyPublisher()
         
         var mutableCancellables = Set<AnyCancellable>()
-        
-        centralManager.didConnectPeripheral
-            .sink { [weak self] peripheral in
-                guard let self else { return }
-                guard peripheral.identifier == self.id else { return }
-                
-                Task {
-                    await self.stateDidUpdateSubject.change { prev in
-                        guard case .connecting = prev.connectionState else { return prev }
-                        // T4
-                        var new = prev
-                        new.connectionState = .connected
-                        return new
-                    }
-                }
-            }
-            .store(in: &mutableCancellables)
-        
-        centralManager.didFailToConnectPeripheral
-            .sink { [weak self] resp in
-                guard let self else { return }
-                guard resp.peripheral.identifier == self.id else { return }
-                
-                Task {
-                    await self.stateDidUpdateSubject.change { prev in
-                        guard case .connecting = prev.connectionState else { return prev }
-                        // T5
-                        var new = prev
-                        new.connectionState = .connectionFailed(.init(wrapping: resp.error))
-                        return new
-                    }
-                }
-            }
-            .store(in: &mutableCancellables)
-        
-        centralManager.didDisconnectPeripheral
-            .sink { [weak self] resp in
-                guard let self else { return }
-                guard resp.peripheral.identifier == self.id else { return }
-                
-                Task {
-                    await self.stateDidUpdateSubject.change { prev in
-                        // T8
-                        var new = prev
-                        new.connectionState = .disconnected
-                        return new
-                    }
-                }
-            }
-            .store(in: &mutableCancellables)
         
         peripheral.didUpdateRSSI
             .sink { [weak self] resp in
                 guard let self else { return }
                 
                 Task {
-                    await self.stateDidUpdateSubject.change { prev in
-                        guard case .connected = prev.connectionState else { return prev }
+                    await self.rssiSubject.change { _ in
                         if let rssi = resp.rssi {
-                            var new = prev
-                            new.rssi = .success(rssi)
-                            return new
+                            return .success(rssi)
                         } else {
-                            var new = prev
-                            new.rssi = .failure(PeripheralModelFailure(wrapping: resp.error))
-                            return new
+                            return .failure(.init(wrapping: resp.error))
                         }
                     }
                 }
@@ -374,16 +300,11 @@ public actor PeripheralModel: PeripheralModelProtocol {
                 guard let self else { return }
                 
                 Task {
-                    await self.stateDidUpdateSubject.change { prev in
-                        guard case .connected = prev.connectionState else { return prev }
+                    await self.nameSubject.change { _ in
                         if let name = name {
-                            var new = prev
-                            new.name = .success(name)
-                            return new
+                            return .success(name)
                         } else {
-                            var new = prev
-                            new.name = .failure(PeripheralModelFailure(description: "No name"))
-                            return new
+                            return .failure(.init(description: "No name"))
                         }
                     }
                 }
@@ -395,16 +316,11 @@ public actor PeripheralModel: PeripheralModelProtocol {
                 guard let self else { return }
                 
                 Task {
-                    await self.stateDidUpdateSubject.change { prev in
-                        guard case .connected = prev.connectionState else { return prev }
+                    await self.rssiSubject.change { _ in
                         if let rssi = resp.rssi {
-                            var new = prev
-                            new.rssi = .success(rssi)
-                            return new
+                            return .success(rssi)
                         } else {
-                            var new = prev
-                            new.rssi = .failure(PeripheralModelFailure(wrapping: resp.error))
-                            return new
+                            return .failure(.init(wrapping: resp.error))
                         }
                     }
                 }
@@ -421,38 +337,37 @@ public actor PeripheralModel: PeripheralModelProtocol {
     }
     
     
-    public func connect() {
-        Task {
-            await stateDidUpdateSubject.change { prev in
-                switch prev.connectionState {
-                case .disconnected, .connectionFailed:
-                    // T3, T6
-                    var new = prev
-                    new.connectionState = .connecting
-                    return new
-                default:
-                    return prev
-                }
-            }
-            centralManager.connect(peripheral)
-        }
+    public func readRSSI() {
+        peripheral.readRSSI()
     }
     
+    public func discover() {
+        Task { await model.discover() }
+    }
+    
+    public func connect() {
+        Task { await model.connect() }
+    }
     
     public func disconnect() {
-        Task {
-            await stateDidUpdateSubject.change { prev in
-                switch prev.connectionState {
-                case .connected:
-                    // T7
-                    var new = prev
-                    new.connectionState = .disconnecting
-                    return new
-                default:
-                    return prev
+        Task { await model.disconnect() }
+    }
+}
+
+
+private func serviceDiscoveryStrategy(connectionModel: any ConnectionModelProtocol) -> (any PeripheralProtocol) async -> Result<[AnyServiceModel], PeripheralModelFailure> {
+    return { peripheral in
+        await DiscoveryTask
+            .discoverServices(onPeripheral: peripheral)
+            .map { services in
+                services.map { service in
+                    ServiceModel(
+                        representing: service,
+                        onPeripheral: peripheral,
+                        controlledBy: connectionModel
+                    ).eraseToAny()
                 }
             }
-            centralManager.cancelPeripheralConnection(peripheral)
-        }
+            .mapError(PeripheralModelFailure.init(wrapping:))
     }
 }

@@ -7,7 +7,7 @@ import ModelStubs
 final class PeripheralSearchModelTests: XCTestCase {
     private struct TestCase {
         public let description: String
-        public let peripheral: StubPeripheralModel
+        public let peripheral: StubConnectionModel
         public let searchQuery: String
         public let expected: Bool
     }
