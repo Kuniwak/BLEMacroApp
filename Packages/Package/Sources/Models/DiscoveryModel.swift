@@ -53,6 +53,24 @@ extension DiscoveryModelState: CustomStringConvertible where Value: CustomString
 }
 
 
+extension DiscoveryModelState: Equatable where Value: Equatable, Failure: Equatable {
+    public static func == (lhs: DiscoveryModelState, rhs: DiscoveryModelState) -> Bool {
+        switch (lhs, rhs) {
+        case (.notDiscoveredYet, .notDiscoveredYet):
+            return true
+        case (.discovering(let lhsValues), .discovering(let rhsValues)):
+            return lhsValues == rhsValues
+        case (.discovered(let lhsValues), .discovered(let rhsValues)):
+            return lhsValues == rhsValues
+        case (.discoveryFailed(let lhsError, let lhsValues), .discoveryFailed(let rhsError, let rhsValues)):
+            return lhsError == rhsError && lhsValues == rhsValues
+        default:
+            return false
+        }
+    }
+}
+
+
 public protocol DiscoveryModelProtocol<Value, Failure>: StateMachineProtocol where State == DiscoveryModelState<Value, Failure> {
     associatedtype Value
     associatedtype Failure: Error

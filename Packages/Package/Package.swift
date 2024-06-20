@@ -29,7 +29,10 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-testing.git", from: "0.10.0"),
     ],
     targets: [
-        .target(name: "ModelFoundation"),
+        .target(
+            name: "ModelFoundation",
+            swiftSettings: SwiftSetting.allCases
+        ),
         .target(
             name: "Catalogs",
             dependencies: [
@@ -85,6 +88,7 @@ let package = Package(
                 .modelFoundation,
                 .logger,
                 .fuzi,
+                .mirrorDiffKit,
                 .concurrentCombine,
                 .taskExtensions,
                 .coreBluetoothTestable,

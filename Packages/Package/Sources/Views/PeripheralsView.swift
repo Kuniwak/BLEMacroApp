@@ -10,13 +10,13 @@ import PreviewHelper
 public struct PeripheralsView: View {
     @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     private let logger: any LoggerProtocol
-    private let projectionLogger: PeripheralSearchModelLogger
+    private let modelLogger: PeripheralSearchModelLogger
     
     
     public init(observing model: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
         self.binding = ViewBinding(source: model.eraseToAny())
         self.logger = logger
-        self.projectionLogger = PeripheralSearchModelLogger(
+        self.modelLogger = PeripheralSearchModelLogger(
             observing: model,
             loggingBy: logger
         )
@@ -35,10 +35,20 @@ public struct PeripheralsView: View {
     private var content: some View {
         List {
             switch binding.state.discovery {
-            case .idle, .discovering(.none):
-                HStack {
+            case .idle:
+                HStack(spacing: 10) {
                     Spacer()
                     ProgressView()
+                    Text("Waiting BLE Power On...")
+                        .foregroundStyle(Color(.weak))
+                    Spacer()
+                }
+            case .discovering(.none):
+                HStack(spacing: 10) {
+                    Spacer()
+                    ProgressView()
+                    Text("Discovering...")
+                        .foregroundStyle(Color(.weak))
                     Spacer()
                 }
             case .ready:
@@ -70,26 +80,34 @@ public struct PeripheralsView: View {
                 }
             case .discoveryFailed(.unspecified(let error)):
                 HStack {
+                    Spacer()
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
                     Text(error)
+                    Spacer()
                 }
                 .foregroundStyle(Color(.error))
             case .discoveryFailed(.unauthorized):
                 HStack {
+                    Spacer()
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
                     Text("Bluetooth is unauthorized")
+                    Spacer()
                 }
                 .foregroundStyle(Color(.weak))
             case .discoveryFailed(.powerOff):
                 HStack {
+                    Spacer()
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
                     Text("Bluetooth is powered off")
+                    Spacer()
                 }
                 .foregroundStyle(Color(.weak))
             case .discoveryFailed(.unsupported):
                 HStack {
+                    Spacer()
                     Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
                     Text("Bluetooth is unsupported")
+                    Spacer()
                 }
                 .foregroundStyle(Color(.weak))
             }
@@ -135,6 +153,7 @@ internal struct PeripheralsView_Previews: PreviewProvider {
         let discoveryStates: [PeripheralDiscoveryModelState] = [
             .idle,
             .ready,
+            .discovering(nil),
             .discovering([]),
             .discovering([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),

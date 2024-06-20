@@ -4,15 +4,16 @@ import ModelFoundation
 
 
 public class ViewBinding<State, StateMachine: StateMachineProtocol<State>>: ObservableObject {
-    public var state: State { source.state }
+    @Published public private(set) var state: State
     public let source: StateMachine
-    public let objectWillChange: AnyPublisher<Void, Never>
+    public var cancellable: AnyCancellable? = nil
     
     
     public init(source: StateMachine) {
+        self.state = source.state
         self.source = source
-        self.objectWillChange = source.stateDidChange
-            .map { _ in () }
-            .eraseToAnyPublisher()
+        self.cancellable = source.stateDidChange
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.state, on: self)
     }
 }

@@ -6,7 +6,7 @@ import ModelFoundation
 import Catalogs
 
 
-public struct CharacteristicModelFailure: Error, CustomStringConvertible {
+public struct CharacteristicModelFailure: Error, CustomStringConvertible, Equatable {
     public let description: String
     
     
@@ -33,7 +33,7 @@ public struct CharacteristicModelFailure: Error, CustomStringConvertible {
 public typealias DescriptorDiscoveryModelState = DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure>
 
 
-public struct CharacteristicModelState {
+public struct CharacteristicModelState: Equatable {
     public let uuid: CBUUID
     public let name: String?
     public let connection: ConnectionModelState
@@ -101,6 +101,13 @@ public actor AnyCharacteristicModel: CharacteristicModelProtocol {
     
     public func disconnect() {
         Task { await base.disconnect() }
+    }
+}
+
+
+extension AnyCharacteristicModel: Equatable {
+    public static func == (lhs: AnyCharacteristicModel, rhs: AnyCharacteristicModel) -> Bool {
+        lhs.id == rhs.id && lhs.state == rhs.state
     }
 }
 

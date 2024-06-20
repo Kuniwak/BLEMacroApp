@@ -9,7 +9,7 @@ public class Recorder<Output, Failure: Error> {
     fileprivate private(set) var result: Result<[Output], Failure>? = nil
     
     
-    init<P: Publisher>(observing publisher: P) where P.Output == Output, P.Failure == Failure {
+    public init<P: Publisher>(observing publisher: P) where P.Output == Output, P.Failure == Failure {
         cancellable = publisher.sink(
             receiveCompletion: { [weak self] completion in
                 guard let self else { return }
@@ -43,6 +43,8 @@ public class Recorder<Output, Failure: Error> {
                     throw e
                 }
             }
+            
+            try! await Task.sleep(nanoseconds: 1_000_000)
         }
     }
 }

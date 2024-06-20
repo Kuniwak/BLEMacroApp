@@ -4,10 +4,12 @@ import Combine
 public actor ConcurrentValueSubject<Output, Failure: Error>: ObservableObject, Publisher {
     public typealias Output = Output
     public typealias Failure = Failure
-    private let subject: CurrentValueSubject<Output, Failure>
+    nonisolated private let subject: CurrentValueSubject<Output, Failure>
     
     
-    public var value: Output { subject.value }
+    nonisolated public var value: Output {
+        get { subject.value }
+    }
     
     
     public init(_ value: Output) {
@@ -20,12 +22,12 @@ public actor ConcurrentValueSubject<Output, Failure: Error>: ObservableObject, P
     }
     
     
-    public func send(completion: Subscribers.Completion<Failure>) {
+    nonisolated public func send(completion: Subscribers.Completion<Failure>) {
         subject.send(completion: completion)
     }
     
     
     nonisolated public func receive<S>(subscriber: S) where S : Subscriber, Failure == S.Failure, Output == S.Input {
-        Task { await subject.receive(subscriber: subscriber) }
+        subject.receive(subscriber: subscriber)
     }
 }

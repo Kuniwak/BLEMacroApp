@@ -1,13 +1,12 @@
-import Testing
 import XCTest
 import Combine
 import ConcurrentCombine
 
 
 
-final class ConcurrentValueSubjectTests: XCTestCase {
+final class ProjectedValueSubjectTests: XCTestCase {
     func test() async throws {
-        let subject = ConcurrentValueSubject<Int, Never>(0)
+        let subject = ProjectedValueSubject<Int, Never>(0)
         let recorder = subject.startRecord()
 
         Task {

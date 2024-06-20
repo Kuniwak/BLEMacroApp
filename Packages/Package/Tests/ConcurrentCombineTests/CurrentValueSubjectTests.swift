@@ -1,19 +1,18 @@
-import Testing
 import XCTest
 import Combine
 import ConcurrentCombine
 
 
 
-final class ConcurrentValueSubjectTests: XCTestCase {
+final class CurrentValueSubjectTests: XCTestCase {
     func test() async throws {
-        let subject = ConcurrentValueSubject<Int, Never>(0)
+        let subject = CurrentValueSubject<Int, Never>(0)
         let recorder = subject.startRecord()
 
         Task {
-            await subject.change { $0 + 1 }
-            await subject.change { $0 + 1 }
-            await subject.change { $0 + 1 }
+            subject.value += 1
+            subject.value += 1
+            subject.value += 1
             subject.send(completion: .finished)
         }
         

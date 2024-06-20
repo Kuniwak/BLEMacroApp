@@ -4,9 +4,10 @@ import CoreBluetooth
 import CoreBluetoothTestable
 import Catalogs
 import ModelFoundation
+import MirrorDiffKit
 
 
-public struct DescriptorModelFailure: Error, CustomStringConvertible {
+public struct DescriptorModelFailure: Error, CustomStringConvertible, Equatable {
     public let description: String
     
     
@@ -49,6 +50,13 @@ public struct DescriptorModelState {
             name: DescriptorCatalog.from(cbuuid: cbuuid)?.name,
             value: .success(nil)
         )
+    }
+}
+
+
+extension DescriptorModelState: Equatable {
+    public static func == (lhs: DescriptorModelState, rhs: DescriptorModelState) -> Bool {
+        lhs.uuid == rhs.uuid && lhs.name == rhs.name && lhs.value =~ rhs.value
     }
 }
 
@@ -116,6 +124,13 @@ public actor AnyDescriptorModel: DescriptorModelProtocol {
     
     public func write(value: Data) {
         Task { await base.write(value: value) }
+    }
+}
+
+
+extension AnyDescriptorModel: Equatable {
+    public static func == (lhs: AnyDescriptorModel, rhs: AnyDescriptorModel) -> Bool {
+        lhs.id == rhs.id && lhs.state == rhs.state
     }
 }
 

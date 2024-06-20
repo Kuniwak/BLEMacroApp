@@ -7,7 +7,11 @@ import ModelFoundation
 import TaskExtensions
 
 
-public struct SearchQuery: RawRepresentable, Equatable, Codable {
+public struct SearchQuery: RawRepresentable, Equatable, Codable, ExpressibleByStringLiteral {
+    public typealias StringLiteralType = Swift.StringLiteralType
+    public typealias ExtendedGraphemeClusterLiteralType = Swift.ExtendedGraphemeClusterType
+    public typealias UnicodeScalarLiteralType = UnicodeScalarType
+    
     public var rawValue: String
     
     
@@ -16,8 +20,13 @@ public struct SearchQuery: RawRepresentable, Equatable, Codable {
     }
     
     
-    public static func match(searchQuery: SearchQuery, state: PeripheralModelState) -> Bool {
-        let searchQuery = searchQuery.rawValue
+    public init(stringLiteral value: String) {
+        self.init(rawValue: value)
+    }
+    
+    
+    public func match(state: PeripheralModelState) -> Bool {
+        let searchQuery = self.rawValue
         if searchQuery.isEmpty { return true }
         
         if state.uuid.uuidString.contains(searchQuery) {
@@ -73,7 +82,7 @@ public struct SearchQuery: RawRepresentable, Equatable, Codable {
     
     private static func filter(peripherals: [AnyPeripheralModel], bySearchQuery searchQuery: SearchQuery) async -> [AnyPeripheralModel] {
         return peripherals
-            .filter { match(searchQuery: searchQuery, state: $0.state) }
+            .filter { searchQuery.match(state: $0.state) }
     }
 }
 

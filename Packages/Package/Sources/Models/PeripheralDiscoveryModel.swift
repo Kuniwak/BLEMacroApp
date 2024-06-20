@@ -63,7 +63,7 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
 }
 
 
-public enum PeripheralDiscoveryModelState {
+public enum PeripheralDiscoveryModelState: Equatable {
     case idle
     case ready
     case discovering([AnyPeripheralModel]?)

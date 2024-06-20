@@ -8,7 +8,7 @@ import ModelFoundation
 import Catalogs
 
 
-public struct PeripheralModelFailure: Error, CustomStringConvertible {
+public struct PeripheralModelFailure: Error, CustomStringConvertible, Equatable {
     public let description: String
     
     
@@ -35,7 +35,7 @@ public struct PeripheralModelFailure: Error, CustomStringConvertible {
 public typealias ServiceDiscoveryModelState = DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
 
 
-public struct PeripheralModelState {
+public struct PeripheralModelState: Equatable {
     public var uuid: UUID
     public var connection: ConnectionModelState
     public var name: Result<String?, PeripheralModelFailure>
@@ -160,6 +160,13 @@ public actor AnyPeripheralModel: PeripheralModelProtocol {
     
     public func disconnect() {
         Task { await base.disconnect() }
+    }
+}
+
+
+extension AnyPeripheralModel: Equatable {
+    public static func == (lhs: AnyPeripheralModel, rhs: AnyPeripheralModel) -> Bool {
+        lhs.id == rhs.id && lhs.state == rhs.state
     }
 }
 
