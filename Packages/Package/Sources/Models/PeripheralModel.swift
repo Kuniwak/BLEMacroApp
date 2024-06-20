@@ -103,14 +103,32 @@ extension PeripheralModelState: CustomStringConvertible {
             rssi = error.description
         }
         
-        let manufacturerData: String
-        if let data = self.manufacturerData {
-            manufacturerData = data.description
-        } else {
-            manufacturerData = "nil"
+        return "(uuid: \(uuid), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData?.description ?? "nil"), connection: \(connection.description))"
+    }
+}
+
+
+extension PeripheralModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        let name: String
+        switch self.name {
+        case .success(.some):
+            name = ".success(.some)"
+        case .success(.none):
+            name = ".success(.none)"
+        case .failure:
+            name = ".failure"
         }
         
-        return "PeripheralModelState(uuid: \(uuid), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData), connection: \(connection.description))"
+        let rssi: String
+        switch self.rssi {
+        case .success:
+            rssi = ".success"
+        case .failure:
+            rssi = ".failure"
+        }
+        
+        return "(uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name), rssi: \(rssi), manufacturerData: \(manufacturerData?.debugDescription ?? "nil"), connection: \(connection.debugDescription))"
     }
 }
 

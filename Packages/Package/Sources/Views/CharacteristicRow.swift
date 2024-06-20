@@ -48,7 +48,7 @@ public struct CharacteristicRow: View {
             ]
             
             let wrappers: [Previewable] = states.map { state in
-                Previewable(state, describing: state.description)
+                Previewable(state, describing: state.debugDescription)
             }
             
             ForEach(wrappers) { wrapper in

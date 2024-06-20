@@ -36,20 +36,20 @@ public typealias CharacteristicDiscoveryModelState = DiscoveryModelState<AnyChar
 public struct ServiceModelState: Equatable {
     public let uuid: CBUUID
     public let name: String?
-    public let discovery: CharacteristicDiscoveryModelState
     public let connection: ConnectionModelState
-    
+    public let discovery: CharacteristicDiscoveryModelState
+
     
     public init(
         uuid: CBUUID,
         name: String?,
-        discovery: CharacteristicDiscoveryModelState,
-        connection: ConnectionModelState
+        connection: ConnectionModelState,
+        discovery: CharacteristicDiscoveryModelState
     ) {
         self.uuid = uuid
         self.name = name
-        self.discovery = discovery
         self.connection = connection
+        self.discovery = discovery
     }
 }
 
@@ -57,6 +57,13 @@ public struct ServiceModelState: Equatable {
 extension ServiceModelState: CustomStringConvertible {
     public var description: String {
         "ServiceModelState(uuid: \(uuid.uuidString), name: \(name ?? "(no name)"), discovery: \(discovery.description), connection: \(connection.description))"
+    }
+}
+
+
+extension ServiceModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        "ServiceModelState(uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name == nil ? ".some" : ".none"), discovery: \(discovery.debugDescription), connection: \(connection.debugDescription))"
     }
 }
 
@@ -120,8 +127,8 @@ public actor ServiceModel: ServiceModelProtocol {
         ServiceModelState(
             uuid: id,
             name: name,
-            discovery: model.state.discovery,
-            connection: model.state.connection
+            connection: model.state.connection,
+            discovery: model.state.discovery
         )
     }
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
@@ -156,8 +163,8 @@ public actor ServiceModel: ServiceModelProtocol {
                 ServiceModelState(
                     uuid: service.uuid,
                     name: name,
-                    discovery: state.discovery,
-                    connection: state.connection
+                    connection: state.connection,
+                    discovery: state.discovery
                 )
             }
             .eraseToAnyPublisher()

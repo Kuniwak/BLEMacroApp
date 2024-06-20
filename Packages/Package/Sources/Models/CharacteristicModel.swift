@@ -56,7 +56,14 @@ public struct CharacteristicModelState: Equatable {
 
 extension CharacteristicModelState: CustomStringConvertible {
     public var description: String {
-        "CharacteristicModelState(uuid: \(uuid.uuidString), name: \(name ?? "(no name)"), connection: \(connection.description), discovery: \(discovery.description)"
+        "(uuid: \(uuid.uuidString), name: \(name ?? "(no name)"), connection: \(connection.description), discovery: \(discovery.description)"
+    }
+}
+
+
+extension CharacteristicModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        "(uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name == nil ? ".some" : ".none"), connection: \(connection.debugDescription), discovery: \(discovery.debugDescription)"
     }
 }
 

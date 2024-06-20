@@ -19,8 +19,8 @@ public struct ServicesView: View {
     public init(observing model: any PeripheralModelProtocol, loggingBy logger: any LoggerProtocol) {
         self.binding = ViewBinding(source: model.eraseToAny())
         self.model = model
-        self.logger = logger
         self.modelLogger = PeripheralModelLogger(observing: model, loggingBy: logger)
+        self.logger = logger
     }
     
     
@@ -41,17 +41,33 @@ public struct ServicesView: View {
                             .foregroundStyle(Color(.weak))
                     } else {
                         ForEach(services) { service in
-                            ServiceRow(observing: service)
+                            NavigationLink(destination: characteristicsView(for: service)) {
+                                ServiceRow(observing: service)
+                            }
+                            .disabled(!model.state.connection.canConnect && !model.state.connection.isConnected)
                         }
                     }
                 } else if binding.state.discovery.isDiscovering {
-                    Text("Discovering...")
+                    HStack(spacing: 10) {
+                        Spacer()
+                        ProgressView()
+                        Text("Discovering...")
+                            .foregroundStyle(Color(.weak))
+                        Spacer()
+                    }
                 } else {
-                    Button("Discover") {
-                        Task { await model.discover() }
+                    HStack {
+                        Text("Not Discovering.")
+                            .foregroundStyle(Color(.weak))
+                        Button("Start") {
+                            Task { await model.discover() }
+                        }
                     }
                 }
             }
+        }
+        .onAppear() {
+            Task { await model.discover() }
         }
         .navigationTitle(name)
         .navigationBarItems(trailing: trailingNavigationBarItem)
@@ -63,10 +79,17 @@ public struct ServicesView: View {
         case .success(.some(let name)):
             return name
         case .success(.none):
-            return "(no name)"
+            return model.state.uuid.uuidString
         case .failure(let error):
             return "E: \(error)"
         }
+    }
+    
+    private func characteristicsView(for service: any ServiceModelProtocol) -> some View {
+        CharacteristicsView(
+            observing: service,
+            loggingBy: logger
+        )
     }
     
     
@@ -95,7 +118,7 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
         .discovered([]),
     ]
     
-    let names: [Result<String?, ConnectionModelFailure>] = [
+    let names: [Result<String?, PeripheralModelFailure>] = [
         .success(nil),
         .failure(.init(description: "TEST")),
     ]
@@ -114,7 +137,7 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
     let states2: [PeripheralModelState] = names.map { name in
         PeripheralModelState(
             uuid: StubUUID.zero,
-            name: .success("Example Device"),
+            name: name,
             rssi: .success(-50),
             manufacturerData: nil,
             connection: .connected,
@@ -125,35 +148,26 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
         )
     }
     
-    return (states1 + states2).enumerated()
-        .map { pair in
-            var state = pair.1
-            state.uuid = StubUUID.from(byte: UInt8(pair.0))
-            let name: String
-            switch state.name {
-            case .success(.some(let value)):
-                name = value
-            case .success(.none):
-                name = "nil"
-            case .failure(let error):
-                name = "\(error)"
-            }
+    return (states1 + states2)
+        .map { state in
             return Previewable(
                 StubPeripheralModel(state: state).eraseToAny(),
-                describing: "\(state.discovery.description) \(name)"
+                describing: "\(state.debugDescription)"
             )
         }
 }
 
 
-#Preview {
-    ForEach(stubsForPreview()) { wrapper in
-        NavigationStack {
-            ServicesView(
-                observing: wrapper.value,
-                loggingBy: NullLogger()
-            )
+internal struct ServicesView_Previews: PreviewProvider {
+    internal static var previews: some View {
+        ForEach(stubsForPreview()) { wrapper in
+            NavigationStack {
+                ServicesView(
+                    observing: wrapper.value,
+                    loggingBy: NullLogger()
+                )
+            }
+            .previewDisplayName(wrapper.description)
         }
-        .previewDisplayName(wrapper.description)
     }
 }

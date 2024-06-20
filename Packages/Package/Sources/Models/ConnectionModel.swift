@@ -102,6 +102,26 @@ extension ConnectionModelState: CustomStringConvertible {
 }
 
 
+extension ConnectionModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .notConnectable:
+            return ".notConnectable"
+        case .disconnected:
+            return ".disconnected"
+        case .connectionFailed:
+            return ".connectionFailed"
+        case .connecting:
+            return ".connecting"
+        case .connected:
+            return ".connected"
+        case .disconnecting:
+            return ".disconnecting"
+        }
+    }
+}
+
+
 public protocol ConnectionModelProtocol: StateMachineProtocol, Identifiable where State == ConnectionModelState {
     func connect()
     func disconnect()

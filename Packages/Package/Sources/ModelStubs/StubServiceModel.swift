@@ -44,8 +44,8 @@ extension ServiceModelState {
         .init(
             uuid: uuid,
             name: name,
-            discovery: discovery,
-            connection: connection
+            connection: connection,
+            discovery: discovery
         )
     }
     
@@ -62,8 +62,8 @@ extension ServiceModelState {
         .init(
             uuid: uuid,
             name: name,
-            discovery: discovery,
-            connection: connection
+            connection: connection,
+            discovery: discovery
         )
     }
 }

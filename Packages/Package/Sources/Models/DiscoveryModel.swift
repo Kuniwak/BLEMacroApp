@@ -53,6 +53,26 @@ extension DiscoveryModelState: CustomStringConvertible where Value: CustomString
 }
 
 
+extension DiscoveryModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .notDiscoveredYet:
+            return ".notDiscoveredYet"
+        case .discovering(.none):
+            return ".discovering(nil)"
+        case .discovering(.some(let models)):
+            return ".discovering([\(models.count) entries])"
+        case .discovered(let models):
+            return ".discovered([\(models.count) entries])"
+        case .discoveryFailed(_, .some(let models)):
+            return ".discoveryFailed(error, [\(models.count) entries])"
+        case .discoveryFailed(_, .none):
+            return ".discoveryFailed(error, nil)"
+        }
+    }
+}
+
+
 extension DiscoveryModelState: Equatable where Value: Equatable, Failure: Equatable {
     public static func == (lhs: DiscoveryModelState, rhs: DiscoveryModelState) -> Bool {
         switch (lhs, rhs) {

@@ -44,7 +44,7 @@ private func stubsForPreview() -> [Previewable<AnyServiceModel>] {
                 discovery: .notDiscoveredYet
             )
             let model = StubServiceModel(state: state).eraseToAny()
-            return Previewable(model, describing: state.description)
+            return Previewable(model, describing: state.debugDescription)
         }
 
 }
@@ -58,15 +58,6 @@ private func stubsForPreview() -> [Previewable<AnyServiceModel>] {
                     ServiceRow(observing: wrapper.value)
                 }
             }
-        }
-    }
-}
-
-
-#Preview("without NavigationLink") {
-    List {
-        ForEach(stubsForPreview()) { wrapper in
-            ServiceRow(observing: wrapper.value)
         }
     }
 }

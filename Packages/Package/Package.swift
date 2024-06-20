@@ -59,13 +59,15 @@ let package = Package(
         ),
         .target(
             name: "ConcurrentCombine",
+            dependencies: [
+                .taskExtensions,
+            ],
             swiftSettings: SwiftSetting.allCases
         ),
         .testTarget(
             name: "ConcurrentCombineTests",
             dependencies: [
                 .concurrentCombine,
-                .taskExtensions,
                 .testing,
             ],
             swiftSettings: SwiftSetting.allCases
@@ -110,6 +112,7 @@ let package = Package(
                 .models,
                 .bleModelStub,
                 .catalogs,
+                .concurrentCombine,
                 .coreBluetoothTestable,
                 .coreBluetoothStub,
                 .mirrorDiffKit,

@@ -126,10 +126,32 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
             return ".idle"
         case .ready:
             return ".ready"
-        case .discovering:
-            return ".discovering([...])"
-        case .discovered:
-            return ".discovered([...])"
+        case .discovering(.none):
+            return ".discovering(nil)"
+        case .discovering(.some(let peripherals)):
+            return ".discovering(\(peripherals.map(\.state.description).joined(separator: ", "))"
+        case .discovered(let peripherals):
+            return ".discovered([\(peripherals.map(\.state.description).joined(separator: ", "))])"
+        case .discoveryFailed(let error):
+            return ".discoveryFailed(\(error.description))"
+        }
+    }
+}
+
+
+extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .idle:
+            return ".idle"
+        case .ready:
+            return ".ready"
+        case .discovering(.none):
+            return ".discovering(nil)"
+        case .discovering(.some(let peripherals)):
+            return ".discovering([\(peripherals.count) peripherals])"
+        case .discovered(let peripherals):
+            return ".discovered([\(peripherals.count) peripherals])"
         case .discoveryFailed(let error):
             return ".discoveryFailed(\(error.description))"
         }
@@ -180,7 +202,6 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     nonisolated public var state: State { stateDidChangeSubject.projected }
     nonisolated private let stateDidChangeSubject: ProjectedValueSubject<PeripheralDiscoveryModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<PeripheralDiscoveryModelState, Never>
-    
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -246,7 +267,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                                 
                                 var newModels = models ?? []
                                 newModels.append(newModel.eraseToAny())
-                                return .discovered(newModels)
+                                return .discovering(newModels)
                             case .failure(let error):
                                 return .discoveryFailed(.unspecified("\(error)"))
                             }
@@ -258,6 +279,11 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
         
         let cancellables = mutableCancellables
         Task { await self.store(cancellables: cancellables) }
+    }
+    
+    
+    private func store(cancellable: AnyCancellable) {
+        self.cancellables.insert(cancellable)
     }
     
     

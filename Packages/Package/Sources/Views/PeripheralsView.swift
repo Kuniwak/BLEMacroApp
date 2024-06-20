@@ -46,7 +46,6 @@ public struct PeripheralsView: View {
             case .discovering(.none):
                 HStack(spacing: 10) {
                     Spacer()
-                    ProgressView()
                     Text("Discovering...")
                         .foregroundStyle(Color(.weak))
                     Spacer()
@@ -69,13 +68,9 @@ public struct PeripheralsView: View {
                     .foregroundStyle(Color(.weak))
                 } else {
                     ForEach(peripherals) { peripheral in
-                        if peripheral.state.connection.canConnect {
-                            NavigationLink(destination: servicesView(peripheral)) {
-                                PeripheralRow(observing: peripheral)
-                            }
-                        } else {
+                        NavigationLink(destination: servicesView(peripheral)) {
                             PeripheralRow(observing: peripheral)
-                        }
+                        }.disabled(!peripheral.state.connection.canConnect)
                     }
                 }
             case .discoveryFailed(.unspecified(let error)):
@@ -123,11 +118,11 @@ public struct PeripheralsView: View {
     private func servicesView(_ peripheral: any PeripheralModelProtocol) -> some View {
         let model = self.binding.source
         return ServicesView(observing: peripheral, loggingBy: logger)
-            .onAppear() {
+            .onAppear{
                 Task { await model.stopScan() }
-                Task { await peripheral.discover() }
+                Task { await peripheral.connect() }
             }
-            .onDisappear() {
+            .onDisappear {
                 Task { await peripheral.disconnect() }
             }
     }
@@ -175,7 +170,7 @@ internal struct PeripheralsView_Previews: PreviewProvider {
                     discovery: $0,
                     searchQuery: SearchQuery(rawValue: "Example")
                 ),
-                describing: $0.description
+                describing: $0.debugDescription
             )
         }
         

@@ -91,13 +91,13 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
         .disconnecting,
     ]
     let state1: [PeripheralModelState] = rssiValues
-        .map { rssi in .makeStub(rssi: rssi) }
+        .map { rssi in .makeSuccessfulStub(rssi: rssi) }
     let state2: [PeripheralModelState] = names
-        .map { name in .makeStub(name: name) }
+        .map { name in .makeSuccessfulStub(name: name) }
     let state3: [PeripheralModelState] = manufacturerData
-        .map { manufacturerData in .makeStub(manufacturerData: manufacturerData) }
+        .map { manufacturerData in .makeSuccessfulStub(manufacturerData: manufacturerData) }
     let state4: [PeripheralModelState] = connection
-        .map { connection in .makeStub(connection: connection) }
+        .map { connection in .makeSuccessfulStub(connection: connection) }
     return (state1 + state2 + state3 + state4).map { state in
         Previewable(
             StubPeripheralModel(state: state).eraseToAny(),
@@ -107,19 +107,12 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
 }
 
 
-#Preview("NavigationLink") {
+#Preview {
     NavigationView {
         List(stubsForPreview()) { wrapper in
             NavigationLink(destination: Text("TODO")) {
                 PeripheralRow(observing: wrapper.value)
             }
         }
-    }
-}
-
-
-#Preview("No NavigationLink") {
-    List(stubsForPreview()) { wrapper in
-        PeripheralRow(observing: wrapper.value )
     }
 }

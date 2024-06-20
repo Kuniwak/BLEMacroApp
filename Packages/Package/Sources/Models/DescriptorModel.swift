@@ -70,7 +70,7 @@ extension DescriptorModelState: CustomStringConvertible {
         case .failure(let error):
             valueDescription = ".failure(\(error.description))"
         }
-        return "DescriptorModelState(value: \(valueDescription), uuid: \(uuid.uuidString), name: \(name ?? "nil"))"
+        return "(value: \(valueDescription), uuid: \(uuid.uuidString), name: \(name ?? "nil"))"
     }
 }
 
@@ -80,11 +80,11 @@ extension DescriptorModelState: CustomDebugStringConvertible {
         let valueDescription: String
         switch value {
         case .success(let value):
-            valueDescription = ".success(\(value == nil ? "nil" : "value"))"
-        case .failure(let error):
-            valueDescription = ".failure(\(error.description))"
+            valueDescription = ".success(\(value == nil ? ".none" : ".some"))"
+        case .failure:
+            valueDescription = ".failure"
         }
-        return "DescriptorModelState(value: \(valueDescription), uuid: \(uuid.uuidString), name: \(name ?? "nil"))"
+        return "(value: \(valueDescription), uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name == nil ? ".none" : ".some"))"
     }
 }
 

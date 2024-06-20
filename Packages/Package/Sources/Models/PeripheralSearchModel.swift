@@ -16,7 +16,7 @@ public struct SearchQuery: RawRepresentable, Equatable, Codable, ExpressibleBySt
     
     
     public init(rawValue: String) {
-        self.rawValue = rawValue.uppercased()
+        self.rawValue = rawValue
     }
     
     
@@ -114,7 +114,14 @@ public struct PeripheralSearchModelState {
 
 extension PeripheralSearchModelState: CustomStringConvertible {
     public var description: String {
-        "PeripheralSearchModelState(discoveryState: \(discovery.description), searchQuery: \(searchQuery))"
+        "(discovery: \(discovery.description), searchQuery: \(searchQuery))"
+    }
+}
+
+
+extension PeripheralSearchModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        "(discovery: \(discovery.debugDescription), searchQuery: \(searchQuery.rawValue.count) chars)"
     }
 }
 

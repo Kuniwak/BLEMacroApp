@@ -17,7 +17,14 @@ public struct ConnectableDiscoveryModelState<Value, Failure: Error> {
 
 extension ConnectableDiscoveryModelState where Value: CustomStringConvertible, Failure: CustomStringConvertible {
     public var description: String {
-        "ConnectableDiscoveryModelState(discovery: \(discovery.description), connection: \(connection.description))"
+        "(discovery: \(discovery.description), connection: \(connection.description))"
+    }
+}
+
+
+extension ConnectableDiscoveryModelState where Value: CustomDebugStringConvertible, Failure: CustomDebugStringConvertible {
+    public var description: String {
+        "(discovery: \(discovery.debugDescription), connection: \(connection.debugDescription))"
     }
 }
 
