@@ -66,7 +66,7 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
 public enum PeripheralDiscoveryModelState: Equatable {
     case idle(requestedDiscovery: Bool)
     case ready
-    case discovering([AnyPeripheralModel]?)
+    case discovering([AnyPeripheralModel])
     case discovered([AnyPeripheralModel])
     case discoveryFailed(PeripheralDiscoveryModelFailure)
 
@@ -78,9 +78,9 @@ public enum PeripheralDiscoveryModelState: Equatable {
 
     public var models: Result<[AnyPeripheralModel]?, PeripheralDiscoveryModelFailure> {
         switch self {
-        case .discovering(.some(let peripherals)), .discovered(let peripherals):
+        case .discovering(let peripherals), .discovered(let peripherals):
             return .success(peripherals)
-        case .discovering(.none), .idle, .ready:
+        case .idle, .ready:
             return .success(nil)
         case .discoveryFailed(let error):
             return .failure(error)
@@ -126,9 +126,7 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
             return ".idle(requestedDiscovery: \(flag))"
         case .ready:
             return ".ready"
-        case .discovering(.none):
-            return ".discovering(nil)"
-        case .discovering(.some(let peripherals)):
+        case .discovering(let peripherals):
             return ".discovering(\(peripherals.map(\.state.description).joined(separator: ", "))"
         case .discovered(let peripherals):
             return ".discovered([\(peripherals.map(\.state.description).joined(separator: ", "))])"
@@ -146,9 +144,7 @@ extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
             return ".idle(requestedDiscovery: \(flag))"
         case .ready:
             return ".ready"
-        case .discovering(.none):
-            return ".discovering(nil)"
-        case .discovering(.some(let peripherals)):
+        case .discovering(let peripherals):
             return ".discovering([\(peripherals.count) peripherals])"
         case .discovered(let peripherals):
             return ".discovered([\(peripherals.count) peripherals])"
@@ -229,7 +225,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                             return .ready
                         case (.poweredOn, .idle(requestedDiscovery: true)):
                             Task { await self.scan() }
-                            return .discovering(nil)
+                            return .discovering([])
                         case (.poweredOn, _):
                             return prev
                         case (.poweredOff, _):
@@ -309,7 +305,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
             switch prev {
             case .ready, .discovered, .discoveryFailed:
                 Task { self.scan() }
-                return .discovering(nil)
+                return .discovering([])
             case .idle(requestedDiscovery: false):
                 return .idle(requestedDiscovery: true)
             case .idle(requestedDiscovery: true), .discovering:
@@ -331,11 +327,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 return prev
             case .discovering(let models):
                 self.centralManager.stopScan()
-                if let models {
-                    return .discovered(models)
-                } else {
-                    return .ready
-                }
+                return .discovered(models)
             }
         }
     }

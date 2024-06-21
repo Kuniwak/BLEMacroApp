@@ -11,41 +11,94 @@ private struct TestCase {
     let centralManagerState: CBManagerState
     let action: ((StubCentralManager, PeripheralDiscoveryModel) async -> Void)?
     let expected: [PeripheralDiscoveryModelState]
+    let sourceLocation: SourceLocation
 }
 
 
-@Test(arguments: [
-//    TestCase(
-//        discoveryState: .idle(requestedDiscovery: false),
-//        centralManagerState: .unknown,
-//        action: nil,
-//        expected: [.idle(requestedDiscovery: false)]
-//    ),
-    TestCase(
-        discoveryState: .idle(requestedDiscovery: false),
-        centralManagerState: .unknown,
-        action: { _, discovery async in await discovery.startScan() },
-        expected: [
-            .idle(requestedDiscovery: false),
-            .idle(requestedDiscovery: true),
-        ]
-    ),
-    TestCase(
-        discoveryState: .idle(requestedDiscovery: false),
-        centralManagerState: .unknown,
-        action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOn },
-        expected: [
-            .idle(requestedDiscovery: true),
-            .discovering(nil),
-        ]
-    ),
-    TestCase(
-        discoveryState: .ready,
-        centralManagerState: .poweredOn,
-        action: { _, discovery in await discovery.startScan() },
-        expected: [.ready, .discovering(nil)]
-    ),
-])
+private func testCases() -> [TestCase]{
+    return [
+        TestCase(
+            discoveryState: .idle(requestedDiscovery: false),
+            centralManagerState: .unknown,
+            action: nil,
+            expected: [.idle(requestedDiscovery: false)],
+            sourceLocation: SourceLocation()
+        ),
+        TestCase(
+            discoveryState: .idle(requestedDiscovery: false),
+            centralManagerState: .unknown,
+            action: { _, discovery async in await discovery.startScan() },
+            expected: [
+                .idle(requestedDiscovery: false),
+                .idle(requestedDiscovery: true),
+            ],
+            sourceLocation: SourceLocation()
+        ),
+        TestCase(
+            discoveryState: .idle(requestedDiscovery: true),
+            centralManagerState: .unknown,
+            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOn },
+            expected: [
+                .idle(requestedDiscovery: true),
+                .discovering([]),
+            ],
+            sourceLocation: SourceLocation()
+        ),
+        TestCase(
+            discoveryState: .ready,
+            centralManagerState: .poweredOn,
+            action: { _, discovery async in await discovery.startScan() },
+            expected: [
+                .ready,
+                .discovering([]),
+            ],
+            sourceLocation: SourceLocation()
+        ),
+        TestCase(
+            discoveryState: .ready,
+            centralManagerState: .poweredOn,
+            action: { _, discovery async in await discovery.startScan() },
+            expected: [
+                .ready,
+                .discovering([]),
+            ],
+            sourceLocation: SourceLocation()
+        ),
+        TestCase(
+            discoveryState: .idle(requestedDiscovery: false),
+            centralManagerState: .unknown,
+            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .unsupported },
+            expected: [
+                .idle(requestedDiscovery: false),
+                .discoveryFailed(.unsupported),
+            ],
+            sourceLocation: SourceLocation()
+        ),
+        TestCase(
+            discoveryState: .idle(requestedDiscovery: false),
+            centralManagerState: .unknown,
+            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .unauthorized },
+            expected: [
+                .idle(requestedDiscovery: false),
+                .discoveryFailed(.unauthorized),
+            ],
+            sourceLocation: SourceLocation()
+        ),
+        TestCase(
+            discoveryState: .idle(requestedDiscovery: false),
+            centralManagerState: .unknown,
+            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOff },
+            expected: [
+                .idle(requestedDiscovery: false),
+                .discoveryFailed(.powerOff),
+            ],
+            sourceLocation: SourceLocation()
+        ),
+    ]
+}
+
+
+@Test(arguments: testCases())
 private func test(testCase: TestCase) async throws {
     let centralManager = StubCentralManager(state: testCase.centralManagerState)
     let discovery = PeripheralDiscoveryModel(observing: centralManager, startsWith: testCase.discoveryState)
@@ -58,5 +111,5 @@ private func test(testCase: TestCase) async throws {
     }
     
     let actual = try await recorder.values(timeout: 1)
-    #expect(actual == testCase.expected)
+    #expect(actual == testCase.expected, sourceLocation: testCase.sourceLocation)
 }
