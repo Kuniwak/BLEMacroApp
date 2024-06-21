@@ -64,8 +64,8 @@ public struct SearchQuery: RawRepresentable, Equatable, Codable, ExpressibleBySt
     
     public static func filter(state: PeripheralDiscoveryModelState, bySearchQuery searchQuery: SearchQuery) async -> PeripheralDiscoveryModelState {
         switch state {
-        case .idle:
-            return .idle
+        case .idle(requestedDiscovery: let requestedDiscovery):
+            return .idle(requestedDiscovery: requestedDiscovery)
         case .ready:
             return .ready
         case .discovering(.some(let peripherals)):

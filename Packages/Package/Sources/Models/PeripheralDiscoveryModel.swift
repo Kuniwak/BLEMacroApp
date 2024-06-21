@@ -64,7 +64,7 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
 
 
 public enum PeripheralDiscoveryModelState: Equatable {
-    case idle
+    case idle(requestedDiscovery: Bool)
     case ready
     case discovering([AnyPeripheralModel]?)
     case discovered([AnyPeripheralModel])
@@ -72,7 +72,7 @@ public enum PeripheralDiscoveryModelState: Equatable {
 
     
     public static func initialState() -> Self {
-        .idle
+        .idle(requestedDiscovery: false)
     }
 
 
@@ -122,8 +122,8 @@ public enum PeripheralDiscoveryModelState: Equatable {
 extension PeripheralDiscoveryModelState: CustomStringConvertible {
     public var description: String {
         switch self {
-        case .idle:
-            return ".idle"
+        case .idle(requestedDiscovery: let flag):
+            return ".idle(requestedDiscovery: \(flag))"
         case .ready:
             return ".ready"
         case .discovering(.none):
@@ -142,8 +142,8 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
 extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
-        case .idle:
-            return ".idle"
+        case .idle(requestedDiscovery: let flag):
+            return ".idle(requestedDiscovery: \(flag))"
         case .ready:
             return ".ready"
         case .discovering(.none):
@@ -160,8 +160,8 @@ extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
 
 
 public protocol PeripheralDiscoveryModelProtocol: StateMachineProtocol where State == PeripheralDiscoveryModelState {
-    func startScan()
-    func stopScan()
+    func startScan() async
+    func stopScan() async
 }
 
 
@@ -184,13 +184,13 @@ public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
-    public func startScan() {
-        Task { await base.startScan() }
+    public func startScan() async {
+        await base.startScan()
     }
     
     
-    public func stopScan() {
-        Task { await base.stopScan() }
+    public func stopScan() async {
+        await base.stopScan()
     }
 }
 
@@ -202,34 +202,40 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     nonisolated public var state: State { stateDidChangeSubject.projected }
     nonisolated private let stateDidChangeSubject: ProjectedValueSubject<PeripheralDiscoveryModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<PeripheralDiscoveryModelState, Never>
+    nonisolated public let dispatchQueue = DispatchQueue(label: "PeripheralDiscoveryModel")
     
     private var cancellables = Set<AnyCancellable>()
+    private var x: Int = 0
     
     
-    public init(observing centralManager: any CentralManagerProtocol) {
+    public init(observing centralManager: any CentralManagerProtocol, startsWith initialState: PeripheralDiscoveryModelState) {
         self.centralManager = centralManager
         
-        let stateDidChangeSubject = ProjectedValueSubject<PeripheralDiscoveryModelState, Never>(.idle)
+        let stateDidChangeSubject = ProjectedValueSubject<PeripheralDiscoveryModelState, Never>(initialState)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         
         var mutableCancellables = Set<AnyCancellable>()
         
         centralManager.didUpdateState
+            .receive(on: dispatchQueue)
+            .dropFirst() // XXX: Ignore an event that occurs at the subscribing.
             .sink { [weak self] state in
                 guard let self else { return }
-                
                 Task {
                     await self.stateDidChangeSubject.change { prev in
                         switch (state, prev) {
-                        case (.poweredOn, .idle):
+                        case (.poweredOn, .idle(requestedDiscovery: false)):
                             return .ready
+                        case (.poweredOn, .idle(requestedDiscovery: true)):
+                            Task { await self.scan() }
+                            return .discovering(nil)
                         case (.poweredOn, _):
                             return prev
                         case (.poweredOff, _):
                             return .discoveryFailed(.powerOff)
                         case (.unknown, _), (.resetting, _):
-                            return .idle
+                            return .idle(requestedDiscovery: false)
                         case (.unauthorized, _):
                             return .discoveryFailed(.unauthorized)
                         case (.unsupported, _):
@@ -243,6 +249,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
             .store(in: &mutableCancellables)
         
         centralManager.didDiscoverPeripheral
+            .receive(on: dispatchQueue)
             .sink { [weak self] resp in
                 guard let self else { return }
                 
@@ -282,6 +289,11 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
+    private func todo(i: Int) {
+        self.x = i
+    }
+    
+    
     private func store(cancellable: AnyCancellable) {
         self.cancellables.insert(cancellable)
     }
@@ -292,34 +304,37 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
-    public func startScan() {
-        Task {
-            await stateDidChangeSubject.change { prev in
-                switch prev {
-                case .ready, .discovered, .discoveryFailed:
-                    self.centralManager.scanForPeripherals(withServices: nil)
-                    return .discovering(nil)
-                case .idle, .discovering:
-                    return prev
-                }
+    public func startScan() async {
+        await stateDidChangeSubject.change { prev in
+            switch prev {
+            case .ready, .discovered, .discoveryFailed:
+                Task { self.scan() }
+                return .discovering(nil)
+            case .idle(requestedDiscovery: false):
+                return .idle(requestedDiscovery: true)
+            case .idle(requestedDiscovery: true), .discovering:
+                return prev
             }
         }
     }
     
     
-    public func stopScan() {
-        Task {
-            await stateDidChangeSubject.change { prev in
-                switch prev {
-                case .idle, .ready, .discoveryFailed, .discovered:
-                    return prev
-                case .discovering(let models):
-                    self.centralManager.stopScan()
-                    if let models {
-                        return .discovered(models)
-                    } else {
-                        return .ready
-                    }
+    private func scan() {
+        self.centralManager.scanForPeripherals(withServices: nil)
+    }
+    
+    
+    public func stopScan() async {
+        await stateDidChangeSubject.change { prev in
+            switch prev {
+            case .idle, .ready, .discoveryFailed, .discovered:
+                return prev
+            case .discovering(let models):
+                self.centralManager.stopScan()
+                if let models {
+                    return .discovered(models)
+                } else {
+                    return .ready
                 }
             }
         }

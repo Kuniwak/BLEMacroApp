@@ -7,7 +7,7 @@ import ConcurrentCombine
 final class ProjectedValueSubjectTests: XCTestCase {
     func test() async throws {
         let subject = ProjectedValueSubject<Int, Never>(0)
-        let recorder = subject.startRecord()
+        let recorder = Recorder(observing: subject)
 
         Task {
             await subject.change { $0 + 1 }

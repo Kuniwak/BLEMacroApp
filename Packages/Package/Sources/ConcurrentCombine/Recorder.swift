@@ -7,25 +7,28 @@ public class Recorder<Output, Failure: Error> {
     fileprivate private(set) var values = [Output]()
     private var cancellable: AnyCancellable? = nil
     fileprivate private(set) var result: Result<[Output], Failure>? = nil
+    private let dispatchQueue = DispatchQueue(label: "Recorder")
     
     
     public init<P: Publisher>(observing publisher: P) where P.Output == Output, P.Failure == Failure {
-        cancellable = publisher.sink(
-            receiveCompletion: { [weak self] completion in
-                guard let self else { return }
-                
-                switch completion {
-                case .finished:
-                    self.result = .success(self.values)
-                case .failure(let e):
-                    self.result = .failure(e)
+        cancellable = publisher
+            .receive(on: dispatchQueue)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    guard let self else { return }
+                    
+                    switch completion {
+                    case .finished:
+                        self.result = .success(self.values)
+                    case .failure(let e):
+                        self.result = .failure(e)
+                    }
+                },
+                receiveValue: { [weak self] value in
+                    guard let self else { return }
+                    self.values.append(value)
                 }
-            },
-            receiveValue: { [weak self] in
-                guard let self else { return }
-                self.values.append($0)
-            }
-        )
+            )
     }
     
     

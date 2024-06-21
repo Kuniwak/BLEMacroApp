@@ -7,7 +7,7 @@ import ConcurrentCombine
 final class CurrentValueSubjectTests: XCTestCase {
     func test() async throws {
         let subject = CurrentValueSubject<Int, Never>(0)
-        let recorder = subject.startRecord()
+        let recorder = Recorder(observing: subject)
 
         Task {
             subject.value += 1
