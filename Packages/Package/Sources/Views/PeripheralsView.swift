@@ -39,14 +39,7 @@ public struct PeripheralsView: View {
                 HStack(spacing: 10) {
                     Spacer()
                     ProgressView()
-                    Text("Waiting BLE Power On...")
-                        .foregroundStyle(Color(.weak))
-                    Spacer()
-                }
-            case .discovering(.none):
-                HStack(spacing: 10) {
-                    Spacer()
-                    Text("Discovering...")
+                    Text("Waiting BLE Powered On...")
                         .foregroundStyle(Color(.weak))
                     Spacer()
                 }
@@ -58,7 +51,7 @@ public struct PeripheralsView: View {
                         .foregroundStyle(.tint)
                     Spacer()
                 }
-            case .discovering(.some(let peripherals)), .discovered(let peripherals):
+            case .discovering(let peripherals), .discovered(let peripherals):
                if peripherals.isEmpty {
                     HStack {
                         Spacer()
@@ -146,9 +139,9 @@ public struct PeripheralsView: View {
 internal struct PeripheralsView_Previews: PreviewProvider {
     internal static var previews: some View {
         let discoveryStates: [PeripheralDiscoveryModelState] = [
-            .idle,
+            .idle(requestedDiscovery: false),
+            .idle(requestedDiscovery: true),
             .ready,
-            .discovering(nil),
             .discovering([]),
             .discovering([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),

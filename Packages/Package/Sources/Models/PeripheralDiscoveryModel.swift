@@ -192,6 +192,35 @@ public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
 
 
 
+/// PeripheralDiscoveryModel is a state machine that manages the discovery of peripherals.
+/// ```
+/// stateDiagram-v2
+///     state "idle(requestedDiscovery: false)" as idle_false
+///     state "idle(requestedDiscovery: true)" as idle_true
+///     state "ready" as ready
+///     state "discovering([...])" as discovering
+///     state "discovered([...]" as discovered
+///     state "discoveryFailed(error)" as error
+///     state "discoveryFailed(.unsupported)" as unsupported
+///
+///     [*] --> idle_false: t0
+///     idle_false --> ready: t1_poweredOn
+///     idle_false --> idle_true: t2_startScan
+///     ready --> discovering: t3_startScan
+///     idle_true --> discovering: t4_poweredOn
+///     discovering --> discovering: t5_didPeripheralDiscover
+///     discovering --> discovered: t6_stopScan
+///     discovered --> discovering: t7_startScan
+///     idle_false --> unsupported: t8_unsupported
+///     idle_true --> unsupported: t9_unsupported
+///     idle_false --> error: t10_error
+///     idle_true --> error: t11_ error
+///     ready --> error: t12_error
+///     discovering --> error: t13_error
+///     discovered --> error: t14_error
+///     error --> error: t15_error
+///     error --> ready: t16_poweredOn
+/// ```
 public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let centralManager: any CentralManagerProtocol
     

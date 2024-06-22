@@ -40,7 +40,7 @@ public struct BLEMacroApp: App {
         )
         
         let model = PeripheralSearchModel(
-            observing: PeripheralDiscoveryModel(observing: centralManager),
+            observing: PeripheralDiscoveryModel(observing: centralManager, startsWith: .initialState()),
             initialSearchQuery: SearchQuery(rawValue: "")
         )
         self.model = model
