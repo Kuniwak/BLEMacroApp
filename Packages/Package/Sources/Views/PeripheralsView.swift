@@ -120,6 +120,7 @@ public struct PeripheralsView: View {
             .onAppear {
                 Task {
                     self.selectedPeripheral = peripheral
+                    await self.binding.source.stopScan()
                     await peripheral.discover()
                 }
             }
