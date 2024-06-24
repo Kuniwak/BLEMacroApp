@@ -249,6 +249,9 @@ public actor ConnectionModel: ConnectionModelProtocol {
                 }
             }
             .store(in: &mutableCancellables)
+        
+        let cancellables = mutableCancellables
+        Task { await self.store(cancellables: cancellables) }
     }
     
     
