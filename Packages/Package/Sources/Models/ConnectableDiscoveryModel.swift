@@ -33,6 +33,7 @@ public protocol ConnectableDiscoveryModelProtocol<Value, Failure>: StateMachineP
     associatedtype Value
     associatedtype Failure: Error
     
+    nonisolated var connection: any ConnectionModelProtocol { get }
     func discover()
     func connect()
     func disconnect()
@@ -46,7 +47,7 @@ extension ConnectableDiscoveryModelProtocol {
 }
 
 
-public actor AnyConnectableDiscoveryModel<Value, Failure: Error>: ConnectableDiscoveryModelProtocol {
+public final actor AnyConnectableDiscoveryModel<Value, Failure: Error>: ConnectableDiscoveryModelProtocol {
     public typealias Value = Value
     public typealias Failure = Failure
     
@@ -54,6 +55,7 @@ public actor AnyConnectableDiscoveryModel<Value, Failure: Error>: ConnectableDis
     
     nonisolated public var state: State { base.state }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
+    nonisolated public var connection: any ConnectionModelProtocol { base.connection }
 
     
     public init(_ base: any ConnectableDiscoveryModelProtocol<Value, Failure>) {
@@ -82,12 +84,12 @@ extension AnyConnectableDiscoveryModel where Value: CustomStringConvertible, Fai
 }
 
 
-public actor ConnectableDiscoveryModel<Value, Failure: Error>: ConnectableDiscoveryModelProtocol {
+public final actor ConnectableDiscoveryModel<Value, Failure: Error>: ConnectableDiscoveryModelProtocol {
     public typealias Value = Value
     public typealias Failure = Failure
 
-    private let discovery: any DiscoveryModelProtocol<Value, Failure>
-    private let connection: any ConnectionModelProtocol
+    nonisolated private let discovery: any DiscoveryModelProtocol<Value, Failure>
+    nonisolated public let connection: any ConnectionModelProtocol
     private var discoveryRequested = false
     
     nonisolated public var state: State {

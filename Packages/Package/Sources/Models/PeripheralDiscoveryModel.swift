@@ -168,7 +168,7 @@ extension PeripheralDiscoveryModelProtocol {
 }
 
 
-public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
+public final actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let base: any PeripheralDiscoveryModelProtocol
     
     nonisolated public var state: State { base.state }
@@ -221,8 +221,8 @@ public actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
 ///     error --> error: t15_error
 ///     error --> ready: t16_poweredOn
 /// ```
-public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
-    private let centralManager: any CentralManagerProtocol
+public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
+    private let centralManager: any SendableCentralManagerProtocol
     
     nonisolated public var state: State { stateDidChangeSubject.projected }
     nonisolated private let stateDidChangeSubject: ProjectedValueSubject<PeripheralDiscoveryModelState, Never>
@@ -233,7 +233,7 @@ public actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private var x: Int = 0
     
     
-    public init(observing centralManager: any CentralManagerProtocol, startsWith initialState: PeripheralDiscoveryModelState) {
+    public init(observing centralManager: any SendableCentralManagerProtocol, startsWith initialState: PeripheralDiscoveryModelState) {
         self.centralManager = centralManager
         
         let stateDidChangeSubject = ProjectedValueSubject<PeripheralDiscoveryModelState, Never>(initialState)

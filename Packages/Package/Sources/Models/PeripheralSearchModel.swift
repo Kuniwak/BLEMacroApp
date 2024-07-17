@@ -138,7 +138,7 @@ extension PeripheralSearchModelProtocol {
 }
 
 
-public actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
+public final actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
     private let base: any PeripheralSearchModelProtocol
     
     nonisolated public var state: State { base.state }
@@ -161,7 +161,7 @@ public actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
 }
 
 
-public actor PeripheralSearchModel: PeripheralSearchModelProtocol {
+public final actor PeripheralSearchModel: PeripheralSearchModelProtocol {
     nonisolated public var state: State {
         .init(discovery: discoveryModel.state, searchQuery: searchQuery.projected)
     }

@@ -10,14 +10,16 @@ import Catalogs
 public actor StubPeripheralModel: PeripheralModelProtocol {
     nonisolated public let id: UUID
     
+    nonisolated public let connection: any ConnectionModelProtocol
     nonisolated public var state: State { stateDidChangeSubject.projected }
     nonisolated public let stateDidChangeSubject: ProjectedValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
     
-    public init(state: State = .makeStub(), identifiedBy uuid: UUID = StubUUID.zero) {
+    public init(state: State = .makeStub(), identifiedBy uuid: UUID = StubUUID.zero, connection: any ConnectionModelProtocol = StubConnectionModel()) {
         self.id = uuid
         
+        self.connection = connection
         let stateDidChangeSubject = ProjectedValueSubject<State, Never>(state)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()

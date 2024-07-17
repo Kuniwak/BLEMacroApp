@@ -2,7 +2,7 @@ import Combine
 import Logger
 
 
-public actor ConnectionModelLogger {
+public final actor ConnectionModelLogger {
     private var cancellables = Set<AnyCancellable>()
 
 

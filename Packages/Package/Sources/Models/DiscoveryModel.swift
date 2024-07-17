@@ -106,7 +106,7 @@ extension DiscoveryModelProtocol {
 }
 
 
-public actor AnyDiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
+public final actor AnyDiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
     private let base: any DiscoveryModelProtocol<Value, Failure>
     
     nonisolated public var state: State { base.state }
@@ -125,7 +125,7 @@ public actor AnyDiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
 }
 
 
-public actor DiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
+public final actor DiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
     private let discoverStrategy: () async -> Result<[Value], Failure>
     
     nonisolated public var state: State { stateDidChangeSubject.projected }

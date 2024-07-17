@@ -102,7 +102,7 @@ extension DescriptorModelProtocol {
 }
 
 
-public actor AnyDescriptorModel: DescriptorModelProtocol {
+public final actor AnyDescriptorModel: DescriptorModelProtocol {
     nonisolated public var state: DescriptorModelState { base.state }
     
     nonisolated public var id: CBUUID { base.id }
@@ -135,7 +135,7 @@ extension AnyDescriptorModel: Equatable {
 }
 
 
-public actor DescriptorModel: DescriptorModelProtocol {
+public final actor DescriptorModel: DescriptorModelProtocol {
     private let descriptor: any DescriptorProtocol
     private let peripheral: any PeripheralProtocol
     nonisolated public let id: CBUUID

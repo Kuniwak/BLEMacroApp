@@ -116,7 +116,8 @@ public struct PeripheralsView: View {
     
     
     private func servicesView(_ peripheral: any PeripheralModelProtocol) -> some View {
-        return ServicesView(observing: peripheral, loggingBy: logger)
+        let deps = DependencyBag(connectionModel: peripheral.connection, logger: logger)
+        return ServicesView(observing: peripheral, holding: deps)
             .onAppear {
                 Task {
                     self.selectedPeripheral = peripheral

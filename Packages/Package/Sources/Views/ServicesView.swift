@@ -11,16 +11,16 @@ import SFSymbol
 public struct ServicesView: View {
     @ObservedObject private var binding: ViewBinding<PeripheralModelState, AnyPeripheralModel>
     private let model: any PeripheralModelProtocol
-    private let logger: any LoggerProtocol
+    private let deps: DependencyBag
     private let modelLogger: PeripheralModelLogger
     @State private var isAlertPresent: Bool = false
     
     
-    public init(observing model: any PeripheralModelProtocol, loggingBy logger: any LoggerProtocol) {
+    public init(observing model: any PeripheralModelProtocol, holding deps: DependencyBag) {
         self.binding = ViewBinding(source: model.eraseToAny())
         self.model = model
-        self.modelLogger = PeripheralModelLogger(observing: model, loggingBy: logger)
-        self.logger = logger
+        self.modelLogger = PeripheralModelLogger(observing: model, loggingBy: deps.logger)
+        self.deps = deps
     }
     
     
@@ -69,8 +69,20 @@ public struct ServicesView: View {
         .onAppear() {
             Task { await model.discover() }
         }
-        .navigationTitle(name)
-        .navigationBarItems(trailing: trailingNavigationBarItem)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                VStack {
+                    Text("Services")
+                        .font(.headline)
+                    Text(name)
+                        .font(.subheadline)
+                        .foregroundStyle(Color(.secondaryLabel))
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                trailingNavigationBarItem
+            }
+        }
     }
     
     
@@ -88,7 +100,7 @@ public struct ServicesView: View {
     private func characteristicsView(for service: any ServiceModelProtocol) -> some View {
         CharacteristicsView(
             observing: service,
-            loggingBy: logger
+            holding: deps
         )
     }
     
@@ -164,7 +176,7 @@ internal struct ServicesView_Previews: PreviewProvider {
             NavigationStack {
                 ServicesView(
                     observing: wrapper.value,
-                    loggingBy: NullLogger()
+                    holding: .makeStub()
                 )
             }
             .previewDisplayName(wrapper.description)

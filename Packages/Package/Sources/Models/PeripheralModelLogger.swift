@@ -2,7 +2,7 @@ import Combine
 import Logger
 
 
-public actor PeripheralModelLogger {
+public final actor PeripheralModelLogger {
     private var cancellables = Set<AnyCancellable>()
     
     

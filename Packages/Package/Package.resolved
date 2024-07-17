@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/core-bluetooth-testable.git",
       "state" : {
-        "revision" : "5de9007a619459bce64b83e28a6315bad2dfcf4f",
-        "version" : "3.0.0"
+        "revision" : "165af8875f65faa198811dcbf773f6bcce40566b",
+        "version" : "5.0.0"
       }
     },
     {
@@ -28,6 +28,15 @@
       }
     },
     {
+      "identity" : "sfsymbol",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Nirma/SFSymbol.git",
+      "state" : {
+        "revision" : "1b127194b976a58ea460a2cbe10f00fa994b1ece",
+        "version" : "2.3.0"
+      }
+    },
+    {
       "identity" : "swift-ble-assigned-numbers",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/swift-ble-assigned-numbers.git",
@@ -41,8 +50,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/swift-ble-macro.git",
       "state" : {
-        "revision" : "4eab4c6744878a1a9602662b3dcc642750a00fbc",
-        "version" : "2.0.2"
+        "revision" : "66d9fa8b97401818ec78090737c9d681b97efc44",
+        "version" : "3.0.0"
       }
     },
     {
@@ -50,8 +59,26 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/swift-logger.git",
       "state" : {
-        "revision" : "09ac53a6cb16c4ff254b63c02d5daa6795bc8530",
-        "version" : "1.1.0"
+        "revision" : "109a9f7a47b40d8d82afa8a692472217c4da55a1",
+        "version" : "2.0.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "4c6cc0a3b9e8f14b3ae2307c5ccae4de6167ac2c",
+        "version" : "600.0.0-prerelease-2024-06-12"
+      }
+    },
+    {
+      "identity" : "swift-testing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-testing.git",
+      "state" : {
+        "revision" : "6155e83dbaa2696d13bcd0079665b6a6daaf6dc8",
+        "version" : "0.11.0"
       }
     }
   ],

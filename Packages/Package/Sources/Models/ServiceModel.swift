@@ -82,7 +82,7 @@ extension ServiceModelProtocol {
 }
 
 
-public actor AnyServiceModel: ServiceModelProtocol {
+public final actor AnyServiceModel: ServiceModelProtocol {
     private let base: any ServiceModelProtocol
     
     nonisolated public var id: ID { base.id }
@@ -119,7 +119,7 @@ extension AnyServiceModel: Equatable {
 }
 
 
-public actor ServiceModel: ServiceModelProtocol {
+public final actor ServiceModel: ServiceModelProtocol {
     private let model: ConnectableDiscoveryModel<AnyCharacteristicModel, ServiceModelFailure>
     
     nonisolated private let name: String?

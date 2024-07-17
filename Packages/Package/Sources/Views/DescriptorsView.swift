@@ -1,26 +1,26 @@
 import SwiftUI
-import CoreBluetooth
-import CoreBluetoothStub
 import Logger
 import Models
 import ModelStubs
-import PreviewHelper
 import ViewFoundation
 import SFSymbol
+import PreviewHelper
 
 
-public struct CharacteristicsView: View {
-    @ObservedObject private var binding: ViewBinding<ServiceModelState, AnyServiceModel>
-    private let model: any ServiceModelProtocol
+public struct DescriptorsView: View {
+    @ObservedObject private var binding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
+    private let model: any CharacteristicModelProtocol
     private let deps: DependencyBag
-    private let modelLogger: ServiceModelLogger
-    @State private var isAlertPresent: Bool = false
+    private let modelLogger: CharacteristicModelLogger
     
     
-    public init(observing model: any ServiceModelProtocol, holding deps: DependencyBag) {
+    public init(
+        observing model: any CharacteristicModelProtocol,
+        holding deps: DependencyBag
+    ) {
         self.binding = ViewBinding(source: model.eraseToAny())
         self.model = model
-        self.modelLogger = ServiceModelLogger(observing: model, loggingBy: deps.logger)
+        self.modelLogger = CharacteristicModelLogger(observing: model, loggingBy: deps.logger)
         self.deps = deps
     }
     
@@ -36,14 +36,19 @@ public struct CharacteristicsView: View {
                         .foregroundStyle(Color(.error))
                 }
             case .connected, .connecting, .connectionFailed, .disconnected, .disconnecting:
-                if let characteristics = binding.state.discovery.values {
-                    if characteristics.isEmpty {
-                        Text("No Characteristics")
+                if let descriptors = binding.state.discovery.values {
+                    if descriptors.isEmpty {
+                        Text("No Descriptors")
                             .foregroundStyle(Color(.weak))
                     } else {
-                        ForEach(characteristics) { characteristic in
-                            NavigationLink(destination: descriptorsView(for: characteristic)) {
-                                CharacteristicRow(observing: characteristic)
+                        ForEach(descriptors) { descriptor in
+                            let connectableDescriptor = ConnectableDescriptorModel(
+                                operateingBy: descriptor,
+                                connectingBy: deps.connectionModel
+                            )
+                            
+                            NavigationLink(destination: descriptorView(for: connectableDescriptor)) {
+                                DescriptorRow(observing: descriptor)
                             }
                             .disabled(!model.state.connection.isConnected)
                         }
@@ -73,7 +78,7 @@ public struct CharacteristicsView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 VStack {
-                    Text("Characteristics")
+                    Text("Descriptors")
                         .font(.headline)
                     Text(model.state.name ?? model.state.uuid.uuidString)
                         .font(.subheadline)
@@ -87,8 +92,8 @@ public struct CharacteristicsView: View {
     }
     
     
-    private func descriptorsView(for characteristic: any CharacteristicModelProtocol) -> some View {
-        DescriptorsView(observing: characteristic, holding: deps)
+    private func descriptorView(for descriptor: any ConnectableDescriptorModelProtocol) -> some View {
+        DescriptorView(observing: descriptor, holding: deps)
     }
     
     
@@ -110,14 +115,13 @@ public struct CharacteristicsView: View {
 }
 
 
-private func stubsForPreview() -> [Previewable<AnyServiceModel>] {
+private func stubsForPreview() -> [Previewable<AnyCharacteristicModel>] {
     let names: [String?] = [
         nil,
-        "Example"
+        "Example",
     ]
     
-    
-    let discovery: [CharacteristicDiscoveryModelState] = [
+    let discovery: [DescriptorDiscoveryModelState] = [
         .notDiscoveredYet,
         .discovering(nil),
         .discovered([]),
@@ -132,35 +136,38 @@ private func stubsForPreview() -> [Previewable<AnyServiceModel>] {
         .disconnecting,
     ]
     
-    let states1: [ServiceModelState] = names.map { name in
+    let states1: [CharacteristicModelState] = names.map { name in
         .makeSuccessfulStub(name: name)
     }
 
-    let states2: [ServiceModelState] = discovery.map { discovery in
+    let states2: [CharacteristicModelState] = discovery.map { discovery in
         .makeSuccessfulStub(discovery: discovery)
     }
     
-    let state3: [ServiceModelState] = connections.map { connection in
+    let state3: [CharacteristicModelState] = connections.map { connection in
         .makeSuccessfulStub(connection: connection)
     }
     
     return (states1 + states2 + state3)
         .map { state in
             return Previewable(
-                StubServiceModel(state: state).eraseToAny(),
+                StubCharacteristicModel(state: state).eraseToAny(),
                 describing: "\(state.debugDescription)"
             )
         }
 }
 
 
-internal struct CharacteristicsView_Previews: PreviewProvider {
+internal struct DescriptorsView_Previews: PreviewProvider {
     internal static var previews: some View {
         ForEach(stubsForPreview()) { wrapper in
             NavigationStack {
-                CharacteristicsView(
+                DescriptorsView(
                     observing: wrapper.value,
-                    holding: .makeStub()
+                    holding: DependencyBag(
+                        connectionModel: StubConnectionModel(),
+                        logger: NullLogger()
+                    )
                 )
             }
             .previewDisplayName(wrapper.description)

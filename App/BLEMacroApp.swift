@@ -19,7 +19,7 @@ public struct BLEMacroApp: App {
 }
 #else
 @main
-public struct BLEMacroApp: App {
+internal struct BLEMacroApp: App {
     @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     private let model: any PeripheralSearchModelProtocol
     private let logger: any LoggerProtocol
@@ -34,9 +34,9 @@ public struct BLEMacroApp: App {
         let logger: any LoggerProtocol = Logger(severity: severity, writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacroApp", category: "BLE")))
         self.logger = logger
         
-        let centralManager = CentralManager(
+        let centralManager = SendableCentralManager(
             options: [CBCentralManagerOptionShowPowerAlertKey: true],
-            loggingBy: Logger(severity: severity, writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacroLibrary", category: "BLE")))
+            severity: severity
         )
         
         let model = PeripheralSearchModel(

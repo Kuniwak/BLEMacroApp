@@ -2,7 +2,7 @@ import Combine
 import Logger
 
 
-public actor ServiceModelLogger {
+public final actor ServiceModelLogger {
     private var cancellables = Set<AnyCancellable>()
     
     

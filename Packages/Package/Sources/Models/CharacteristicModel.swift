@@ -82,7 +82,7 @@ extension CharacteristicModelProtocol {
 }
 
 
-public actor AnyCharacteristicModel: CharacteristicModelProtocol {
+public final actor AnyCharacteristicModel: CharacteristicModelProtocol {
     private let base: any CharacteristicModelProtocol
     
     nonisolated public var state: State { base.state }
@@ -119,7 +119,7 @@ extension AnyCharacteristicModel: Equatable {
 }
 
 
-public actor CharacteristicModel: CharacteristicModelProtocol {
+public final actor CharacteristicModel: CharacteristicModelProtocol {
     private let model: any ConnectableDiscoveryModelProtocol<AnyDescriptorModel, CharacteristicModelFailure>
     nonisolated public let id: CBUUID
     

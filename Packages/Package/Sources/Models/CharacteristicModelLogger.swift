@@ -2,7 +2,7 @@ import Combine
 import Logger
 
 
-public actor CharacteristicModelLogger {
+public final actor CharacteristicModelLogger {
     private var cancellables = Set<AnyCancellable>()
     
     

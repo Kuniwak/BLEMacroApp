@@ -135,7 +135,7 @@ extension ConnectionModelProtocol {
 }
 
 
-public actor AnyConnectionModel: ConnectionModelProtocol {
+public final actor AnyConnectionModel: ConnectionModelProtocol {
     private let base: any ConnectionModelProtocol
     
     nonisolated public var state: State { base.state }
@@ -175,9 +175,9 @@ public actor AnyConnectionModel: ConnectionModelProtocol {
 //     connected --> disconnecting: T7 disconnect()
 //     disconnecting --> disconnected: T8 tau
 // ```
-public actor ConnectionModel: ConnectionModelProtocol {
+public final actor ConnectionModel: ConnectionModelProtocol {
     private let peripheral: any PeripheralProtocol
-    private let centralManager: any CentralManagerProtocol
+    private let centralManager: any SendableCentralManagerProtocol
     nonisolated public let id: UUID
     
     nonisolated public var state: ConnectionModelState { stateDidChangeSubject.projected }
@@ -190,7 +190,7 @@ public actor ConnectionModel: ConnectionModelProtocol {
     
     
     public init(
-        centralManager: any CentralManagerProtocol,
+        centralManager: any SendableCentralManagerProtocol,
         peripheral: any PeripheralProtocol,
         isConnectable: Bool
     ) {
