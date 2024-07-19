@@ -23,7 +23,6 @@ internal struct BLEMacroApp: App {
     @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     @Environment(\.scenePhase) private var scenePhase
     private let searchModel: any PeripheralSearchModelProtocol
-    private let discoveryModel: any PeripheralDiscoveryModelProtocol
     private let logger: any LoggerProtocol
     
     
@@ -41,11 +40,8 @@ internal struct BLEMacroApp: App {
             severity: severity
         )
         
-        let discoveryModel = PeripheralDiscoveryModel(observing: centralManager, startsWith: .initialState())
-        self.discoveryModel = discoveryModel
-        
         let searchModel = PeripheralSearchModel(
-            observing: discoveryModel,
+            observing: PeripheralDiscoveryModel(observing: centralManager, startsWith: .initialState()),
             initialSearchQuery: SearchQuery(rawValue: "")
         )
         self.searchModel = searchModel
@@ -53,9 +49,8 @@ internal struct BLEMacroApp: App {
     }
     
     
-    public init(discoveryModel: any PeripheralDiscoveryModelProtocol, searchModel: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
+    public init(searchModel: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
         self.searchModel = searchModel
-        self.discoveryModel = discoveryModel
         self.binding = ViewBinding(source: searchModel.eraseToAny())
         self.logger = logger
     }
