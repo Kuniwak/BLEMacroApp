@@ -6,7 +6,7 @@ import Models
 
 
 
-public actor StubServiceModel: ServiceModelProtocol {
+public final actor StubServiceModel: ServiceModelProtocol {
     nonisolated public let id: CBUUID
     
     nonisolated public var state: State { stateDidChangeSubject.value }
@@ -23,9 +23,9 @@ public actor StubServiceModel: ServiceModelProtocol {
     }
     
     
-    public func discover() {}
-    public func connect() {}
-    public func disconnect() {}
+    nonisolated public func discover() {}
+    nonisolated public func connect() {}
+    nonisolated public func disconnect() {}
 }
 
 

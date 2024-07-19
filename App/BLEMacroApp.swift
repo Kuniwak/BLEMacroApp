@@ -21,7 +21,9 @@ public struct BLEMacroApp: App {
 @main
 internal struct BLEMacroApp: App {
     @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
-    private let model: any PeripheralSearchModelProtocol
+    @Environment(\.scenePhase) private var scenePhase
+    private let searchModel: any PeripheralSearchModelProtocol
+    private let discoveryModel: any PeripheralDiscoveryModelProtocol
     private let logger: any LoggerProtocol
     
     
@@ -39,25 +41,37 @@ internal struct BLEMacroApp: App {
             severity: severity
         )
         
-        let model = PeripheralSearchModel(
-            observing: PeripheralDiscoveryModel(observing: centralManager, startsWith: .initialState()),
+        let discoveryModel = PeripheralDiscoveryModel(observing: centralManager, startsWith: .initialState())
+        self.discoveryModel = discoveryModel
+        
+        let searchModel = PeripheralSearchModel(
+            observing: discoveryModel,
             initialSearchQuery: SearchQuery(rawValue: "")
         )
-        self.model = model
-        self.binding = ViewBinding(source: model.eraseToAny())
+        self.searchModel = searchModel
+        self.binding = ViewBinding(source: searchModel.eraseToAny())
     }
     
     
-    public init(model: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
-        self.model = model
-        self.binding = ViewBinding(source: model.eraseToAny())
+    public init(discoveryModel: any PeripheralDiscoveryModelProtocol, searchModel: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
+        self.searchModel = searchModel
+        self.discoveryModel = discoveryModel
+        self.binding = ViewBinding(source: searchModel.eraseToAny())
         self.logger = logger
     }
     
     
     public var body: some Scene {
         WindowGroup {
-            PeripheralsView(observing: model, loggingBy: logger)
+            PeripheralsView(observing: searchModel, loggingBy: logger)
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            switch newPhase {
+            case .active:
+                discoveryModel.refreshState()
+            default:
+                discoveryModel.stopScan()
+            }
         }
     }
 }

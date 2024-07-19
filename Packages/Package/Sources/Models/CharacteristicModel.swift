@@ -36,6 +36,7 @@ public typealias DescriptorDiscoveryModelState = DiscoveryModelState<AnyDescript
 public struct CharacteristicModelState: Equatable {
     public let uuid: CBUUID
     public let name: String?
+    public let value: CharacteristicStringValueState
     public let connection: ConnectionModelState
     public let discovery: DescriptorDiscoveryModelState
     
@@ -43,11 +44,13 @@ public struct CharacteristicModelState: Equatable {
     public init(
         uuid: CBUUID,
         name: String?,
+        value: CharacteristicStringValueState,
         connection: ConnectionModelState,
         discovery: DescriptorDiscoveryModelState
     ) {
         self.uuid = uuid
         self.name = name
+        self.value = value
         self.connection = connection
         self.discovery = discovery
     }
@@ -69,9 +72,13 @@ extension CharacteristicModelState: CustomDebugStringConvertible {
 
 
 public protocol CharacteristicModelProtocol: StateMachineProtocol<CharacteristicModelState>, Identifiable<CBUUID>, CustomStringConvertible {
-    func discover()
-    func connect()
-    func disconnect()
+    nonisolated func discover()
+    nonisolated func connect()
+    nonisolated func disconnect()
+    nonisolated func read()
+    nonisolated func write(type: CBCharacteristicWriteType)
+    nonisolated func update(byString string: String)
+    nonisolated func setNotify(_ enabled: Bool)
 }
 
 
@@ -96,18 +103,38 @@ public final actor AnyCharacteristicModel: CharacteristicModelProtocol {
     }
     
     
-    public func discover() {
-        Task { await base.discover() }
+    nonisolated public func discover() {
+        base.discover()
     }
     
     
-    public func connect() {
-        Task { await base.connect() }
+    nonisolated public func connect() {
+        base.connect()
     }
     
     
-    public func disconnect() {
-        Task { await base.disconnect() }
+    nonisolated public func disconnect() {
+        base.disconnect()
+    }
+    
+    
+    nonisolated public func read() {
+        base.read()
+    }
+    
+    
+    nonisolated public func write(type: CBCharacteristicWriteType) {
+        base.write(type: type)
+    }
+    
+    
+    nonisolated public func update(byString string: String) {
+        base.update(byString: string)
+    }
+    
+    
+    nonisolated public func setNotify(_ enabled: Bool) {
+        base.setNotify(enabled)
     }
 }
 
@@ -120,7 +147,8 @@ extension AnyCharacteristicModel: Equatable {
 
 
 public final actor CharacteristicModel: CharacteristicModelProtocol {
-    private let model: any ConnectableDiscoveryModelProtocol<AnyDescriptorModel, CharacteristicModelFailure>
+    nonisolated private let connectableDiscoveryModel: any ConnectableDiscoveryModelProtocol<AnyDescriptorModel, CharacteristicModelFailure>
+    nonisolated private let valueModel: any CharacteristicStringValueModelProtocol
     nonisolated public let id: CBUUID
     
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
@@ -128,13 +156,15 @@ public final actor CharacteristicModel: CharacteristicModelProtocol {
         CharacteristicModelState(
             uuid: id,
             name: CharacteristicCatalog.from(cbuuid: id)?.name,
-            connection: model.state.connection,
-            discovery: model.state.discovery
+            value: valueModel.state,
+            connection: connectableDiscoveryModel.state.connection,
+            discovery: connectableDiscoveryModel.state.discovery
         )
     }
     nonisolated public var description: String { state.description }
     
     public init(
+        startsWith initialState: String,
         characteristic: any CharacteristicProtocol,
         onPeripheral peripheral: any PeripheralProtocol,
         connectingBy connectionModel: any ConnectionModelProtocol
@@ -148,34 +178,62 @@ public final actor CharacteristicModel: CharacteristicModelProtocol {
             )
         )
         
-        let model = ConnectableDiscoveryModel(
+        let connectableDiscoveryModel = ConnectableDiscoveryModel(
             discoveringBy: discoveryModel,
             connectingBy: connectionModel
         )
-        self.model = model
+        self.connectableDiscoveryModel = connectableDiscoveryModel
         
-        self.stateDidChange = model.stateDidChange
-            .map { state in
+        let valueModel = CharacteristicStringValueModel(
+            startsWith: initialState,
+            operatingOn: peripheral,
+            representing: characteristic
+        )
+        self.valueModel = valueModel
+
+        self.stateDidChange = Publishers
+            .CombineLatest(
+                connectableDiscoveryModel.stateDidChange,
+                valueModel.stateDidChange
+            )
+            .map { (connectableDiscoveryState, valueState) in
                 CharacteristicModelState(
                     uuid: characteristic.uuid,
                     name: CharacteristicCatalog.from(cbuuid: characteristic.uuid)?.name,
-                    connection: state.connection,
-                    discovery: state.discovery
+                    value: valueState,
+                    connection: connectableDiscoveryState.connection,
+                    discovery: connectableDiscoveryState.discovery
                 )
             }
             .eraseToAnyPublisher()
     }
     
-    public func discover() {
-        Task { await model.discover() }
+    nonisolated public func discover() {
+        connectableDiscoveryModel.discover()
     }
     
-    public func connect() {
-        Task { await model.connect() }
+    nonisolated public func connect() {
+        connectableDiscoveryModel.connect()
     }
     
-    public func disconnect() {
-        Task { await model.disconnect() }
+    nonisolated public func disconnect() {
+        connectableDiscoveryModel.disconnect()
+    }
+    
+    nonisolated public func read() {
+        valueModel.read()
+    }
+    
+    nonisolated public func write(type: CBCharacteristicWriteType) {
+        valueModel.write(type: type)
+    }
+    
+    nonisolated public func update(byString string: String) {
+        valueModel.update(byString: string)
+    }
+    
+    nonisolated public func setNotify(_ enabled: Bool) {
+        valueModel.setNotify(enabled)
     }
 }
 

@@ -4,7 +4,7 @@ import ModelFoundation
 import Models
 
 
-public actor StubPeripheralSearchModel: PeripheralSearchModelProtocol {
+public final actor StubPeripheralSearchModel: PeripheralSearchModelProtocol {
     nonisolated public var state: State { stateDidChangeSubject.value }
     nonisolated public let stateDidChangeSubject: CurrentValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
@@ -21,8 +21,8 @@ public actor StubPeripheralSearchModel: PeripheralSearchModelProtocol {
     }
     
     
-    public func startScan() {}
-    public func stopScan() {}
+    nonisolated public func startScan() {}
+    nonisolated public func stopScan() {}
 }
 
 

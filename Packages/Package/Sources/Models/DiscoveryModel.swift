@@ -95,7 +95,7 @@ public protocol DiscoveryModelProtocol<Value, Failure>: StateMachineProtocol whe
     associatedtype Value
     associatedtype Failure: Error
     
-    func discover()
+    nonisolated func discover()
 }
 
 
@@ -119,8 +119,8 @@ public final actor AnyDiscoveryModel<Value, Failure: Error>: DiscoveryModelProto
         base.stateDidChange
     }
     
-    public func discover() {
-        Task { await base.discover() }
+    nonisolated public func discover() {
+        base.discover()
     }
 }
 
@@ -140,7 +140,7 @@ public final actor DiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol
     }
     
     
-    public func discover() {
+    nonisolated public func discover() {
         Task {
             await self.stateDidChangeSubject.change { prev in
                 guard !prev.isDiscovering else { return prev }

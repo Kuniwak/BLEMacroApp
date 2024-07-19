@@ -69,9 +69,9 @@ extension ServiceModelState: CustomDebugStringConvertible {
 
 
 public protocol ServiceModelProtocol: StateMachineProtocol<ServiceModelState>, Identifiable<CBUUID>, CustomStringConvertible {
-    func discover()
-    func connect()
-    func disconnect()
+    nonisolated func discover()
+    nonisolated func connect()
+    nonisolated func disconnect()
 }
 
 
@@ -96,18 +96,18 @@ public final actor AnyServiceModel: ServiceModelProtocol {
     }
     
     
-    public func discover() {
-        Task { await base.discover() }
+    nonisolated public func discover() {
+        base.discover()
     }
     
     
-    public func connect() {
-        Task { await base.connect() }
+    nonisolated public func connect() {
+        base.connect()
     }
     
     
-    public func disconnect() {
-        Task { await base.disconnect() }
+    nonisolated public func disconnect() {
+        base.disconnect()
     }
 }
 
@@ -171,18 +171,18 @@ public final actor ServiceModel: ServiceModelProtocol {
     }
     
     
-    public func discover() {
-        Task { await model.discover() }
+    nonisolated public func discover() {
+        model.discover()
     }
     
     
-    public func connect() {
-        Task { await model.connect() }
+    nonisolated public func connect() {
+        model.connect()
     }
     
     
-    public func disconnect() {
-        Task { await model.disconnect() }
+    nonisolated public func disconnect() {
+        model.disconnect()
     }
 }
 
@@ -198,6 +198,7 @@ private func characteristicDiscoveryStrategy(
             .map { characteristics in
                 characteristics.map { characteristic in
                     CharacteristicModel(
+                        startsWith: "",
                         characteristic: characteristic,
                         onPeripheral: peripheral,
                         connectingBy: connectionModel

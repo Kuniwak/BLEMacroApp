@@ -22,11 +22,10 @@ extension ConnectableDescriptorModelState: CustomStringConvertible {
 
 
 public protocol ConnectableDescriptorModelProtocol: StateMachineProtocol, Identifiable where State == ConnectableDescriptorModelState {
-    
-    func read()
-    func write(value: Data)
-    func connect()
-    func disconnect()
+    nonisolated func read()
+    nonisolated func write(value: Data)
+    nonisolated func connect()
+    nonisolated func disconnect()
 }
 
 
@@ -47,20 +46,20 @@ public final actor AnyConnectableDescriptorModel: ConnectableDescriptorModelProt
         self.base = base
     }
     
-    public func read() {
-        Task { await base.read() }
+    nonisolated public func read() {
+        base.read()
     }
     
-    public func write(value: Data) {
-        Task { await base.write(value: value) }
+    nonisolated public func write(value: Data) {
+        base.write(value: value)
     }
     
-    public func connect() {
-        Task { await base.connect() }
+    nonisolated public func connect() {
+        base.connect()
     }
     
-    public func disconnect() {
-        Task { await base.disconnect() }
+    nonisolated public func disconnect() {
+        base.disconnect()
     }
 }
 
@@ -107,19 +106,19 @@ public actor ConnectableDescriptorModel: ConnectableDescriptorModelProtocol {
         self.stateDidChange = stateDidChange.eraseToAnyPublisher()
     }
     
-    public func read() {
-        Task { await descriptor.read() }
+    nonisolated public func read() {
+        descriptor.read()
     }
     
-    public func write(value: Data) {
-        Task { await descriptor.write(value: value) }
+    nonisolated public func write(value: Data) {
+        descriptor.write(value: value)
     }
     
-    public func connect() {
-        Task { await connection.connect() }
+    nonisolated public func connect() {
+        connection.connect()
     }
     
-    public func disconnect() {
-        Task { await connection.disconnect() }
+    nonisolated public func disconnect() {
+        connection.disconnect()
     }
 }

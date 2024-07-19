@@ -156,8 +156,9 @@ extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
 
 
 public protocol PeripheralDiscoveryModelProtocol: StateMachineProtocol where State == PeripheralDiscoveryModelState {
-    func startScan() async
-    func stopScan() async
+    nonisolated func startScan()
+    nonisolated func stopScan()
+    nonisolated func refreshState()
 }
 
 
@@ -180,13 +181,18 @@ public final actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol
     }
     
     
-    public func startScan() async {
-        await base.startScan()
+    nonisolated public func startScan() {
+        base.startScan()
     }
     
     
-    public func stopScan() async {
-        await base.stopScan()
+    nonisolated public func stopScan() {
+        base.stopScan()
+    }
+    
+    
+    nonisolated public func refreshState() {
+        base.refreshState()
     }
 }
 
@@ -230,7 +236,6 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     nonisolated public let dispatchQueue = DispatchQueue(label: "PeripheralDiscoveryModel")
     
     private var cancellables = Set<AnyCancellable>()
-    private var x: Int = 0
     
     
     public init(observing centralManager: any SendableCentralManagerProtocol, startsWith initialState: PeripheralDiscoveryModelState) {
@@ -247,29 +252,7 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
             .dropFirst() // XXX: Ignore an event that occurs at the subscribing.
             .sink { [weak self] state in
                 guard let self else { return }
-                Task {
-                    await self.stateDidChangeSubject.change { prev in
-                        switch (state, prev) {
-                        case (.poweredOn, .idle(requestedDiscovery: false)):
-                            return .ready
-                        case (.poweredOn, .idle(requestedDiscovery: true)):
-                            Task { await self.scan() }
-                            return .discovering([])
-                        case (.poweredOn, _):
-                            return prev
-                        case (.poweredOff, _):
-                            return .discoveryFailed(.powerOff)
-                        case (.unknown, _), (.resetting, _):
-                            return .idle(requestedDiscovery: false)
-                        case (.unauthorized, _):
-                            return .discoveryFailed(.unauthorized)
-                        case (.unsupported, _):
-                            return .discoveryFailed(.unsupported)
-                        default:
-                            return prev
-                        }
-                    }
-                }
+                Task { await self.update(byState: state) }
             }
             .store(in: &mutableCancellables)
         
@@ -314,8 +297,30 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
-    private func todo(i: Int) {
-        self.x = i
+    private func update(byState state: CBManagerState) {
+        Task {
+            await stateDidChangeSubject.change { prev in
+                switch (state, prev) {
+                case (.poweredOn, .idle(requestedDiscovery: false)):
+                    return .ready
+                case (.poweredOn, .idle(requestedDiscovery: true)):
+                    self.scan()
+                    return .discovering([])
+                case (.poweredOn, .discoveryFailed(.powerOff)), (.poweredOn, .discoveryFailed(.unauthorized)):
+                    return .ready
+                case (.poweredOff, _):
+                    return .discoveryFailed(.powerOff)
+                case (.unknown, _), (.resetting, _):
+                    return .idle(requestedDiscovery: false)
+                case (.unauthorized, _):
+                    return .discoveryFailed(.unauthorized)
+                case (.unsupported, _):
+                    return .discoveryFailed(.unsupported)
+                default:
+                    return prev
+                }
+            }
+        }
     }
     
     
@@ -329,35 +334,44 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
-    public func startScan() async {
-        await stateDidChangeSubject.change { prev in
-            switch prev {
-            case .ready, .discovered, .discoveryFailed:
-                Task { self.scan() }
-                return .discovering([])
-            case .idle(requestedDiscovery: false):
-                return .idle(requestedDiscovery: true)
-            case .idle(requestedDiscovery: true), .discovering:
-                return prev
+    nonisolated public func startScan() {
+        Task {
+            await stateDidChangeSubject.change { prev in
+                switch prev {
+                case .ready, .discovered, .discoveryFailed:
+                    self.scan()
+                    return .discovering([])
+                case .idle(requestedDiscovery: false):
+                    return .idle(requestedDiscovery: true)
+                case .idle(requestedDiscovery: true), .discovering:
+                    return prev
+                }
             }
         }
     }
     
     
-    private func scan() {
+    nonisolated private func scan() {
         self.centralManager.scanForPeripherals(withServices: nil)
     }
     
     
-    public func stopScan() async {
-        await stateDidChangeSubject.change { prev in
-            switch prev {
-            case .idle, .ready, .discoveryFailed, .discovered:
-                return prev
-            case .discovering(let models):
-                self.centralManager.stopScan()
-                return .discovered(models)
+    nonisolated public func stopScan() {
+        Task {
+            await stateDidChangeSubject.change { prev in
+                switch prev {
+                case .idle, .ready, .discoveryFailed, .discovered:
+                    return prev
+                case .discovering(let models):
+                    self.centralManager.stopScan()
+                    return .discovered(models)
+                }
             }
         }
+    }
+    
+    
+    nonisolated public func refreshState() {
+        Task { await update(byState: centralManager.state) }
     }
 }

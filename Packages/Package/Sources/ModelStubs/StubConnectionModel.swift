@@ -6,7 +6,7 @@ import Catalogs
 import Models
 
 
-public actor StubConnectionModel: ConnectionModelProtocol {
+public final actor StubConnectionModel: ConnectionModelProtocol {
     nonisolated public var state: ConnectionModelState { stateDidChangeSubject.value }
     nonisolated public let stateDidChange: AnyPublisher<ConnectionModelState, Never>
     nonisolated public let stateDidChangeSubject: CurrentValueSubject<ConnectionModelState, Never>
@@ -23,9 +23,9 @@ public actor StubConnectionModel: ConnectionModelProtocol {
     }
     
     
-    public func connect() {}
-    public func disconnect() {}
-    public func discoverServices() {}
+    nonisolated public func connect() {}
+    nonisolated public func disconnect() {}
+    nonisolated public func discoverServices() {}
 }
 
 

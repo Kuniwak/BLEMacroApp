@@ -7,7 +7,7 @@ import ModelFoundation
 import Catalogs
 
 
-public actor StubPeripheralModel: PeripheralModelProtocol {
+public final actor StubPeripheralModel: PeripheralModelProtocol {
     nonisolated public let id: UUID
     
     nonisolated public let connection: any ConnectionModelProtocol
@@ -26,10 +26,10 @@ public actor StubPeripheralModel: PeripheralModelProtocol {
     }
     
     
-    public func readRSSI() {}
-    public func discover() {}
-    public func connect() {}
-    public func disconnect() {}
+    nonisolated public func readRSSI() {}
+    nonisolated public func discover() {}
+    nonisolated public func connect() {}
+    nonisolated public func disconnect() {}
 }
 
 

@@ -42,7 +42,7 @@ public struct CharacteristicsView: View {
                             .foregroundStyle(Color(.weak))
                     } else {
                         ForEach(characteristics) { characteristic in
-                            NavigationLink(destination: descriptorsView(for: characteristic)) {
+                            NavigationLink(destination: CharacteristicView(of: characteristic, holding: deps)) {
                                 CharacteristicRow(observing: characteristic)
                             }
                             .disabled(!model.state.connection.isConnected)
@@ -61,14 +61,14 @@ public struct CharacteristicsView: View {
                         Text("Not Discovering.")
                             .foregroundStyle(Color(.weak))
                         Button("Start Discovery") {
-                            Task { await model.discover() }
+                            model.discover()
                         }
                     }
                 }
             }
         }
         .onAppear() {
-            Task { await model.discover() }
+           model.discover()
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -87,20 +87,15 @@ public struct CharacteristicsView: View {
     }
     
     
-    private func descriptorsView(for characteristic: any CharacteristicModelProtocol) -> some View {
-        DescriptorsView(observing: characteristic, holding: deps)
-    }
-    
-    
     private var trailingNavigationBarItem: some View {
         Group {
             if binding.state.connection.canConnect {
                 Button("Connect") {
-                    Task { await model.connect() }
+                    model.connect()
                 }
             } else if binding.state.connection.isConnected {
                 Button("Disconnect") {
-                    Task { await model.disconnect() }
+                    model.disconnect()
                 }
             } else {
                 ProgressView()

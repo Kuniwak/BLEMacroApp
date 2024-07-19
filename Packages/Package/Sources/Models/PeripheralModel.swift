@@ -135,10 +135,10 @@ extension PeripheralModelState: CustomDebugStringConvertible {
 
 public protocol PeripheralModelProtocol: StateMachineProtocol<PeripheralModelState>, Identifiable<UUID> {
     nonisolated var connection: any ConnectionModelProtocol { get }
-    func readRSSI()
-    func discover()
-    func connect()
-    func disconnect()
+    nonisolated func readRSSI()
+    nonisolated func discover()
+    nonisolated func connect()
+    nonisolated func disconnect()
 }
 
 
@@ -163,23 +163,23 @@ public final actor AnyPeripheralModel: PeripheralModelProtocol {
     }
     
     
-    public func readRSSI() {
-        Task { await base.readRSSI() }
+    nonisolated public func readRSSI() {
+        base.readRSSI()
     }
     
     
-    public func discover() {
-        Task { await base.discover() }
+    nonisolated public func discover() {
+        base.discover()
     }
     
     
-    public func connect() {
-        Task { await base.connect() }
+    nonisolated public func connect() {
+        base.connect()
     }
     
     
-    public func disconnect() {
-        Task { await base.disconnect() }
+    nonisolated public func disconnect() {
+        base.disconnect()
     }
 }
 
@@ -320,20 +320,20 @@ public final actor PeripheralModel: PeripheralModelProtocol {
     }
     
     
-    public func readRSSI() {
+    nonisolated public func readRSSI() {
         peripheral.readRSSI()
     }
     
-    public func discover() {
-        Task { await model.discover() }
+    nonisolated public func discover() {
+        model.discover()
     }
     
-    public func connect() {
-        Task { await model.connect() }
+    nonisolated public func connect() {
+        model.connect()
     }
     
-    public func disconnect() {
-        Task { await model.disconnect() }
+    nonisolated public func disconnect() {
+        model.disconnect()
     }
 }
 

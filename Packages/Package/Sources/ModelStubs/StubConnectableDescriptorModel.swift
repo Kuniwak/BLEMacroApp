@@ -21,10 +21,10 @@ public final actor StubConnectableDescriptorModel: ConnectableDescriptorModelPro
     }
     
     
-    public func read() {}
-    public func write(value: Data) {}
-    public func connect() {}
-    public func disconnect() {}
+    nonisolated public func read() {}
+    nonisolated public func write(value: Data) {}
+    nonisolated public func connect() {}
+    nonisolated public func disconnect() {}
 }
 
 

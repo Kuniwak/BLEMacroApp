@@ -34,9 +34,9 @@ public protocol ConnectableDiscoveryModelProtocol<Value, Failure>: StateMachineP
     associatedtype Failure: Error
     
     nonisolated var connection: any ConnectionModelProtocol { get }
-    func discover()
-    func connect()
-    func disconnect()
+    nonisolated func discover()
+    nonisolated func connect()
+    nonisolated func disconnect()
 }
 
 
@@ -63,18 +63,18 @@ public final actor AnyConnectableDiscoveryModel<Value, Failure: Error>: Connecta
     }
     
     
-    public func discover() {
-        Task { await base.discover() }
+    nonisolated public func discover() {
+        base.discover()
     }
     
     
-    public func connect() {
-        Task { await base.connect() }
+    nonisolated public func connect() {
+        base.connect()
     }
     
     
-    public func disconnect() {
-        Task { await base.disconnect() }
+    nonisolated public func disconnect() {
+        base.disconnect()
     }
 }
 
@@ -127,7 +127,7 @@ public final actor ConnectableDiscoveryModel<Value, Failure: Error>: Connectable
                 
                 Task {
                     guard await self.shouldDiscovery(state) else { return }
-                    await self.discovery.discover()
+                    self.discovery.discover()
                 }
             }
             .store(in: &mutableCancellables)
@@ -142,27 +142,32 @@ public final actor ConnectableDiscoveryModel<Value, Failure: Error>: Connectable
     }
     
     
-    public func discover() {
+    nonisolated public func discover() {
         Task {
             if connection.state.isConnected {
-                await discovery.discover()
+                discovery.discover()
             } else {
-                self.discoveryRequested = true
-                await connection.connect()
+                await requestDiscovery()
+                connection.connect()
             }
         }
     }
     
     
-    public func connect() {
-        Task { await connection.connect() }
+    nonisolated public func connect() {
+        connection.connect()
     }
     
     
-    public func disconnect() {
-        Task { await connection.disconnect() }
+    nonisolated public func disconnect() {
+        connection.disconnect()
     }
     
+    
+    private func requestDiscovery() {
+        discoveryRequested = true
+    }
+
     
     private func shouldDiscovery(_ state: ConnectableDiscoveryModelState<Value, Failure>) -> Bool {
         let result = discoveryRequested && !state.discovery.isDiscovering && state.connection.isConnected

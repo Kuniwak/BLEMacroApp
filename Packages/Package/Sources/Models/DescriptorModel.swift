@@ -90,8 +90,8 @@ extension DescriptorModelState: CustomDebugStringConvertible {
 
 
 public protocol DescriptorModelProtocol: StateMachineProtocol<DescriptorModelState>, Identifiable<CBUUID>, CustomStringConvertible {
-    func read()
-    func write(value: Data)
+    nonisolated func read()
+    nonisolated func write(value: Data)
 }
 
 
@@ -118,12 +118,12 @@ public final actor AnyDescriptorModel: DescriptorModelProtocol {
         base.stateDidChange
     }
     
-    public func read() {
-        Task { await base.read() }
+    nonisolated public func read() {
+        base.read()
     }
     
-    public func write(value: Data) {
-        Task { await base.write(value: value) }
+    nonisolated public func write(value: Data) {
+        base.write(value: value)
     }
 }
 
@@ -188,13 +188,17 @@ public final actor DescriptorModel: DescriptorModelProtocol {
     }
     
     
-    public func read() {
-        peripheral.readValue(for: descriptor)
+    nonisolated public func read() {
+        Task {
+            await peripheral.readValue(for: descriptor)
+        }
     }
     
     
-    public func write(value: Data) {
-        peripheral.writeValue(value, for: descriptor)
+    nonisolated public func write(value: Data) {
+        Task {
+            await peripheral.writeValue(value, for: descriptor)
+        }
     }
 }
 

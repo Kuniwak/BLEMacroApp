@@ -48,7 +48,7 @@ public struct PeripheralsView: View {
                 HStack {
                     Spacer()
                     Text("Not Scanning.").foregroundStyle(Color(.weak))
-                    Button("Scan") { Task { await binding.source.startScan() } }
+                    Button("Scan") { binding.source.startScan() }
                         .foregroundStyle(.tint)
                     Spacer()
                 }
@@ -107,10 +107,8 @@ public struct PeripheralsView: View {
             prompt: "Name or UUID or Manufacturer Name"
         )
         .onAppear {
-            Task {
-                await self.selectedPeripheral?.disconnect()
-                self.selectedPeripheral = nil
-            }
+            self.selectedPeripheral?.disconnect()
+            self.selectedPeripheral = nil
         }
     }
     
@@ -119,11 +117,9 @@ public struct PeripheralsView: View {
         let deps = DependencyBag(connectionModel: peripheral.connection, logger: logger)
         return ServicesView(observing: peripheral, holding: deps)
             .onAppear {
-                Task {
-                    self.selectedPeripheral = peripheral
-                    await self.binding.source.stopScan()
-                    await peripheral.discover()
-                }
+                self.selectedPeripheral = peripheral
+                self.binding.source.stopScan()
+                peripheral.discover()
             }
     }
 
@@ -132,10 +128,10 @@ public struct PeripheralsView: View {
         HStack {
             if binding.state.discovery.isScanning {
                 ProgressView()
-                Button("Stop", action: { Task { await binding.source.stopScan() } })
+                Button("Stop", action: { binding.source.stopScan() })
                     .disabled(!binding.state.discovery.canStopScan)
             } else {
-                Button("Scan", action: { Task { await binding.source.startScan() } })
+                Button("Scan", action: { binding.source.startScan() })
                     .disabled(!binding.state.discovery.canStartScan)
             }
         }

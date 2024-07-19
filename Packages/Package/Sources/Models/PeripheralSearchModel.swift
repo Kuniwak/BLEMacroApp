@@ -126,8 +126,8 @@ extension PeripheralSearchModelState: CustomDebugStringConvertible {
 
 public protocol PeripheralSearchModelProtocol: StateMachineProtocol<PeripheralSearchModelState> {
     nonisolated var searchQuery: ProjectedValueSubject<SearchQuery, Never> { get }
-    func startScan()
-    func stopScan()
+    nonisolated func startScan()
+    nonisolated func stopScan()
 }
 
 
@@ -151,12 +151,12 @@ public final actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
     }
     
     
-    public func startScan() {
-        Task { await base.startScan() }
+    nonisolated public func startScan() {
+        base.startScan()
     }
     
-    public func stopScan() {
-        Task { await base.stopScan() }
+    nonisolated public func stopScan() {
+        base.stopScan()
     }
 }
 
@@ -185,12 +185,12 @@ public final actor PeripheralSearchModel: PeripheralSearchModelProtocol {
     }
    
     
-    public func startScan() {
-        Task { await discoveryModel.startScan() }
+    nonisolated public func startScan() {
+        discoveryModel.startScan()
     }
     
     
-    public func stopScan() {
-        Task { await discoveryModel.stopScan() }
+    nonisolated public func stopScan() {
+        discoveryModel.stopScan()
     }
 }

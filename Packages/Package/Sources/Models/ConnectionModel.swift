@@ -123,8 +123,8 @@ extension ConnectionModelState: CustomDebugStringConvertible {
 
 
 public protocol ConnectionModelProtocol: StateMachineProtocol, Identifiable where State == ConnectionModelState {
-    func connect()
-    func disconnect()
+    nonisolated func connect()
+    nonisolated func disconnect()
 }
 
 
@@ -147,13 +147,13 @@ public final actor AnyConnectionModel: ConnectionModelProtocol {
     }
     
     
-    public func connect() {
-        Task { await base.connect() }
+    nonisolated public func connect() {
+        base.connect()
     }
     
     
-    public func disconnect() {
-        Task { await base.disconnect() }
+    nonisolated public func disconnect() {
+        base.disconnect()
     }
 }
 
@@ -260,7 +260,7 @@ public final actor ConnectionModel: ConnectionModelProtocol {
     }
     
     
-    public func connect() {
+    nonisolated public func connect() {
         Task {
             await stateDidChangeSubject.change { prev in
                 switch prev {
@@ -271,12 +271,12 @@ public final actor ConnectionModel: ConnectionModelProtocol {
                     return prev
                 }
             }
-            centralManager.connect(peripheral)
+            await centralManager.connect(peripheral)
         }
     }
     
     
-    public func disconnect() {
+    nonisolated public func disconnect() {
         Task {
             await stateDidChangeSubject.change { prev in
                 switch prev {
@@ -287,7 +287,7 @@ public final actor ConnectionModel: ConnectionModelProtocol {
                     return prev
                 }
             }
-            centralManager.cancelPeripheralConnection(peripheral)
+            await centralManager.cancelPeripheralConnection(peripheral)
         }
     }
 }

@@ -6,6 +6,7 @@ import Logger
 
 
 public protocol SendableCentralManagerProtocol: AnyActor {
+    nonisolated var state: CBManagerState { get }
     nonisolated var didUpdateState: AnyPublisher<CBManagerState, Never> { get }
     nonisolated var didDiscoverPeripheral: AnyPublisher<(peripheral: any PeripheralProtocol, advertisementData: [String: Any], rssi: NSNumber), Never> { get }
     nonisolated var didConnectPeripheral: AnyPublisher<any PeripheralProtocol, Never> { get }
@@ -20,12 +21,13 @@ public protocol SendableCentralManagerProtocol: AnyActor {
 
 
 public final actor SendableCentralManager: SendableCentralManagerProtocol {
+    nonisolated public var state: CBManagerState { centralManager.state }
     nonisolated public let didUpdateState: AnyPublisher<CBManagerState, Never>
     nonisolated public let didDiscoverPeripheral: AnyPublisher<(peripheral: any PeripheralProtocol, advertisementData: [String: Any], rssi: NSNumber), Never>
     nonisolated public let didConnectPeripheral: AnyPublisher<any PeripheralProtocol, Never>
     nonisolated public let didFailToConnectPeripheral: AnyPublisher<(peripheral: any PeripheralProtocol, error: (any Error)?), Never>
     nonisolated public let didDisconnectPeripheral: AnyPublisher<(peripheral: any PeripheralProtocol, error: (any Error)?), Never>
-    private let centralManager: CentralManager
+    nonisolated private let centralManager: CentralManager
     
     
     public init(options: [String: Any]?, severity: LogSeverity) {
@@ -45,21 +47,19 @@ public final actor SendableCentralManager: SendableCentralManagerProtocol {
         self.didDisconnectPeripheral = centralManager.didDisconnectPeripheral
     }
     
-    
     nonisolated public func scanForPeripherals(withServices: [CBUUID]?) {
-        Task { await self.centralManager.scanForPeripherals(withServices: withServices) }
+        Task { self.centralManager.scanForPeripherals(withServices: withServices) }
     }
     
-    
     nonisolated public func stopScan() {
-        Task { await self.centralManager.stopScan() }
+        Task { self.centralManager.stopScan() }
     }
     
     nonisolated public func connect(_ peripheral: any PeripheralProtocol) {
-        Task { await self.centralManager.connect(peripheral) }
+        Task { self.centralManager.connect(peripheral) }
     }
     
     nonisolated public func cancelPeripheralConnection(_ peripheral: any PeripheralProtocol) {
-        Task { await self.centralManager.cancelPeripheralConnection(peripheral) }
+        Task { self.centralManager.cancelPeripheralConnection(peripheral) }
     }
 }

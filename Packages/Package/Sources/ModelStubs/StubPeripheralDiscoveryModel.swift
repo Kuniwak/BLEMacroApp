@@ -4,7 +4,7 @@ import Models
 
 
 
-public actor StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
+public final actor StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     nonisolated public var state: State { stateDidChangeSubject.value }
     nonisolated public let stateDidChangeSubject: CurrentValueSubject<PeripheralDiscoveryModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<Models.PeripheralDiscoveryModelState, Never>
@@ -17,8 +17,9 @@ public actor StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     }
     
     
-    public func startScan() {}
-    public func stopScan() {}
+    nonisolated public func startScan() {}
+    nonisolated public func stopScan() {}
+    nonisolated public func refreshState() {}
 }
 
 

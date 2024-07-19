@@ -60,14 +60,14 @@ public struct ServicesView: View {
                         Text("Not Discovering.")
                             .foregroundStyle(Color(.weak))
                         Button("Start") {
-                            Task { await model.discover() }
+                            model.discover()
                         }
                     }
                 }
             }
         }
         .onAppear() {
-            Task { await model.discover() }
+            model.discover()
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -109,11 +109,11 @@ public struct ServicesView: View {
         Group {
             if binding.state.connection.canConnect {
                 Button("Connect") {
-                    Task { await model.connect() }
+                    model.connect()
                 }
             } else if binding.state.connection.isConnected {
                 Button("Disconnect") {
-                    Task { await model.disconnect() }
+                    model.disconnect()
                 }
             } else {
                 ProgressView()

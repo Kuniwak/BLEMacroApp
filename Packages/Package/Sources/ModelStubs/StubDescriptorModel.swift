@@ -5,7 +5,7 @@ import Models
 
 
 
-public actor StubDescriptorModel: DescriptorModelProtocol {
+public final actor StubDescriptorModel: DescriptorModelProtocol {
     nonisolated public var state: DescriptorModelState { stateDidChangeSubject.value }
     
     nonisolated public let stateDidChangeSubject: CurrentValueSubject<DescriptorModelState, Never>
@@ -25,8 +25,8 @@ public actor StubDescriptorModel: DescriptorModelProtocol {
     }
     
     
-    public func read() {}
-    public func write(value: Data) {}
+    nonisolated public func read() {}
+    nonisolated public func write(value: Data) {}
 }
 
 
