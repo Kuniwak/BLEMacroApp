@@ -158,7 +158,6 @@ extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
 public protocol PeripheralDiscoveryModelProtocol: StateMachineProtocol where State == PeripheralDiscoveryModelState {
     nonisolated func startScan()
     nonisolated func stopScan()
-    nonisolated func refreshState()
 }
 
 
@@ -188,11 +187,6 @@ public final actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol
     
     nonisolated public func stopScan() {
         base.stopScan()
-    }
-    
-    
-    nonisolated public func refreshState() {
-        base.refreshState()
     }
 }
 
@@ -368,10 +362,5 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 }
             }
         }
-    }
-    
-    
-    nonisolated public func refreshState() {
-        Task { await update(byState: centralManager.state) }
     }
 }

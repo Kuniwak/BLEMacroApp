@@ -65,14 +65,6 @@ internal struct BLEMacroApp: App {
         WindowGroup {
             PeripheralsView(observing: searchModel, loggingBy: logger)
         }
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            switch newPhase {
-            case .active:
-                discoveryModel.refreshState()
-            default:
-                discoveryModel.stopScan()
-            }
-        }
     }
 }
 #endif
