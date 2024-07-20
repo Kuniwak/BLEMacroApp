@@ -180,8 +180,8 @@ public final actor ConnectionModel: ConnectionModelProtocol {
     private let centralManager: any SendableCentralManagerProtocol
     nonisolated public let id: UUID
     
-    nonisolated public var state: ConnectionModelState { stateDidChangeSubject.projected }
-    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<ConnectionModelState, Never>
+    nonisolated public var state: ConnectionModelState { stateDidChangeSubject.value }
+    nonisolated private let stateDidChangeSubject: ConcurrentValueSubject<ConnectionModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<ConnectionModelState, Never>
     
     private var cancellables = Set<AnyCancellable>()
@@ -200,7 +200,7 @@ public final actor ConnectionModel: ConnectionModelProtocol {
         
         let initialState: State = .initialState(isConnectable: isConnectable) // T1, T2
         self.initialState = initialState
-        let didUpdateSubject = ProjectedValueSubject<ConnectionModelState, Never>(initialState)
+        let didUpdateSubject = ConcurrentValueSubject<ConnectionModelState, Never>(initialState)
         self.stateDidChangeSubject = didUpdateSubject
         self.stateDidChange = didUpdateSubject.eraseToAnyPublisher()
         

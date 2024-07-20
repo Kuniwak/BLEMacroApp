@@ -140,8 +140,8 @@ public final actor DescriptorModel: DescriptorModelProtocol {
     private let peripheral: any PeripheralProtocol
     nonisolated public let id: CBUUID
     
-    nonisolated public var state: DescriptorModelState { stateDidChangeSubject.projected }
-    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<DescriptorModelState, Never>
+    nonisolated public var state: DescriptorModelState { stateDidChangeSubject.value }
+    nonisolated private let stateDidChangeSubject: ConcurrentValueSubject<DescriptorModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<DescriptorModelState, Never>
 
     private var cancellables = Set<AnyCancellable>()
@@ -155,7 +155,7 @@ public final actor DescriptorModel: DescriptorModelProtocol {
        self.peripheral = peripheral
        self.id = descriptor.uuid
        
-       let stateDidChangeSubject = ProjectedValueSubject<DescriptorModelState, Never>(initialState)
+       let stateDidChangeSubject = ConcurrentValueSubject<DescriptorModelState, Never>(initialState)
        self.stateDidChangeSubject = stateDidChangeSubject
        self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
        

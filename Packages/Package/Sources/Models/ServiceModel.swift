@@ -36,6 +36,7 @@ public typealias CharacteristicDiscoveryModelState = DiscoveryModelState<AnyChar
 public struct ServiceModelState: Equatable {
     public let uuid: CBUUID
     public let name: String?
+    public let isPrimary: Bool
     public let connection: ConnectionModelState
     public let discovery: CharacteristicDiscoveryModelState
 
@@ -43,11 +44,13 @@ public struct ServiceModelState: Equatable {
     public init(
         uuid: CBUUID,
         name: String?,
+        isPrimary: Bool,
         connection: ConnectionModelState,
         discovery: CharacteristicDiscoveryModelState
     ) {
         self.uuid = uuid
         self.name = name
+        self.isPrimary = isPrimary
         self.connection = connection
         self.discovery = discovery
     }
@@ -56,14 +59,14 @@ public struct ServiceModelState: Equatable {
 
 extension ServiceModelState: CustomStringConvertible {
     public var description: String {
-        "ServiceModelState(uuid: \(uuid.uuidString), name: \(name ?? "(no name)"), discovery: \(discovery.description), connection: \(connection.description))"
+        "ServiceModelState(uuid: \(uuid.uuidString), name: \(name ?? "(no name)"), isPrimary: \(isPrimary), discovery: \(discovery.description), connection: \(connection.description))"
     }
 }
 
 
 extension ServiceModelState: CustomDebugStringConvertible {
     public var debugDescription: String {
-        "ServiceModelState(uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name == nil ? ".some" : ".none"), discovery: \(discovery.debugDescription), connection: \(connection.debugDescription))"
+        "ServiceModelState(uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name == nil ? ".some" : ".none"), isPrimary: \(isPrimary), discovery: \(discovery.debugDescription), connection: \(connection.debugDescription))"
     }
 }
 
@@ -127,13 +130,15 @@ public final actor ServiceModel: ServiceModelProtocol {
         ServiceModelState(
             uuid: id,
             name: name,
+            isPrimary: service.isPrimary,
             connection: model.state.connection,
             discovery: model.state.discovery
         )
     }
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
-    nonisolated public let id: CBUUID
+    nonisolated private let service: any ServiceProtocol
+    nonisolated public var id: CBUUID { service.uuid }
     
     
     public init(
@@ -141,7 +146,7 @@ public final actor ServiceModel: ServiceModelProtocol {
         onPeripheral peripheral: any PeripheralProtocol,
         controlledBy connectionModel: any ConnectionModelProtocol
     ) {
-        self.id = service.uuid
+        self.service = service
         
         let name = ServiceCatalog.from(cbuuid: service.uuid)?.name
         self.name = name
@@ -163,6 +168,7 @@ public final actor ServiceModel: ServiceModelProtocol {
                 ServiceModelState(
                     uuid: service.uuid,
                     name: name,
+                    isPrimary: service.isPrimary,
                     connection: state.connection,
                     discovery: state.discovery
                 )

@@ -4,8 +4,27 @@ import BLEInternal
 import BLEAssignedNumbers
 
 
+public struct ManufacturerName: Sendable, Hashable {
+    public let name: String
+    public let byte1: UInt8
+    public let byte2: UInt8
+    
+    
+    public init(name: String, _ byte1: UInt8, _ byte2: UInt8) {
+        self.name = name
+        self.byte1 = byte1
+        self.byte2 = byte2
+    }
+}
+
+
+extension ManufacturerName: CustomStringConvertible {
+    public var description: String { name }
+}
+
+
 public enum ManufacturerData: Equatable {
-    case knownName(String, Data)
+    case knownName(ManufacturerName, Data)
     case data(Data)
     
     
@@ -46,7 +65,7 @@ extension ManufacturerData: CustomDebugStringConvertible {
 public enum ManufacturerCatalog {
     public static func from(data: Data) -> ManufacturerData {
         if let assignedNumber = manufacturerToName[ManufacturerID(data[0], data[1])] {
-            return .knownName(assignedNumber.name, data.dropFirst(2))
+            return .knownName(ManufacturerName(name: assignedNumber.name, data[0], data[1]), data.dropFirst(2))
         }
         return .data(data)
     }

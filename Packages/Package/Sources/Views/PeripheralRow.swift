@@ -28,16 +28,13 @@ public struct PeripheralRow: View {
                 case .success(let name):
                     if let name {
                         Text(name)
-                            .font(.headline)
                             .foregroundStyle(Color(.normal))
                     } else {
                         Text("(no name)")
-                            .font(.headline)
                             .foregroundStyle(Color(.weak))
                     }
                 case .failure(let error):
                     Text("E: \(error.description)")
-                        .font(.headline)
                         .foregroundStyle(Color(.error))
                 }
                 Spacer()
@@ -80,7 +77,7 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
     ]
     let manufacturerData: [ManufacturerData?] = [
         nil,
-        .knownName("Example Inc.", Data([0x00, 0x00])),
+        .knownName(ManufacturerName(name: "Example Inc.", 0x01, 0x23), Data([0x00, 0x00])),
         .data(Data([0x00, 0x00])),
     ]
     let connection: [ConnectionModelState] = [

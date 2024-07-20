@@ -11,8 +11,8 @@ public final actor StubPeripheralModel: PeripheralModelProtocol {
     nonisolated public let id: UUID
     
     nonisolated public let connection: any ConnectionModelProtocol
-    nonisolated public var state: State { stateDidChangeSubject.projected }
-    nonisolated public let stateDidChangeSubject: ProjectedValueSubject<State, Never>
+    nonisolated public var state: State { stateDidChangeSubject.value }
+    nonisolated public let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
     
@@ -20,7 +20,7 @@ public final actor StubPeripheralModel: PeripheralModelProtocol {
         self.id = uuid
         
         self.connection = connection
-        let stateDidChangeSubject = ProjectedValueSubject<State, Never>(state)
+        let stateDidChangeSubject = ConcurrentValueSubject<State, Never>(state)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }
@@ -39,6 +39,7 @@ extension PeripheralModelState {
         name: Result<String?, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         rssi: Result<NSNumber, PeripheralModelFailure> = .failure(.init(description: "TEST")),
         manufacturerData: ManufacturerData? = nil,
+        advertisementData: [String: Any] = [:],
         connection: ConnectionModelState = .makeStub(),
         discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discoveryFailed(.init(description: "TEST"), nil)
     ) -> Self {
@@ -47,6 +48,7 @@ extension PeripheralModelState {
             name: name,
             rssi: rssi,
             manufacturerData: manufacturerData,
+            advertisementData: advertisementData,
             connection: connection,
             discovery: discovery
         )
@@ -58,6 +60,7 @@ extension PeripheralModelState {
         name: Result<String?, PeripheralModelFailure> = .success("Example"),
         rssi: Result<NSNumber, PeripheralModelFailure> = .success(NSNumber(value: -50)),
         manufacturerData: ManufacturerData? = nil,
+        advertisementData: [String: Any] = [:],
         connection: ConnectionModelState = .makeSuccessfulStub(),
         discovery: DiscoveryModelState<AnyServiceModel, PeripheralModelFailure> = .discovered([
             StubServiceModel().eraseToAny(),
@@ -69,6 +72,7 @@ extension PeripheralModelState {
             name: name,
             rssi: rssi,
             manufacturerData: manufacturerData,
+            advertisementData: advertisementData,
             connection: connection,
             discovery: discovery
         )

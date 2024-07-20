@@ -6,6 +6,7 @@ import CoreBluetoothTestable
 import CoreBluetoothTasks
 import ModelFoundation
 import Catalogs
+import MirrorDiffKit
 
 
 public struct PeripheralModelFailure: Error, CustomStringConvertible, Equatable {
@@ -35,11 +36,12 @@ public struct PeripheralModelFailure: Error, CustomStringConvertible, Equatable 
 public typealias ServiceDiscoveryModelState = DiscoveryModelState<AnyServiceModel, PeripheralModelFailure>
 
 
-public struct PeripheralModelState: Equatable {
+public struct PeripheralModelState {
     public var uuid: UUID
     public var connection: ConnectionModelState
     public var name: Result<String?, PeripheralModelFailure>
     public var rssi: Result<NSNumber, PeripheralModelFailure>
+    public var advertisementData: [String: Any]
     public var manufacturerData: ManufacturerData?
     public var discovery: ServiceDiscoveryModelState
 
@@ -49,6 +51,7 @@ public struct PeripheralModelState: Equatable {
         name: Result<String?, PeripheralModelFailure>,
         rssi: Result<NSNumber, PeripheralModelFailure>,
         manufacturerData: ManufacturerData?,
+        advertisementData: [String: Any],
         connection: ConnectionModelState,
         discovery: ServiceDiscoveryModelState
     ) {
@@ -56,6 +59,7 @@ public struct PeripheralModelState: Equatable {
         self.name = name
         self.rssi = rssi
         self.manufacturerData = manufacturerData
+        self.advertisementData = advertisementData
         self.connection = connection
         self.discovery = discovery
     }
@@ -66,6 +70,7 @@ public struct PeripheralModelState: Equatable {
         name: String?,
         rssi: NSNumber,
         manufacturerData: ManufacturerData?,
+        advertisementData: [String: Any],
         isConnectable: Bool,
         discovery: ServiceDiscoveryModelState
     ) -> Self {
@@ -74,11 +79,25 @@ public struct PeripheralModelState: Equatable {
             name: .success(name),
             rssi: .success(rssi),
             manufacturerData: manufacturerData,
+            advertisementData: advertisementData,
             connection: isConnectable
                 ? .disconnected // T2
                 : .notConnectable, // T1
             discovery: discovery
         )
+    }
+}
+
+
+extension PeripheralModelState: Equatable {
+    public static func == (lhs: PeripheralModelState, rhs: PeripheralModelState) -> Bool {
+        lhs.uuid == rhs.uuid
+            && lhs.name == rhs.name
+            && lhs.rssi == rhs.rssi
+            && lhs.manufacturerData == rhs.manufacturerData
+            && lhs.advertisementData =~ rhs.advertisementData
+            && lhs.connection == rhs.connection
+            && lhs.discovery == rhs.discovery
     }
 }
 
@@ -195,9 +214,10 @@ public final actor PeripheralModel: PeripheralModelProtocol {
     nonisolated public var state: State {
         return PeripheralModelState(
             uuid: id,
-            name: nameSubject.projected,
-            rssi: rssiSubject.projected,
+            name: nameSubject.value,
+            rssi: rssiSubject.value,
             manufacturerData: manufacturerData,
+            advertisementData: advertisementData,
             connection: model.state.connection,
             discovery: model.state.discovery
         )
@@ -207,8 +227,9 @@ public final actor PeripheralModel: PeripheralModelProtocol {
     
     nonisolated public let id: UUID
     nonisolated private let manufacturerData: ManufacturerData?
-    nonisolated private let nameSubject: ProjectedValueSubject<Result<String?, PeripheralModelFailure>, Never>
-    nonisolated private let rssiSubject: ProjectedValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>
+    nonisolated private let advertisementData: [String: Any]
+    nonisolated private let nameSubject: ConcurrentValueSubject<Result<String?, PeripheralModelFailure>, Never>
+    nonisolated private let rssiSubject: ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>
 
     nonisolated private let peripheral: any PeripheralProtocol
     nonisolated private let model: any ConnectableDiscoveryModelProtocol<AnyServiceModel, PeripheralModelFailure>
@@ -225,10 +246,11 @@ public final actor PeripheralModel: PeripheralModelProtocol {
         
         let manufacturerData = ManufacturerData.from(advertisementData: advertisementData)
         self.manufacturerData = manufacturerData
+        self.advertisementData = advertisementData
         
-        let nameSubject = ProjectedValueSubject<Result<String?, PeripheralModelFailure>, Never>(.success(peripheral.name))
+        let nameSubject = ConcurrentValueSubject<Result<String?, PeripheralModelFailure>, Never>(.success(peripheral.name))
         self.nameSubject = nameSubject
-        let rssiSubject = ProjectedValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>(.success(rssi))
+        let rssiSubject = ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>(.success(rssi))
         self.rssiSubject = rssiSubject
         
         let discoveryModel = DiscoveryModel<AnyServiceModel, PeripheralModelFailure>(
@@ -254,6 +276,7 @@ public final actor PeripheralModel: PeripheralModelProtocol {
                     name: name,
                     rssi: rssi,
                     manufacturerData: manufacturerData,
+                    advertisementData: advertisementData,
                     connection: state.connection,
                     discovery: state.discovery
                 )

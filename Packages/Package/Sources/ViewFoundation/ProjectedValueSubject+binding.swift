@@ -6,17 +6,17 @@ import ConcurrentCombine
 
 public class ProjectedValueSubjectBinding<Value> {
     private var cancellables = Set<AnyCancellable>()
-    private var subject: ProjectedValueSubject<Value, Never>
+    private var subject: ConcurrentValueSubject<Value, Never>
     
     
-    public init(_ subject: ProjectedValueSubject<Value, Never>) {
+    public init(_ subject: ConcurrentValueSubject<Value, Never>) {
         self.subject = subject
     }
     
     
     public func mapBind<NewValue>(_ get: @escaping (Value) -> (NewValue), _ set: @escaping (NewValue) -> (Value)) -> Binding<NewValue> {
         Binding(
-            get: { [self] in get(self.subject.projected) },
+            get: { [self] in get(self.subject.value) },
             set: { [self] newValue in
                 Task {
                     await self.subject.change { value in
@@ -30,7 +30,7 @@ public class ProjectedValueSubjectBinding<Value> {
     
     public func bind() -> Binding<Value> {
         Binding(
-            get: { [self] in self.subject.projected },
+            get: { [self] in self.subject.value },
             set: { [self] newValue in
                 Task {
                     await self.subject.change { _ in

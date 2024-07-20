@@ -19,3 +19,19 @@ extension CharacteristicValueState {
         .init(properties: properties, value: value, error: nil)
     }
 }
+
+
+extension CBCharacteristicProperties {
+    public static var allCases: Self {
+        return .broadcast
+            .union(.read)
+            .union(.writeWithoutResponse)
+            .union(.write)
+            .union(.notify)
+            .union(.indicate)
+            .union(.authenticatedSignedWrites)
+            .union(.extendedProperties)
+            .union(.notifyEncryptionRequired)
+            .union(.indicateEncryptionRequired)
+    }
+}

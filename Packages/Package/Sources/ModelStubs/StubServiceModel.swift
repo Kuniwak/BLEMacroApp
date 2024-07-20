@@ -38,12 +38,14 @@ extension ServiceModelState {
     public static func makeStub(
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = nil,
+        isPrimary: Bool = false,
         discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
         connection: ConnectionModelState = .makeStub()
     ) -> Self {
         .init(
             uuid: uuid,
             name: name,
+            isPrimary: isPrimary,
             connection: connection,
             discovery: discovery
         )
@@ -53,6 +55,7 @@ extension ServiceModelState {
     public static func makeSuccessfulStub(
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = "Example",
+        isPrimary: Bool = false,
         discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discovered([
             StubCharacteristicModel().eraseToAny(),
             StubCharacteristicModel().eraseToAny(),
@@ -62,6 +65,7 @@ extension ServiceModelState {
         .init(
             uuid: uuid,
             name: name,
+            isPrimary: isPrimary,
             connection: connection,
             discovery: discovery
         )

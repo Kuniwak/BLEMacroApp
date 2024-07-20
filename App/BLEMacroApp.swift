@@ -36,7 +36,10 @@ internal struct BLEMacroApp: App {
         self.logger = logger
         
         let centralManager = SendableCentralManager(
-            options: [CBCentralManagerOptionShowPowerAlertKey: true],
+            options: [
+                CBCentralManagerOptionShowPowerAlertKey: true,
+                CBCentralManagerScanOptionAllowDuplicatesKey: true,
+            ],
             severity: severity
         )
         
@@ -58,7 +61,7 @@ internal struct BLEMacroApp: App {
     
     public var body: some Scene {
         WindowGroup {
-            PeripheralsView(observing: searchModel, loggingBy: logger)
+            PeripheralSearchView(observing: searchModel, loggingBy: logger)
         }
     }
 }

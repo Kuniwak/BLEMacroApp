@@ -47,9 +47,34 @@ public struct CharacteristicStringValueState: Equatable, Sendable {
 }
 
 
+extension CBCharacteristicProperties {
+    fileprivate var description: String {
+        var components = [String]()
+        if contains(.broadcast) { components.append("broadcast") }
+        if contains(.read) { components.append("read") }
+        if contains(.writeWithoutResponse) { components.append("writeWithoutResponse") }
+        if contains(.write) { components.append("write") }
+        if contains(.notify) { components.append("notify") }
+        if contains(.indicate) { components.append("indicate") }
+        if contains(.authenticatedSignedWrites) { components.append("authenticatedSignedWrites") }
+        if contains(.extendedProperties) { components.append("extendedProperties") }
+        if contains(.notifyEncryptionRequired) { components.append("notifyEncryptionRequired") }
+        if contains(.indicateEncryptionRequired) { components.append("indicateEncryptionRequired") }
+        return components.joined(separator: "/")
+    }
+}
+
+
 extension CharacteristicStringValueState: CustomStringConvertible {
     public var description: String {
-        "CharacteristicStringValueState(properties: \(properties), data: \(data), error: \(error?.description ?? "nil"))"
+        "(properties: \(properties.description), data: \(data), error: \(error?.description ?? "nil"))"
+    }
+}
+
+
+extension CharacteristicStringValueState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        "(properties: \(properties), data: \(data.count) bytes, error: \(error == nil ? ".none" : ".some"))"
     }
 }
 

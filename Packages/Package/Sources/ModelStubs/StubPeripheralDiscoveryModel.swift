@@ -19,7 +19,6 @@ public final actor StubPeripheralDiscoveryModel: PeripheralDiscoveryModelProtoco
     
     nonisolated public func startScan() {}
     nonisolated public func stopScan() {}
-    nonisolated public func refreshState() {}
 }
 
 

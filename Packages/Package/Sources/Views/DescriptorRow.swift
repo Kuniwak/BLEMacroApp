@@ -18,11 +18,9 @@ public struct DescriptorRow: View {
         VStack(alignment: .leading, spacing: 10) {
             if let name = binding.state.name {
                 Text(name)
-                    .font(.headline)
                     .foregroundStyle(Color(.normal))
             } else {
                 Text("(no name)")
-                    .font(.headline)
                     .foregroundStyle(Color(.weak))
             }
             

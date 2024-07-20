@@ -44,7 +44,7 @@ public struct SearchQuery: RawRepresentable, Equatable, Codable, ExpressibleBySt
         
         switch state.manufacturerData {
         case .some(.knownName(let manufacturer, let data)):
-            if manufacturer.uppercased().contains(searchQuery) {
+            if manufacturer.name.uppercased().contains(searchQuery) {
                 return true
             }
             if HexEncoding.upper.encode(data: data).contains(searchQuery) {
@@ -125,7 +125,7 @@ extension PeripheralSearchModelState: CustomDebugStringConvertible {
 
 
 public protocol PeripheralSearchModelProtocol: StateMachineProtocol<PeripheralSearchModelState> {
-    nonisolated var searchQuery: ProjectedValueSubject<SearchQuery, Never> { get }
+    nonisolated var searchQuery: ConcurrentValueSubject<SearchQuery, Never> { get }
     nonisolated func startScan()
     nonisolated func stopScan()
 }
@@ -143,7 +143,7 @@ public final actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
     
     nonisolated public var state: State { base.state }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
-    nonisolated public var searchQuery: ProjectedValueSubject<SearchQuery, Never> { base.searchQuery }
+    nonisolated public var searchQuery: ConcurrentValueSubject<SearchQuery, Never> { base.searchQuery }
    
     
     public init(_ base: any PeripheralSearchModelProtocol) {
@@ -163,16 +163,16 @@ public final actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
 
 public final actor PeripheralSearchModel: PeripheralSearchModelProtocol {
     nonisolated public var state: State {
-        .init(discovery: discoveryModel.state, searchQuery: searchQuery.projected)
+        .init(discovery: discoveryModel.state, searchQuery: searchQuery.value)
     }
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
-    nonisolated public let searchQuery: ProjectedValueSubject<SearchQuery, Never>
+    nonisolated public let searchQuery: ConcurrentValueSubject<SearchQuery, Never>
     
     private let discoveryModel: any PeripheralDiscoveryModelProtocol
     
     
     public init(observing discoveryModel: any PeripheralDiscoveryModelProtocol, initialSearchQuery: SearchQuery) {
-        self.searchQuery = ProjectedValueSubject<SearchQuery, Never>(initialSearchQuery)
+        self.searchQuery = ConcurrentValueSubject<SearchQuery, Never>(initialSearchQuery)
         
         self.discoveryModel = discoveryModel
         

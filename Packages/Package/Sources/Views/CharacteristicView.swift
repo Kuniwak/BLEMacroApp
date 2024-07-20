@@ -10,12 +10,8 @@ import PreviewHelper
 public struct CharacteristicView: View {
     @ObservedObject private var characteristicBinding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
     @ObservedObject private var hexDataBinding: ViewBinding<Result<Data, HexDataModelFailure>, AnyHexDataModel>
-    @State private var isDialogPresent: Bool = false
-    @State private var valueToWrite: String = "" {
-        didSet {
-            hexDataModel.update(byString: valueToWrite)
-        }
-    }
+    @State public var isDialogPresent: Bool = false
+    
     
     private let deps: DependencyBag
     private let characteristicModel: any CharacteristicModelProtocol
@@ -32,8 +28,9 @@ public struct CharacteristicView: View {
     }
     
     
-    public func presentAlert() {
-        isDialogPresent = true
+    public func presentAlert() -> some View {
+        isDialogPresent.toggle()
+        return self
     }
     
     
@@ -41,47 +38,155 @@ public struct CharacteristicView: View {
         VStack(spacing: 0) {
             Form {
                 Section(header: Text("Value")) {
-                    Button("Write") {
-                        isDialogPresent = true
+                    LabeledContent("Value") {
+                        HStack {
+                            Text(HexEncoding.upper.encode(data: characteristicBinding.state.value.data))
+                            
+                            Button(action: {
+                                characteristicModel.read()
+                            }) {
+                                Image(systemName: SFSymbol5.Arrow.clockwise.rawValue)
+                            }
+                            .disabled(!characteristicBinding.state.value.properties.contains(.read))
+
+                            Button(action: {
+                                isDialogPresent = true
+                            }) {
+                                Image(systemName: SFSymbol5.pencil.rawValue)
+                            }
+                            .disabled(!characteristicBinding.state.value.properties.contains(.write))
+                        }
                     }
-                    .disabled(!characteristicBinding.state.value.properties.contains(.write))
+                }
+                
+                Section(header: Text("Properties")) {
+                    if characteristicBinding.state.value.properties.isEmpty {
+                        Text("No Properties")
+                    } else {
+                        if characteristicBinding.state.value.properties.contains(.broadcast) {
+                            LabeledContent("Broadcast") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.read) {
+                            LabeledContent("Read") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.write) {
+                            LabeledContent("Write") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.notify) {
+                            LabeledContent("Notify") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.indicate) {
+                            LabeledContent("Indicate") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.writeWithoutResponse) {
+                            LabeledContent("Write Without Response") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.authenticatedSignedWrites) {
+                            LabeledContent("Authenticated Signed Writes") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.extendedProperties) {
+                            LabeledContent("Extended Properties") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.notifyEncryptionRequired) {
+                            LabeledContent("Notify Encryption Required") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.indicateEncryptionRequired) {
+                            LabeledContent("Indicate Encryption Required") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.notifyEncryptionRequired) {
+                            LabeledContent("Notify Encryption Required") {
+                                Text("Yes")
+                            }
+                        }
+                        if characteristicBinding.state.value.properties.contains(.indicateEncryptionRequired) {
+                            LabeledContent("Indicate Encryption Required") {
+                                Text("Yes")
+                            }
+                        }
+                    }
+                }
+                
+                Section(header: Text("Descriptors")) {
+                    switch characteristicBinding.state.connection {
+                    case .notConnectable:
+                        HStack {
+                            Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
+                                .foregroundStyle(Color(.error))
+                            Text("Not Connectable")
+                                .foregroundStyle(Color(.error))
+                        }
+                    case .connected, .connecting, .connectionFailed, .disconnected, .disconnecting:
+                        if let descriptors = characteristicBinding.state.discovery.values {
+                            if descriptors.isEmpty {
+                                Text("No Descriptors")
+                                    .foregroundStyle(Color(.weak))
+                            } else {
+                                ForEach(descriptors) { descriptor in
+                                    DescriptorRow(observing: descriptor)
+                                }
+                            }
+                        } else if characteristicBinding.state.discovery.isDiscovering {
+                            HStack(spacing: 10) {
+                                Spacer()
+                                ProgressView()
+                                Text("Discovering...")
+                                    .foregroundStyle(Color(.weak))
+                                Spacer()
+                            }
+                        } else {
+                            HStack {
+                                Text("Not Discovering.")
+                                    .foregroundStyle(Color(.weak))
+                                Button("Start Discovery") {
+                                    characteristicModel.discover()
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            
-            DescriptorsView(observing: characteristicModel, holding: deps)
         }
         .onAppear() {
             characteristicModel.discover()
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                VStack {
-                    Text("Characteristic")
-                        .font(.headline)
-                    Text(characteristicBinding.state.name ?? characteristicBinding.state.uuid.uuidString)
-                        .font(.subheadline)
-                        .foregroundStyle(Color(.secondaryLabel))
-                }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                trailingNavigationBarItem
-            }
-        }
+        .navigationTitle("Characteristic")
+        .navigationBarItems(trailing: trailingNavigationBarItem)
         .alert("Write Value", isPresented: $isDialogPresent) {
-            TextField("Enter Hex Data", text: $valueToWrite)
+            TextField("Enter Hex Data", text: .constant(""))
+                .autocapitalization(.none)
+                .keyboardType(.asciiCapable)
             
-            Button("Write") {
+            Button("Request") {
                 characteristicModel.write(type: .withResponse)
             }
             .disabled(!hexDataBinding.state.isSuccess)
             
-            Button("Write") {
+            Button("Command") {
                 characteristicModel.write(type: .withoutResponse)
             }
             .disabled(!hexDataBinding.state.isSuccess)
             
-            Button("Cancel", role: .cancel) {
-            }
+            Button("Cancel", role: .cancel) {}
         }
     }
     
@@ -122,6 +227,11 @@ private func stubsForPreview() -> [Previewable<AnyCharacteristicModel>] {
         "Example",
     ]
     
+    let values: [Data] = [
+        Data(),
+        Data([0x01, 0x02, 0x03]),
+    ]
+    
     let discovery: [DescriptorDiscoveryModelState] = [
         .notDiscoveredYet,
         .discovering(nil),
@@ -140,16 +250,20 @@ private func stubsForPreview() -> [Previewable<AnyCharacteristicModel>] {
     let states1: [CharacteristicModelState] = names.map { name in
         .makeSuccessfulStub(name: name)
     }
+    
+    let states2: [CharacteristicModelState] = values.map { value in
+        .makeSuccessfulStub(value: .makeSuccessfulStub(data: value))
+    }
 
-    let states2: [CharacteristicModelState] = discovery.map { discovery in
+    let states3: [CharacteristicModelState] = discovery.map { discovery in
         .makeSuccessfulStub(discovery: discovery)
     }
     
-    let state3: [CharacteristicModelState] = connections.map { connection in
+    let states4: [CharacteristicModelState] = connections.map { connection in
         .makeSuccessfulStub(connection: connection)
     }
     
-    return (states1 + states2 + state3)
+    return (states1 + states2 + states3 + states4)
         .map { state in
             return Previewable(
                 StubCharacteristicModel(state: state).eraseToAny(),
@@ -167,6 +281,7 @@ internal struct CharacteristicView_Previews: PreviewProvider {
                     of: wrapper.value,
                     holding: .makeStub()
                 )
+                .presentAlert()
             }
             .previewDisplayName(wrapper.description)
             .previewLayout(.sizeThatFits)

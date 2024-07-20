@@ -128,13 +128,13 @@ public final actor AnyDiscoveryModel<Value, Failure: Error>: DiscoveryModelProto
 public final actor DiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
     private let discoverStrategy: () async -> Result<[Value], Failure>
     
-    nonisolated public var state: State { stateDidChangeSubject.projected }
-    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<State, Never>
+    nonisolated public var state: State { stateDidChangeSubject.value }
+    nonisolated private let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
 
     public init(discoveringBy discoverStrategy: @escaping () async -> Result<[Value], Failure>) {
-        self.stateDidChangeSubject = ProjectedValueSubject(.notDiscoveredYet)
+        self.stateDidChangeSubject = ConcurrentValueSubject(.notDiscoveredYet)
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         self.discoverStrategy = discoverStrategy
     }

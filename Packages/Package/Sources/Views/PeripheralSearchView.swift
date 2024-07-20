@@ -7,7 +7,7 @@ import ViewFoundation
 import PreviewHelper
 
 
-public struct PeripheralsView: View {
+public struct PeripheralSearchView: View {
     @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     @State var selectedPeripheral: (any PeripheralModelProtocol)? = nil
     private let logger: any LoggerProtocol
@@ -62,7 +62,7 @@ public struct PeripheralsView: View {
                     .foregroundStyle(Color(.weak))
                 } else {
                     ForEach(peripherals) { peripheral in
-                        NavigationLink(destination: servicesView(peripheral)) {
+                        NavigationLink(destination: peripheralView(peripheral)) {
                             PeripheralRow(observing: peripheral)
                         }.disabled(!peripheral.state.connection.canConnect)
                     }
@@ -113,14 +113,25 @@ public struct PeripheralsView: View {
     }
     
     
-    private func servicesView(_ peripheral: any PeripheralModelProtocol) -> some View {
+    private func peripheralView(_ peripheral: any PeripheralModelProtocol) -> some View {
         let deps = DependencyBag(connectionModel: peripheral.connection, logger: logger)
-        return ServicesView(observing: peripheral, holding: deps)
-            .onAppear {
-                self.selectedPeripheral = peripheral
-                self.binding.source.stopScan()
-                peripheral.discover()
-            }
+        return PeripheralView(
+            observing: AutoRefreshedPeripheralModel(
+                wrapping: peripheral,
+                withTimeInterval: 0.5
+            ),
+            observing: PeripheralDistanceModel(
+                observing: peripheral,
+                withEnvironmentalFactor: 2.0
+            ),
+            observing: IBeaconModel(observing: peripheral),
+            holding: deps
+        )
+        .onAppear {
+            self.selectedPeripheral = peripheral
+            self.binding.source.stopScan()
+            peripheral.discover()
+        }
     }
 
     
@@ -173,7 +184,7 @@ internal struct PeripheralsView_Previews: PreviewProvider {
         Group {
             ForEach(wrappers) { wrapper in
                 NavigationStack {
-                    PeripheralsView(
+                    PeripheralSearchView(
                         observing: StubPeripheralSearchModel(state: wrapper.value).eraseToAny(),
                         loggingBy: NullLogger()
                     )

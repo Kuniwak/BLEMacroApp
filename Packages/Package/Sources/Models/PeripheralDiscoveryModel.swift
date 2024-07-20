@@ -224,8 +224,8 @@ public final actor AnyPeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol
 public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     private let centralManager: any SendableCentralManagerProtocol
     
-    nonisolated public var state: State { stateDidChangeSubject.projected }
-    nonisolated private let stateDidChangeSubject: ProjectedValueSubject<PeripheralDiscoveryModelState, Never>
+    nonisolated public var state: State { stateDidChangeSubject.value }
+    nonisolated private let stateDidChangeSubject: ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>
     nonisolated public let stateDidChange: AnyPublisher<PeripheralDiscoveryModelState, Never>
     nonisolated public let dispatchQueue = DispatchQueue(label: "PeripheralDiscoveryModel")
     
@@ -235,7 +235,7 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
     public init(observing centralManager: any SendableCentralManagerProtocol, startsWith initialState: PeripheralDiscoveryModelState) {
         self.centralManager = centralManager
         
-        let stateDidChangeSubject = ProjectedValueSubject<PeripheralDiscoveryModelState, Never>(initialState)
+        let stateDidChangeSubject = ConcurrentValueSubject<PeripheralDiscoveryModelState, Never>(initialState)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         
