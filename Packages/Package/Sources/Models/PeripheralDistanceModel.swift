@@ -8,29 +8,27 @@ import ModelFoundation
 public struct PeripheralDistanceState: Equatable, Sendable {
     public let distance: Double?
     public let environmentalFactor: Double
+    public let txPower: Double
     
     
-    public init(distance: Double?, environmentalFactor: Double) {
+    public init(distance: Double?, environmentalFactor: Double, txPower: Double) {
         self.distance = distance
         self.environmentalFactor = environmentalFactor
+        self.txPower = txPower
     }
     
     
-    public static func from(peripheral: PeripheralModelState, environmentalFactor: Double) -> PeripheralDistanceState {
-        guard let txPower = peripheral.advertisementData[CBAdvertisementDataTxPowerLevelKey] as? NSNumber else {
-            return .init(distance: nil, environmentalFactor: environmentalFactor)
-        }
-        
+    public static func from(peripheral: PeripheralModelState, environmentalFactor: Double, txPower: Double) -> PeripheralDistanceState {
         switch peripheral.rssi {
         case .failure:
-            return .init(distance: nil, environmentalFactor: environmentalFactor)
+            return .init(distance: nil, environmentalFactor: environmentalFactor, txPower: txPower)
             
         case .success(let rssi):
             let rssi = rssi.doubleValue
-            let txPower = txPower.doubleValue
             return .init(
                 distance: pow(10.0, (txPower - rssi) / (10 * environmentalFactor)),
-                environmentalFactor: 2.0
+                environmentalFactor: 2.0,
+                txPower: txPower
             )
         }
     }
@@ -39,20 +37,27 @@ public struct PeripheralDistanceState: Equatable, Sendable {
 
 extension PeripheralDistanceState: CustomStringConvertible {
     public var description: String {
-        return "(distance: \(distance?.description ?? "N/A"), environmentalFactor: \(environmentalFactor))"
+        let d: String
+        if let distance {
+            d = String(format: "%.1f", distance)
+        } else {
+            d = "nil"
+        }
+        return String(format: "(distance: %@, environmentalFactor: %.1f, txPower: %.1f)", d, environmentalFactor, txPower)
     }
 }
 
 
 extension PeripheralDistanceState: CustomDebugStringConvertible {
     public var debugDescription: String {
-        return "(distance: \(distance == nil ? ".none" : ".some"), environmentalFactor: \(environmentalFactor))"
+        return String(format: "(distance: %@, environmentalFactor: %.1f, txPower: %.1f)", distance == nil ? ".some" : ".none", environmentalFactor, txPower)
     }
 }
 
 
 public protocol PeripheralDistanceModelProtocol: StateMachineProtocol<PeripheralDistanceState> {
     nonisolated func update(environmentalFactorTo environmentalFactor: Double)
+    nonisolated func update(txPowerTo txPower: Double)
 }
 
 
@@ -75,15 +80,20 @@ public final actor AnyPeripheralDistanceModel: PeripheralDistanceModelProtocol {
     nonisolated public func update(environmentalFactorTo environmentalFactor: Double) {
         base.update(environmentalFactorTo: environmentalFactor)
     }
+    
+    nonisolated public func update(txPowerTo txPower: Double) {
+        base.update(txPowerTo: txPower)
+    }
 }
 
 
 public final actor PeripheralDistanceModel: PeripheralDistanceModelProtocol {
     nonisolated private let peripheral: any PeripheralModelProtocol
     nonisolated private let environmentalFactorSubject: ConcurrentValueSubject<Double, Never>
+    nonisolated private let txPowerSubject: ConcurrentValueSubject<Double, Never>
     
     nonisolated public var state: PeripheralDistanceState {
-        .from(peripheral: peripheral.state, environmentalFactor: environmentalFactorSubject.value)
+        .from(peripheral: peripheral.state, environmentalFactor: environmentalFactorSubject.value, txPower: txPowerSubject.value)
     }
     nonisolated public let stateDidChange: AnyPublisher<PeripheralDistanceState, Never>
     
@@ -93,13 +103,24 @@ public final actor PeripheralDistanceModel: PeripheralDistanceModelProtocol {
         let environmentalFactorSubject = ConcurrentValueSubject<Double, Never>(environmentalFactor)
         self.environmentalFactorSubject = environmentalFactorSubject
         
+        let txPower: Double
+        if let rawTxPower = peripheral.state.advertisementData[CBAdvertisementDataTxPowerLevelKey] as? NSNumber {
+            txPower = rawTxPower.doubleValue
+        } else {
+            txPower = -50
+        }
+
+        let txPowerSubject = ConcurrentValueSubject<Double, Never>(txPower)
+        self.txPowerSubject = txPowerSubject
+        
         self.stateDidChange = Publishers
-            .CombineLatest(
+            .CombineLatest(Publishers.CombineLatest(
                 peripheral.stateDidChange,
                 environmentalFactorSubject
-            )
-            .map { peripheralState, environmentalFactor in
-                .from(peripheral: peripheralState, environmentalFactor: environmentalFactor)
+            ), txPowerSubject)
+            .map { pair, txPower in
+                let (peripheralState, environmentalFactor) = pair
+                return .from(peripheral: peripheralState, environmentalFactor: environmentalFactor, txPower: txPower)
             }
             .eraseToAnyPublisher()
     }
@@ -107,5 +128,10 @@ public final actor PeripheralDistanceModel: PeripheralDistanceModelProtocol {
     
     nonisolated public func update(environmentalFactorTo environmentalFactor: Double) {
         Task { await environmentalFactorSubject.change { _ in environmentalFactor } }
+    }
+    
+    
+    nonisolated public func update(txPowerTo txPower: Double) {
+        Task { await txPowerSubject.change { _ in txPower } }
     }
 }

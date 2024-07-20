@@ -14,34 +14,25 @@ import SFSymbol
 public struct PeripheralView: View {
     @ObservedObject private var peripheralBinding: ViewBinding<PeripheralModelState, AnyPeripheralModel>
     @ObservedObject private var distanceBinding: ViewBinding<PeripheralDistanceState, AnyPeripheralDistanceModel>
-    @ObservedObject private var iBeaconBinding: ViewBinding<IBeaconState, AnyIBeaconModel>
-    private let peripheralModel: any PeripheralModelProtocol
     private let peripheralLogger: PeripheralModelLogger
-    private let distanceModel: any PeripheralDistanceModelProtocol
     private let distanceLogger: PeripheralDistanceModelLogger
-    private let iBeaconModel: any IBeaconModelProtocol
-    private let iBeaconLogger: IBeaconModelLogger
     private let deps: DependencyBag
     @State private var isAlertPresent: Bool = false
     @State private var environmentalFactor: Int = 20
     @State private var environmentalFactorError: Bool = false
+    @State private var txPower: Int
     
     
     public init(
         observing peripheralModel: any PeripheralModelProtocol,
         observing distanceModel: any PeripheralDistanceModelProtocol,
-        observing iBeaconModel: any IBeaconModelProtocol,
         holding deps: DependencyBag
     ) {
         self.peripheralBinding = ViewBinding(source: peripheralModel.eraseToAny())
-        self.peripheralModel = peripheralModel
         self.peripheralLogger = PeripheralModelLogger(observing: peripheralModel, loggingBy: deps.logger)
         self.distanceBinding = ViewBinding(source: distanceModel.eraseToAny())
-        self.distanceModel = distanceModel
         self.distanceLogger = PeripheralDistanceModelLogger(observing: distanceModel, loggingBy: deps.logger)
-        self.iBeaconBinding = ViewBinding(source: iBeaconModel.eraseToAny())
-        self.iBeaconModel = iBeaconModel
-        self.iBeaconLogger = IBeaconModelLogger(observing: iBeaconModel, loggingBy: deps.logger)
+        self.txPower = Int(distanceModel.state.txPower)
         self.deps = deps
     }
     
@@ -97,42 +88,27 @@ public struct PeripheralView: View {
                 }
             }
             
-            if case .success(let iBeacon) = iBeaconBinding.state {
-                Section(header: Text("iBeacon")) {
-                    LabeledContent("Proximity UUID") {
-                        ScrollableText(iBeacon.proximityUUID.uuidString)
-                    }
-                    
-                    LabeledContent("Major") {
-                        Text(iBeacon.major.description)
-                    }
-                    
-                    LabeledContent("Minor") {
-                        Text(iBeacon.minor.description)
-                    }
-                    
-                    LabeledContent("Measured Power") {
-                        Text(String(format: "%d dBm", iBeacon.measuredPower))
-                    }
-                }
-            }
-            
             if let distance = distanceBinding.state.distance {
                 Section(header: Text("Distance")) {
                     LabeledContent("Est. Distance") {
                         Text(String(format: "%.1f m", distance))
                     }
                     
+                    LabeledContent("TX Power") {
+                        Stepper(value: $txPower, in: -100...100, step: 1) {
+                            Text(String(format: "%d dBm", txPower))
+                        }
+                        .onChange(of: txPower) { newValue, oldValue in
+                            distanceBinding.source.update(txPowerTo: Double(newValue))
+                        }
+                    }
+                    
                     LabeledContent("Env. Factor") {
-                        Stepper(
-                            value: $environmentalFactor,
-                            in: 0...40,
-                            step: 1
-                        ) {
+                        Stepper(value: $environmentalFactor, in: 0...40, step: 1) {
                             Text(String(format: "%.1f", Double(environmentalFactor) / 10.0))
                         }
                         .onChange(of: environmentalFactor) { newValue, oldValue in
-                            distanceModel.update(environmentalFactorTo: Double(newValue) / 10.0)
+                            distanceBinding.source.update(environmentalFactorTo: Double(newValue) / 10.0)
                         }
                     }
                     
@@ -165,7 +141,7 @@ public struct PeripheralView: View {
                                 .foregroundStyle(Color(.weak))
                         } else {
                             ForEach(services) { service in
-                                NavigationLink(destination: characteristicsView(for: service)) {
+                                NavigationLink(destination: ServiceView(observing: service, holding: deps)) {
                                     ServiceRow(observing: service)
                                 }
                                 .disabled(!peripheralBinding.state.connection.canConnect && !peripheralBinding.state.connection.isConnected)
@@ -184,16 +160,14 @@ public struct PeripheralView: View {
                             Text("Not Discovering.")
                                 .foregroundStyle(Color(.weak))
                             Button("Start") {
-                                peripheralModel.discover()
+                                peripheralBinding.source.discover()
                             }
                         }
                     }
                 }
             }
         }
-        .onAppear() {
-            peripheralModel.discover()
-        }
+        .onAppear { peripheralBinding.source.discover() }
         .navigationTitle("Peripheral")
         .navigationBarItems(trailing: trailingNavigationBarItem)
     }
@@ -211,23 +185,15 @@ public struct PeripheralView: View {
     }
     
     
-    private func characteristicsView(for service: any ServiceModelProtocol) -> some View {
-        ServiceView(
-            observing: service,
-            holding: deps
-        )
-    }
-    
-    
     private var trailingNavigationBarItem: some View {
         Group {
             if peripheralBinding.state.connection.canConnect {
                 Button("Connect") {
-                    peripheralModel.connect()
+                    peripheralBinding.source.connect()
                 }
             } else if peripheralBinding.state.connection.isConnected {
                 Button("Disconnect") {
-                    peripheralModel.disconnect()
+                    peripheralBinding.source.disconnect()
                 }
             } else {
                 ProgressView()
@@ -240,21 +206,18 @@ public struct PeripheralView: View {
 fileprivate struct PreviewEntry {
     public let peripheral: PeripheralModelState
     public let distance: PeripheralDistanceState
-    public let iBeacon: IBeaconState
     
     public init(
         peripheral: PeripheralModelState,
-        distance: PeripheralDistanceState,
-        iBeacon: IBeaconState
+        distance: PeripheralDistanceState
     ) {
         self.peripheral = peripheral
         self.distance = distance
-        self.iBeacon = iBeacon
     }
 }
 
 
-fileprivate func stubsForPreview() -> [Previewable<(peripheral: AnyPeripheralModel, distance: AnyPeripheralDistanceModel, iBeacon: AnyIBeaconModel)>] {
+fileprivate func stubsForPreview() -> [Previewable<(peripheral: AnyPeripheralModel, distance: AnyPeripheralDistanceModel)>] {
     let discovery: [ServiceDiscoveryModelState] = [
         .notDiscoveredYet,
         .discovering(nil),
@@ -278,76 +241,52 @@ fileprivate func stubsForPreview() -> [Previewable<(peripheral: AnyPeripheralMod
         ],
     ]
     
-    let iBeacons: [IBeaconData] = [
-        .init(
-            type: .proximity,
-            proximityUUID: StubUUID.one,
-            major: IBeaconRegion(0x01, 0x23),
-            minor: IBeaconRegion(0x45, 0x67),
-            measuredPower: -50
-        ),
-    ]
-    
     let distances: [PeripheralDistanceState] = [
-        .init(distance: nil, environmentalFactor: 2.0),
-        .init(distance: 123, environmentalFactor: 2.0),
+        .init(distance: nil, environmentalFactor: 2.0, txPower: -50),
+        .init(distance: 123, environmentalFactor: 2.0, txPower: -59),
     ]
     
     let states1: [PreviewEntry] = discovery.map { discovery in
         .init(
             peripheral: .makeSuccessfulStub(discovery: discovery),
-            distance: .makeStub(),
-            iBeacon: .failure(.init("TEST"))
+            distance: .makeStub()
         )
     }
     
     let states2: [PreviewEntry] = names.map { name in
         .init(
             peripheral: .makeSuccessfulStub(name: name),
-            distance: .makeStub(),
-            iBeacon: .failure(.init("TEST"))
+            distance: .makeStub()
         )
     }
     
     let states3: [PreviewEntry] = manufacturers.map { manufacturer in
         .init(
             peripheral: .makeSuccessfulStub(manufacturerData: manufacturer),
-            distance: .makeStub(),
-            iBeacon: .failure(.init("TEST"))
+            distance: .makeStub()
         )
     }
 
     let states4: [PreviewEntry] = adData.map { adData in
         .init(
             peripheral: .makeSuccessfulStub(advertisementData: adData),
-            distance: .makeStub(),
-            iBeacon: .failure(.init("TEST"))
+            distance: .makeStub()
         )
     }
 
-    let states5: [PreviewEntry] = iBeacons.map { iBeacon in
+    let states5: [PreviewEntry] = distances.map { distance in
         .init(
             peripheral: .makeSuccessfulStub(),
-            distance: .makeSuccessfulStub(),
-            iBeacon: .success(iBeacon)
-        )
-    }
-
-    let states6: [PreviewEntry] = distances.map { distance in
-        .init(
-            peripheral: .makeSuccessfulStub(),
-            distance: distance,
-            iBeacon: .failure(.init("TEST"))
+            distance: distance
         )
     }
     
-    return (states1 + states2 + states3 + states4 + states5 + states6)
+    return (states1 + states2 + states3 + states4 + states5)
         .map { state in
             return Previewable(
                 (
                     peripheral: StubPeripheralModel(state: state.peripheral).eraseToAny(),
-                    distance: StubPeripheralDistanceModel(startsWith: state.distance).eraseToAny(),
-                    iBeacon: StubIBeaconModel(state: state.iBeacon).eraseToAny()
+                    distance: StubPeripheralDistanceModel(startsWith: state.distance).eraseToAny()
                 ),
                 describing: "(peripheral: \(state.peripheral.debugDescription), distance: \(state.distance.debugDescription))"
             )
@@ -362,7 +301,6 @@ internal struct ServicesView_Previews: PreviewProvider {
                 PeripheralView(
                     observing: wrapper.value.peripheral,
                     observing: wrapper.value.distance,
-                    observing: wrapper.value.iBeacon,
                     holding: .makeStub()
                 )
             }

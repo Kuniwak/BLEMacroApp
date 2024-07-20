@@ -106,8 +106,11 @@ public struct PeripheralSearchView: View {
                 .mapBind(\.rawValue, SearchQuery.init(rawValue:)),
             prompt: "Name or UUID or Manufacturer Name"
         )
+        .onDisappear {
+            self.binding.source.stopScan()
+        }
         .onAppear {
-            self.selectedPeripheral?.disconnect()
+//            self.selectedPeripheral?.disconnect()
             self.selectedPeripheral = nil
         }
     }
@@ -124,12 +127,10 @@ public struct PeripheralSearchView: View {
                 observing: peripheral,
                 withEnvironmentalFactor: 2.0
             ),
-            observing: IBeaconModel(observing: peripheral),
             holding: deps
         )
         .onAppear {
             self.selectedPeripheral = peripheral
-            self.binding.source.stopScan()
             peripheral.discover()
         }
     }

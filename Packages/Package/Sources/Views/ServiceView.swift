@@ -11,7 +11,6 @@ import SFSymbol
 
 public struct ServiceView: View {
     @ObservedObject private var binding: ViewBinding<ServiceModelState, AnyServiceModel>
-    private let model: any ServiceModelProtocol
     private let deps: DependencyBag
     private let modelLogger: ServiceModelLogger
     @State private var isAlertPresent: Bool = false
@@ -19,7 +18,6 @@ public struct ServiceView: View {
     
     public init(observing model: any ServiceModelProtocol, holding deps: DependencyBag) {
         self.binding = ViewBinding(source: model.eraseToAny())
-        self.model = model
         self.modelLogger = ServiceModelLogger(observing: model, loggingBy: deps.logger)
         self.deps = deps
     }
@@ -92,7 +90,7 @@ public struct ServiceView: View {
                                 NavigationLink(destination: CharacteristicView(of: characteristic, holding: deps)) {
                                     CharacteristicRow(observing: characteristic)
                                 }
-                                .disabled(!model.state.connection.isConnected)
+                                .disabled(!binding.state.connection.isConnected)
                             }
                         }
                     } else if binding.state.discovery.isDiscovering {
@@ -108,16 +106,14 @@ public struct ServiceView: View {
                             Text("Not Discovering.")
                                 .foregroundStyle(Color(.weak))
                             Button("Start Discovery") {
-                                model.discover()
+                                binding.source.discover()
                             }
                         }
                     }
                 }
             }
         }
-        .onAppear() {
-           model.discover()
-        }
+        .onAppear() { binding.source.discover() }
         .navigationTitle("Service")
         .navigationBarItems(trailing: trailingNavigationBarItem)
     }
@@ -127,11 +123,11 @@ public struct ServiceView: View {
         Group {
             if binding.state.connection.canConnect {
                 Button("Connect") {
-                    model.connect()
+                    binding.source.connect()
                 }
             } else if binding.state.connection.isConnected {
                 Button("Disconnect") {
-                    model.disconnect()
+                    binding.source.disconnect()
                 }
             } else {
                 ProgressView()

@@ -17,22 +17,25 @@ public final actor StubPeripheralDistanceModel: PeripheralDistanceModelProtocol 
     
     
     nonisolated public func update(environmentalFactorTo environmentalFactor: Double) {}
+    nonisolated public func update(txPowerTo txPower: Double) {}
 }
 
 
 extension PeripheralDistanceState {
     public static func makeStub(
         distance: Double? = nil,
-        environmentalFactor: Double = -1
+        environmentalFactor: Double = -1,
+        txPower: Double = 0
     ) -> Self {
-        .init(distance: distance, environmentalFactor: environmentalFactor)
+        .init(distance: distance, environmentalFactor: environmentalFactor, txPower: txPower)
     }
     
     
     public static func makeSuccessfulStub(
         distance: Double? = 10,
-        environmentalFactor: Double = 2
+        environmentalFactor: Double = 2,
+        txPower: Double = -50
     ) -> Self {
-        .init(distance: distance, environmentalFactor: environmentalFactor)
+        .init(distance: distance, environmentalFactor: environmentalFactor, txPower: txPower)
     }
 }
