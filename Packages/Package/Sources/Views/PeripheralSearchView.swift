@@ -9,7 +9,6 @@ import PreviewHelper
 
 public struct PeripheralSearchView: View {
     @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
-    @State var selectedPeripheral: (any PeripheralModelProtocol)? = nil
     private let logger: any LoggerProtocol
     private let modelLogger: PeripheralSearchModelLogger
     
@@ -109,8 +108,6 @@ public struct PeripheralSearchView: View {
         .onDisappear { binding.source.stopScan() }
         .onAppear {
             binding.source.startScan()
-            selectedPeripheral?.disconnect()
-            selectedPeripheral = nil
         }
     }
     
@@ -120,7 +117,7 @@ public struct PeripheralSearchView: View {
         return PeripheralView(
             observing: AutoRefreshedPeripheralModel(
                 wrapping: peripheral,
-                withTimeInterval: 0.5
+                withTimeInterval: 2
             ),
             observing: PeripheralDistanceModel(
                 observing: peripheral,
@@ -128,7 +125,6 @@ public struct PeripheralSearchView: View {
             ),
             holding: deps
         )
-        .onAppear { selectedPeripheral = peripheral }
     }
 
     

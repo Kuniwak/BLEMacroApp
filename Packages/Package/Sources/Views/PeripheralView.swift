@@ -61,13 +61,8 @@ public struct PeripheralView: View {
                     }
                 }
                 
-                Button("Read RSSI") {
-                    peripheralBinding.source.readRSSI()
-                }
-                .disabled(!peripheralBinding.state.connection.isConnected)
-                
                 if !peripheralBinding.state.connection.isConnected {
-                    Button("Connect") {
+                    Button("Connect to Refresh RSSI") {
                         peripheralBinding.source.connect()
                     }
                 }
@@ -144,7 +139,7 @@ public struct PeripheralView: View {
                         }
                     }
                     
-                    Button("Set TX Power to -50 dBm") {
+                    Button("Assume TX Power to -50 dBm") {
                         txPower = -50
                         distanceBinding.source.update(environmentalFactorTo: Double(txPower))
                     }

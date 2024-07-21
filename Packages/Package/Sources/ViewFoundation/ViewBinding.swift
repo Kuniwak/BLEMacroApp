@@ -9,6 +9,11 @@ public class ViewBinding<State, StateMachine: StateMachineProtocol<State>>: Obse
     public var cancellable: AnyCancellable? = nil
     
     
+    deinit {
+        print("DEIIIIIIIIIIIIIINT")
+    }
+    
+    
     public init(source: StateMachine) {
         self.state = source.state
         self.source = source

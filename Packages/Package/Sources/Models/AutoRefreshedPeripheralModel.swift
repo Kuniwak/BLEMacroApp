@@ -44,18 +44,29 @@ public final actor AutoRefreshedPeripheralModel: AutoRefreshedPeripheralModelPro
     nonisolated public var connection: any ConnectionModelProtocol { base.connection }
     nonisolated public var stateDidChange: AnyPublisher<PeripheralModelState, Never> { base.stateDidChange }
     nonisolated public var id: UUID { base.id }
-    private var timer: Timer? = nil
-    private let interval: TimeInterval
+    private let timer: Timer
+    private var cancellables = Set<AnyCancellable>()
     
     
     public init(wrapping base: any PeripheralModelProtocol, withTimeInterval interval: TimeInterval) {
         self.base = base
-        self.interval = interval
+        self.timer = Timer(withTimeInterval: interval)
+        
+        var mutableCancellables = Set<AnyCancellable>()
+        timer.publisher
+            .sink { [weak self] _ in
+                guard let self, self.state.connection.isConnected else { return }
+                self.readRSSI()
+            }
+            .store(in: &mutableCancellables)
+        
+        let cancellables = mutableCancellables
+        Task { await store(cancellables) }
     }
     
     
-    deinit {
-        self.timer?.invalidate()
+    private func store(_ cancellables: Set<AnyCancellable>) {
+        self.cancellables.formUnion(cancellables)
     }
     
     
@@ -67,14 +78,10 @@ public final actor AutoRefreshedPeripheralModel: AutoRefreshedPeripheralModelPro
     
     
     private func setAutoRefreshInternal(_ enabled: Bool) {
-        if enabled && self.timer == nil {
-            self.timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-                guard let self, self.state.connection.isConnected else { return }
-                self.readRSSI()
-            }
-        } else if !enabled, let timer {
-            timer.invalidate()
-            self.timer = nil
+        if enabled {
+            timer.start()
+        } else {
+            timer.stop()
         }
     }
     
