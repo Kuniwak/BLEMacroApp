@@ -17,17 +17,18 @@ public struct ScrollableText: View {
                 Text(text)
                     .foregroundStyle(Color(.weak))
                     .lineLimit(1)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .editMenu {
+                        EditMenuItem("Copy") {
+                            UIPasteboard.general.string = text
+                        }
+                    }
                     .frame(
                         minWidth: geometry.size.width,
                         minHeight: geometry.size.height,
                         maxHeight: geometry.size.height,
                         alignment: .trailing
                     )
-                    .editMenu {
-                        EditMenuItem("Copy") {
-                            UIPasteboard.general.string = text
-                        }
-                    }
             }
             .frame(
                 width: geometry.size.width,
