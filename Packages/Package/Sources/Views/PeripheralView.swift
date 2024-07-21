@@ -12,7 +12,7 @@ import SFSymbol
 
 
 public struct PeripheralView: View {
-    @ObservedObject private var peripheralBinding: ViewBinding<PeripheralModelState, AnyPeripheralModel>
+    @ObservedObject private var peripheralBinding: ViewBinding<PeripheralModelState, AnyAutoRefreshedPeripheralModel>
     @ObservedObject private var distanceBinding: ViewBinding<PeripheralDistanceState, AnyPeripheralDistanceModel>
     private let peripheralLogger: PeripheralModelLogger
     private let distanceLogger: PeripheralDistanceModelLogger
@@ -24,7 +24,7 @@ public struct PeripheralView: View {
     
     
     public init(
-        observing peripheralModel: any PeripheralModelProtocol,
+        observing peripheralModel: any AutoRefreshedPeripheralModelProtocol,
         observing distanceModel: any PeripheralDistanceModelProtocol,
         holding deps: DependencyBag
     ) {
@@ -39,7 +39,7 @@ public struct PeripheralView: View {
     
     public var body: some View {
         Form {
-            Section(header: Text("Properties")) {
+            Section(header: Text("Peripheral")) {
                 LabeledContent("Name") {
                     ScrollableText(name)
                 }
@@ -60,14 +60,39 @@ public struct PeripheralView: View {
                         }
                     }
                 }
+                
+                Button("Read RSSI") {
+                    peripheralBinding.source.readRSSI()
+                }
+                .disabled(!peripheralBinding.state.connection.isConnected)
+                
+                if !peripheralBinding.state.connection.isConnected {
+                    Button("Connect") {
+                        peripheralBinding.source.connect()
+                    }
+                }
             }
             
             Section(header: Text("Manifacturer")) {
                 switch peripheralBinding.state.manufacturerData {
                 case .none:
                     LabeledContent("Manufacturer Data") {
-                        Text("No Manufacturer Data")
+                        Text("No Data")
                     }
+                    
+                    HStack(alignment: .top) {
+                        Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
+                            .foregroundStyle(Color(.weak))
+
+                        Text(
+                            """
+                            For some unknown reason, CoreBluetooth cannot get manufacturer data even though the device provides it.
+                            """
+                        )
+                        .foregroundStyle(Color(.weak))
+                        .font(.caption)
+                    }
+                    
                 case .some(.knownName(let name, let data)):
                     LabeledContent("Manufacturer Name") {
                         ScrollableText(name.description)
@@ -78,6 +103,7 @@ public struct PeripheralView: View {
                     LabeledContent("Manufacturer Data") {
                         ScrollableText(HexEncoding.upper.encode(data: data))
                     }
+                    
                 case .some(.data(let data)):
                     LabeledContent("Manufacturer Name") {
                         Text("Unknown")
@@ -116,6 +142,11 @@ public struct PeripheralView: View {
                         .onChange(of: txPower) { newValue, oldValue in
                             distanceBinding.source.update(txPowerTo: Double(newValue))
                         }
+                    }
+                    
+                    Button("Set TX Power to -50 dBm") {
+                        txPower = -50
+                        distanceBinding.source.update(environmentalFactorTo: Double(txPower))
                     }
                     
                     LabeledContent("Env. Factor") {
@@ -182,7 +213,14 @@ public struct PeripheralView: View {
                 }
             }
         }
-        .onAppear { peripheralBinding.source.discover() }
+        .onAppear {
+            peripheralBinding.source.setAutoRefresh(true)
+            peripheralBinding.source.connect()
+            peripheralBinding.source.discover()
+        }
+        .onDisappear {
+            peripheralBinding.source.setAutoRefresh(false)
+        }
         .navigationTitle("Peripheral")
         .navigationBarItems(trailing: trailingNavigationBarItem)
     }
@@ -232,7 +270,7 @@ fileprivate struct PreviewEntry {
 }
 
 
-fileprivate func stubsForPreview() -> [Previewable<(peripheral: AnyPeripheralModel, distance: AnyPeripheralDistanceModel)>] {
+fileprivate func stubsForPreview() -> [Previewable<(peripheral: AnyAutoRefreshedPeripheralModel, distance: AnyPeripheralDistanceModel)>] {
     let discovery: [ServiceDiscoveryModelState] = [
         .notDiscoveredYet,
         .discovering(nil),
@@ -300,7 +338,7 @@ fileprivate func stubsForPreview() -> [Previewable<(peripheral: AnyPeripheralMod
         .map { state in
             return Previewable(
                 (
-                    peripheral: StubPeripheralModel(state: state.peripheral).eraseToAny(),
+                    peripheral: StubAutoRefreshedPeripheralModel(state: state.peripheral).eraseToAny(),
                     distance: StubPeripheralDistanceModel(startsWith: state.distance).eraseToAny()
                 ),
                 describing: "(peripheral: \(state.peripheral.debugDescription), distance: \(state.distance.debugDescription))"

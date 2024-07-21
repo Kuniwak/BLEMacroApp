@@ -11,11 +11,16 @@ public struct CharacteristicView: View {
     @ObservedObject private var characteristicBinding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
     @State public var isDialogPresent: Bool = false
     @State public var hexString: String = ""
+    private let characteristicLogger: CharacteristicModelLogger
     private let deps: DependencyBag
 
     
     public init(of characteristicModel: any CharacteristicModelProtocol, holding deps: DependencyBag) {
         self.characteristicBinding = ViewBinding(source: characteristicModel.eraseToAny())
+        self.characteristicLogger = CharacteristicModelLogger(
+            observing: characteristicModel,
+            loggingBy: deps.logger
+        )
         self.deps = deps
     }
     
@@ -29,28 +34,70 @@ public struct CharacteristicView: View {
     public var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section(header: Text("Value")) {
-                    LabeledContent("Value") {
-                        HStack {
-                            Text(HexEncoding.upper.encode(data: characteristicBinding.state.value.data))
-                            
-                            Button(action: {
-                                characteristicBinding.source.read()
-                            }) {
-                                Image(systemName: SFSymbol5.Arrow.clockwise.rawValue)
-                            }
-                            .disabled(!characteristicBinding.state.value.properties.contains(.read))
-
-                            Button(action: {
-                                isDialogPresent = true
-                            }) {
-                                Image(systemName: SFSymbol5.pencil.rawValue)
-                            }
-                            .disabled(!characteristicBinding.state.value.properties.contains(.write))
+                Section(header: Text("Characteristic")) {
+                    LabeledContent("Name") {
+                        if let name = characteristicBinding.state.name {
+                            ScrollableText(name)
+                        } else {
+                            Text("(no name)")
                         }
+                    }
+                    
+                    LabeledContent("UUID") {
+                        ScrollableText(characteristicBinding.state.uuid.uuidString)
                     }
                 }
                 
+                Section(header: Text("Value")) {
+                    if characteristicBinding.state.value.properties.contains(.read) {
+                        LabeledContent("Hexadecimal") {
+                            if characteristicBinding.state.value.data.isEmpty {
+                                Text("No Data")
+                            } else {
+                                ScrollableText("0x\(HexEncoding.upper.encode(data: characteristicBinding.state.value.data))")
+                            }
+                        }
+                        
+                        LabeledContent("ASCII") {
+                            if characteristicBinding.state.value.data.isEmpty {
+                                Text("No Data")
+                            } else if let ascii = String(data: characteristicBinding.state.value.data, encoding: .ascii) {
+                                ScrollableText(ascii)
+                            } else {
+                                ScrollableText("E: Invalid ASCII")
+                                    .foregroundStyle(Color(.error))
+                            }
+                        }
+                    }
+                    
+                    if characteristicBinding.state.value.properties.contains(.read) {
+                        Button("Refresh") {
+                            characteristicBinding.source.read()
+                        }
+                        .disabled(!characteristicBinding.state.connection.isConnected)
+                    }
+                    
+                    if characteristicBinding.state.value.properties.contains(.write) {
+                        Button("Write") {
+                            isDialogPresent = true
+                        }
+                        .disabled(!characteristicBinding.state.connection.isConnected)
+                    }
+                    
+                    if characteristicBinding.state.value.properties.contains(.notify) {
+                        Button("Subscribe") {
+                            characteristicBinding.source.setNotify(true)
+                        }
+                        .disabled(!characteristicBinding.state.connection.isConnected)
+                    }
+                    
+                    if !characteristicBinding.state.connection.isConnected {
+                        Button("Connect") {
+                            characteristicBinding.source.connect()
+                        }
+                    }
+                }
+
                 Section(header: Text("Properties")) {
                     if characteristicBinding.state.value.properties.isEmpty {
                         Text("No Properties")
@@ -117,7 +164,7 @@ public struct CharacteristicView: View {
                         }
                     }
                 }
-                
+
                 Section(header: Text("Descriptors")) {
                     switch characteristicBinding.state.connection {
                     case .notConnectable:

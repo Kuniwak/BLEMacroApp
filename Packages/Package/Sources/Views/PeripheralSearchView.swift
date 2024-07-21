@@ -106,12 +106,11 @@ public struct PeripheralSearchView: View {
                 .mapBind(\.rawValue, SearchQuery.init(rawValue:)),
             prompt: "Name or UUID or Manufacturer Name"
         )
-        .onDisappear {
-            self.binding.source.stopScan()
-        }
+        .onDisappear { binding.source.stopScan() }
         .onAppear {
-            self.selectedPeripheral?.disconnect()
-            self.selectedPeripheral = nil
+            binding.source.startScan()
+            selectedPeripheral?.disconnect()
+            selectedPeripheral = nil
         }
     }
     
@@ -129,10 +128,7 @@ public struct PeripheralSearchView: View {
             ),
             holding: deps
         )
-        .onAppear {
-            self.selectedPeripheral = peripheral
-            peripheral.discover()
-        }
+        .onAppear { selectedPeripheral = peripheral }
     }
 
     

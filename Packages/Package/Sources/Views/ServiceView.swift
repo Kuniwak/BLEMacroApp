@@ -12,39 +12,23 @@ import SFSymbol
 public struct ServiceView: View {
     @ObservedObject private var binding: ViewBinding<ServiceModelState, AnyServiceModel>
     private let deps: DependencyBag
-    private let modelLogger: ServiceModelLogger
+    private let logger: ServiceModelLogger
     @State private var isAlertPresent: Bool = false
     
     
     public init(observing model: any ServiceModelProtocol, holding deps: DependencyBag) {
         self.binding = ViewBinding(source: model.eraseToAny())
-        self.modelLogger = ServiceModelLogger(observing: model, loggingBy: deps.logger)
+        self.logger = ServiceModelLogger(observing: model, loggingBy: deps.logger)
         self.deps = deps
     }
     
     
     public var body: some View {
         Form {
-            Section(header: Text("Properties")) {
+            Section(header: Text("Service")) {
                 LabeledContent("Name") {
                     if let name = binding.state.name {
-                        GeometryReader { geometry in
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                Text(name)
-                                    .lineLimit(1)
-                                    .frame(
-                                        minWidth: geometry.size.width,
-                                        minHeight: geometry.size.height,
-                                        maxHeight: geometry.size.height,
-                                        alignment: .trailing
-                                    )
-                            }
-                            .frame(
-                                width: geometry.size.width,
-                                height: geometry.size.height,
-                                alignment: .trailing
-                            )
-                        }
+                        ScrollableText(name)
                     } else {
                         Text("No Name")
                     }

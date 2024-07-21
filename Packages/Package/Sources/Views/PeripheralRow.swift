@@ -44,18 +44,6 @@ public struct PeripheralRow: View {
                 .scaledToFit()
                 .minimumScaleFactor(0.01)
                 .foregroundStyle(Color(.weak))
-            switch binding.state.manufacturerData {
-            case .some(.knownName(let manufacturerName, let data)):
-                Text("Manufacturer: \(manufacturerName) - \(HexEncoding.upper.encode(data: data))")
-                    .font(.footnote)
-                    .foregroundStyle(Color(.weak))
-            case .some(.data(let data)):
-                Text("Manufacturer: \(HexEncoding.upper.encode(data: data))")
-                    .font(.footnote)
-                    .foregroundStyle(Color(.weak))
-            case .none:
-                EmptyView()
-            }
         }
         .padding(8)
     }
@@ -95,12 +83,13 @@ private func stubsForPreview() -> [Previewable<AnyPeripheralModel>] {
         .map { manufacturerData in .makeSuccessfulStub(manufacturerData: manufacturerData) }
     let state4: [PeripheralModelState] = connection
         .map { connection in .makeSuccessfulStub(connection: connection) }
-    return (state1 + state2 + state3 + state4).map { state in
-        Previewable(
-            StubPeripheralModel(state: state).eraseToAny(),
-            describing: state.description
-        )
-    }
+    return (state1 + state2 + state3 + state4)
+        .map { state in
+            Previewable(
+                StubPeripheralModel(state: state).eraseToAny(),
+                describing: state.description
+            )
+        }
 }
 
 

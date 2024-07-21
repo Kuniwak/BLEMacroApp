@@ -100,6 +100,8 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
     nonisolated private let stateDidChangeSubject: ConcurrentValueSubject<CharacteristicValueState, Never>
     private let peripheral: any PeripheralProtocol
     private let characteristic: any CharacteristicProtocol
+    private var cancellables = Set<AnyCancellable>()
+    nonisolated public let uuid: CBUUID
     
     
     public init(
@@ -111,8 +113,35 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         self.stateDidChangeSubject = stateDidChangeSubject
         
+        self.uuid = characteristic.uuid
+        
         self.peripheral = peripheral
         self.characteristic = characteristic
+        
+        var mutableCancellables = Set<AnyCancellable>()
+        
+        peripheral.didUpdateValueForCharacteristic
+            .sink { [weak self] (characteristic, error) in
+                guard let self, characteristic.uuid == self.uuid else { return }
+                Task {
+                    await self.stateDidChangeSubject.change { _ in
+                        return .init(
+                            properties: characteristic.properties,
+                            value: characteristic.value ?? Data(),
+                            error: error.map { CharacteristicValueModelFailure(wrapping: $0) }
+                        )
+                    }
+                }
+            }
+            .store(in: &mutableCancellables)
+        
+        let cancellables = mutableCancellables
+        Task { await appendCancellables(cancellables) }
+    }
+    
+    
+    private func appendCancellables(_ cancellables: Set<AnyCancellable>) {
+        self.cancellables.formUnion(cancellables)
     }
     
     

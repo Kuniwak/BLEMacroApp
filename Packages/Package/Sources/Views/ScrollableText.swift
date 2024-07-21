@@ -15,6 +15,7 @@ public struct ScrollableText: View {
         GeometryReader { geometry in
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(text)
+                    .foregroundStyle(Color(.weak))
                     .lineLimit(1)
                     .frame(
                         minWidth: geometry.size.width,
