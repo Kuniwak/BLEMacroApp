@@ -27,6 +27,7 @@ let package = Package(
         .package(url: "https://github.com/Kuniwak/MirrorDiffKit.git", .upToNextMajor(from: "6.0.0")),
         .package(url: "https://github.com/Nirma/SFSymbol.git", .upToNextMajor(from: "2.3.0")),
         .package(url: "https://github.com/apple/swift-testing.git", from: "0.10.0"),
+        .package(url: "https://github.com/jayrhynas/EditMenu.git", from: "0.0.1"),
     ],
     targets: [
         .target(
@@ -145,6 +146,7 @@ let package = Package(
                 .coreBluetoothTestable,
                 .coreBluetoothStub,
                 .sfSymbol,
+                .editMenu,
             ],
             swiftSettings: SwiftSetting.allCases
         ),
@@ -188,6 +190,7 @@ private extension Target.Dependency {
     static let fuzi: Self = .product(name: "Fuzi", package: "Fuzi")
     static let sfSymbol: Self = "SFSymbol"
     static let testing: Self = .product(name: "Testing", package: "swift-testing")
+    static let editMenu: Self = .product(name: "EditMenu", package: "EditMenu")
 }
 
 

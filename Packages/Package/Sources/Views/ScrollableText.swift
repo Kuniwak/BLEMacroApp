@@ -1,4 +1,5 @@
 import SwiftUI
+import EditMenu
 
 
 public struct ScrollableText: View {
@@ -21,6 +22,11 @@ public struct ScrollableText: View {
                         maxHeight: geometry.size.height,
                         alignment: .trailing
                     )
+                    .editMenu {
+                        EditMenuItem("Copy") {
+                            UIPasteboard.general.string = text
+                        }
+                    }
             }
             .frame(
                 width: geometry.size.width,

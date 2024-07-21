@@ -110,7 +110,7 @@ public struct PeripheralSearchView: View {
             self.binding.source.stopScan()
         }
         .onAppear {
-//            self.selectedPeripheral?.disconnect()
+            self.selectedPeripheral?.disconnect()
             self.selectedPeripheral = nil
         }
     }

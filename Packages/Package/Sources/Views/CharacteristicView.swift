@@ -9,22 +9,14 @@ import PreviewHelper
 
 public struct CharacteristicView: View {
     @ObservedObject private var characteristicBinding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
-    @ObservedObject private var hexDataBinding: ViewBinding<Result<Data, HexDataModelFailure>, AnyHexDataModel>
     @State public var isDialogPresent: Bool = false
-    
-    
+    @State public var hexString: String = ""
     private let deps: DependencyBag
-    private let characteristicModel: any CharacteristicModelProtocol
-    private let hexDataModel: any HexDataModelProtocol
 
     
     public init(of characteristicModel: any CharacteristicModelProtocol, holding deps: DependencyBag) {
         self.characteristicBinding = ViewBinding(source: characteristicModel.eraseToAny())
-        let hexDataModel = HexDataModel(startsWith: .success(Data()))
-        self.hexDataBinding = ViewBinding(source: hexDataModel.eraseToAny())
         self.deps = deps
-        self.characteristicModel = characteristicModel
-        self.hexDataModel = hexDataModel
     }
     
     
@@ -43,7 +35,7 @@ public struct CharacteristicView: View {
                             Text(HexEncoding.upper.encode(data: characteristicBinding.state.value.data))
                             
                             Button(action: {
-                                characteristicModel.read()
+                                characteristicBinding.source.read()
                             }) {
                                 Image(systemName: SFSymbol5.Arrow.clockwise.rawValue)
                             }
@@ -158,7 +150,7 @@ public struct CharacteristicView: View {
                                 Text("Not Discovering.")
                                     .foregroundStyle(Color(.weak))
                                 Button("Start Discovery") {
-                                    characteristicModel.discover()
+                                    characteristicBinding.source.discover()
                                 }
                             }
                         }
@@ -167,24 +159,29 @@ public struct CharacteristicView: View {
             }
         }
         .onAppear() {
-            characteristicModel.discover()
+            characteristicBinding.source.discover()
+            characteristicBinding.source.read()
         }
         .navigationTitle("Characteristic")
         .navigationBarItems(trailing: trailingNavigationBarItem)
         .alert("Write Value", isPresented: $isDialogPresent) {
-            TextField("Enter Hex Data", text: .constant(""))
+            TextField("Enter Hex Data", text: $hexString)
                 .autocapitalization(.none)
                 .keyboardType(.asciiCapable)
+                .onChange(of: hexString) { newValue, oldValue in
+                    hexString = newValue.filter { $0.isHexDigit }.uppercased()
+                    characteristicBinding.source.update(byString: hexString)
+                }
             
             Button("Request") {
-                characteristicModel.write(type: .withResponse)
+                characteristicBinding.source.write(type: .withResponse)
             }
-            .disabled(!hexDataBinding.state.isSuccess)
+            .disabled(hexString.isEmpty)
             
             Button("Command") {
-                characteristicModel.write(type: .withoutResponse)
+                characteristicBinding.source.write(type: .withoutResponse)
             }
-            .disabled(!hexDataBinding.state.isSuccess)
+            .disabled(hexString.isEmpty)
             
             Button("Cancel", role: .cancel) {}
         }
@@ -195,11 +192,11 @@ public struct CharacteristicView: View {
         Group {
             if characteristicBinding.state.connection.canConnect {
                 Button("Connect") {
-                    characteristicModel.connect()
+                    characteristicBinding.source.connect()
                 }
             } else if characteristicBinding.state.connection.isConnected {
                 Button("Disconnect") {
-                    characteristicModel.disconnect()
+                    characteristicBinding.source.disconnect()
                 }
             } else {
                 ProgressView()

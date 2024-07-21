@@ -10,6 +10,15 @@
       }
     },
     {
+      "identity" : "editmenu",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jayrhynas/EditMenu.git",
+      "state" : {
+        "revision" : "5fde7775a9c51ce864972ff0635355ec2ae04279",
+        "version" : "0.0.1"
+      }
+    },
+    {
       "identity" : "fuzi",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/cezheng/Fuzi",

@@ -48,17 +48,6 @@ public struct PeripheralView: View {
                     ScrollableText(peripheralBinding.state.uuid.uuidString)
                 }
                 
-                LabeledContent("Manufacturer") {
-                    switch peripheralBinding.state.manufacturerData {
-                    case .none:
-                        Text("No Manufacturer Data")
-                    case .some(.knownName(let name, let data)):
-                        ScrollableText("\(name) \(HexEncoding.upper.encode(data: data))")
-                    case .some(.data(let data)):
-                        ScrollableText(HexEncoding.upper.encode(data: data))
-                    }
-                }
-                
                 LabeledContent("RSSI") {
                     switch peripheralBinding.state.rssi {
                     case .failure(let error):
@@ -69,6 +58,32 @@ public struct PeripheralView: View {
                             Text(String(format: "%.1f dBm", rssi.doubleValue))
                             RSSIView(rssi: .success(rssi))
                         }
+                    }
+                }
+            }
+            
+            Section(header: Text("Manifacturer")) {
+                switch peripheralBinding.state.manufacturerData {
+                case .none:
+                    LabeledContent("Manufacturer Data") {
+                        Text("No Manufacturer Data")
+                    }
+                case .some(.knownName(let name, let data)):
+                    LabeledContent("Manufacturer Name") {
+                        ScrollableText(name.description)
+                    }
+                    LabeledContent("Manufacturer UUID") {
+                        Text(String(format: "%02X%02X", name.byte1, name.byte2))
+                    }
+                    LabeledContent("Manufacturer Data") {
+                        ScrollableText(HexEncoding.upper.encode(data: data))
+                    }
+                case .some(.data(let data)):
+                    LabeledContent("Manufacturer Name") {
+                        Text("Unknown")
+                    }
+                    LabeledContent("Manufacturer Data") {
+                        ScrollableText(HexEncoding.upper.encode(data: data))
                     }
                 }
             }
@@ -125,7 +140,7 @@ public struct PeripheralView: View {
                 }
             }
 
-            Section(header: Text("Characteristics")) {
+            Section(header: Text("Services")) {
                 switch peripheralBinding.state.connection {
                 case .notConnectable:
                     HStack {
