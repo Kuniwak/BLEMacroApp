@@ -225,7 +225,7 @@ public final actor PeripheralModel: PeripheralModelProtocol {
     nonisolated public var connection: any ConnectionModelProtocol { model.connection }
     nonisolated public let stateDidChange: AnyPublisher<PeripheralModelState, Never>
     
-    nonisolated public let id: UUID
+    nonisolated public var id: UUID { peripheral.identifier }
     nonisolated private let manufacturerData: ManufacturerData?
     nonisolated private let advertisementData: [String: Any]
     nonisolated private let nameSubject: ConcurrentValueSubject<Result<String?, PeripheralModelFailure>, Never>
@@ -242,8 +242,8 @@ public final actor PeripheralModel: PeripheralModelProtocol {
         withAdvertisementData advertisementData: [String: Any],
         connectingWith connectionModel: any ConnectionModelProtocol
     ) {
-        self.id = peripheral.identifier
-        
+        self.peripheral = peripheral
+
         let manufacturerData = ManufacturerData.from(advertisementData: advertisementData)
         self.manufacturerData = manufacturerData
         self.advertisementData = advertisementData
@@ -252,18 +252,14 @@ public final actor PeripheralModel: PeripheralModelProtocol {
         self.nameSubject = nameSubject
         let rssiSubject = ConcurrentValueSubject<Result<NSNumber, PeripheralModelFailure>, Never>(.success(rssi))
         self.rssiSubject = rssiSubject
-        
-        let discoveryModel = DiscoveryModel<AnyServiceModel, PeripheralModelFailure>(
-            discoveringBy: serviceDiscoveryStrategy(
-                onPeripheral: peripheral,
-                connectingBy: connectionModel
-            )
-        )
 
-        self.peripheral = peripheral
-        
         let model = ConnectableDiscoveryModel(
-            discoveringBy: discoveryModel,
+            discoveringBy: DiscoveryModel<AnyServiceModel, PeripheralModelFailure>(
+                discoveringBy: serviceDiscoveryStrategy(
+                    onPeripheral: peripheral,
+                    connectingBy: connectionModel
+                )
+            ),
             connectingBy: connectionModel
         )
         self.model = model

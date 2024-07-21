@@ -51,7 +51,7 @@ public struct PeripheralSearchView: View {
                         .foregroundStyle(.tint)
                     Spacer()
                 }
-            case .discovering(let peripherals), .discovered(let peripherals):
+            case .discovering(let peripherals, _), .discovered(let peripherals, _):
                if peripherals.isEmpty {
                     HStack {
                         Spacer()
@@ -149,16 +149,16 @@ internal struct PeripheralsView_Previews: PreviewProvider {
             .idle(requestedDiscovery: false),
             .idle(requestedDiscovery: true),
             .ready,
-            .discovering([]),
+            .discovering([], Set()),
             .discovering([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ]),
-            .discovered([]),
+            ], Set()),
+            .discovered([], Set()),
             .discovered([
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
                 StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ]),
+            ], Set()),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unspecified("Something went wrong"))

@@ -68,10 +68,10 @@ public struct SearchQuery: RawRepresentable, Equatable, Codable, ExpressibleBySt
             return .idle(requestedDiscovery: requestedDiscovery)
         case .ready:
             return .ready
-        case .discovering(let peripherals):
-            return .discovering(await filter(peripherals: peripherals, bySearchQuery: searchQuery))
-        case .discovered(let peripherals):
-            return .discovered(await filter(peripherals: peripherals, bySearchQuery: searchQuery))
+        case .discovering(let peripherals, let discovered):
+            return .discovering(await filter(peripherals: peripherals, bySearchQuery: searchQuery), discovered)
+        case .discovered(let peripherals, let discovered):
+            return .discovered(await filter(peripherals: peripherals, bySearchQuery: searchQuery), discovered)
         case .discoveryFailed(let error):
             return .discoveryFailed(error)
         }

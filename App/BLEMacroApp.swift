@@ -38,7 +38,7 @@ internal struct BLEMacroApp: App {
         let centralManager = SendableCentralManager(
             options: [
                 CBCentralManagerOptionShowPowerAlertKey: true,
-                CBCentralManagerScanOptionAllowDuplicatesKey: true,
+                CBCentralManagerScanOptionAllowDuplicatesKey: false,
             ],
             severity: severity
         )

@@ -1,6 +1,8 @@
+import Foundation
 import Combine
 import ModelFoundation
 import Models
+import CoreBluetoothStub
 
 
 
@@ -28,9 +30,12 @@ extension PeripheralDiscoveryModelState {
     }
     
     public static func makeSuccessfulStub() -> Self {
-        .discovered([
-            StubPeripheralModel().eraseToAny(),
-            StubPeripheralModel().eraseToAny()
-        ])
+        .discovered(
+            [
+                StubPeripheralModel(identifiedBy: StubUUID.one).eraseToAny(),
+                StubPeripheralModel(identifiedBy: StubUUID.two).eraseToAny()
+            ],
+            Set<UUID>([StubUUID.one, StubUUID.two])
+        )
     }
 }
