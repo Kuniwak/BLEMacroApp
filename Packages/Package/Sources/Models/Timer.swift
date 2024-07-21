@@ -2,13 +2,14 @@ import Foundation
 import Combine
 
 
+/// Timer that can work on not main-thread.
 public final actor Timer {
     private var internalTimer: TimerInternal? = nil
     private var startRequested = false
+    private var cancellables = Set<AnyCancellable>()
     nonisolated public let publisher: AnyPublisher<Void, Never>
     nonisolated private let subject: PassthroughSubject<Void, Never>
-    private var cancellables = Set<AnyCancellable>()
-    
+
     
     public init(withTimeInterval interval: TimeInterval) {
         let subject = PassthroughSubject<Void, Never>()
@@ -34,7 +35,7 @@ public final actor Timer {
     }
     
     
-    private func requestStart(_ enabled: Bool) {
+    private func requestStartIfGetReady(_ enabled: Bool) {
         self.startRequested = enabled
     }
     
@@ -44,7 +45,7 @@ public final actor Timer {
             if let internalTimer = await self.internalTimer {
                 await internalTimer.start()
             } else {
-                await self.requestStart(true)
+                await self.requestStartIfGetReady(true)
             }
         }
     }
@@ -55,12 +56,13 @@ public final actor Timer {
             if let internalTimer = await self.internalTimer {
                 await internalTimer.stop()
             } else {
-                await self.requestStart(false)
+                await self.requestStartIfGetReady(false)
             }
         }
     }
     
     
+    // XXX: It must be the MainActor because the event handlers of Timer are not called on non-main threads.
     @MainActor
     private class TimerInternal {
         private var timer: Foundation.Timer? = nil
