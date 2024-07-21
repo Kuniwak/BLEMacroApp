@@ -9,6 +9,7 @@ import PreviewHelper
 
 public struct PeripheralSearchView: View {
     @StateObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
+    @Environment(\.scenePhase) private var scenePhase
     private let logger: any LoggerProtocol
     private let modelLogger: PeripheralSearchModelLogger
     
@@ -108,6 +109,14 @@ public struct PeripheralSearchView: View {
         .onDisappear { binding.source.stopScan() }
         .onAppear {
             binding.source.startScan()
+        }
+        .onChange(of: scenePhase) { newPhase, oldPhase in
+            switch newPhase {
+            case .background, .inactive:
+                binding.source.stopScan()
+            default:
+                break
+            }
         }
     }
     
