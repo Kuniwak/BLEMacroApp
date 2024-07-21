@@ -6,11 +6,11 @@ import PreviewHelper
 
 
 public struct DescriptorRow: View {
-    @ObservedObject private var binding: ViewBinding<DescriptorModelState, AnyDescriptorModel>
+    @StateObject private var binding: ViewBinding<DescriptorModelState, AnyDescriptorModel>
     
     
     public init(observing model: any DescriptorModelProtocol) {
-        self.binding = ViewBinding(source: model.eraseToAny())
+        self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
     }
     
     

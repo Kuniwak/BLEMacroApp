@@ -13,11 +13,11 @@ import PreviewHelper
 
 
 public struct PeripheralRow: View {
-    @ObservedObject private var binding: ViewBinding<PeripheralModelState, AnyPeripheralModel>
+    @StateObject private var binding: ViewBinding<PeripheralModelState, AnyPeripheralModel>
     
     
     public init(observing model: any PeripheralModelProtocol) {
-        self.binding = ViewBinding(source: model.eraseToAny())
+        self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
     }
 
     

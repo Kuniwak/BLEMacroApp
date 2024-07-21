@@ -10,11 +10,11 @@ import PreviewHelper
 
 
 public struct CharacteristicRow: View {
-    @ObservedObject private var binding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
+    @StateObject private var binding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
     
     
     public init(observing model: any CharacteristicModelProtocol) {
-        self.binding = ViewBinding(source: model.eraseToAny())
+        self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
     }
     
     

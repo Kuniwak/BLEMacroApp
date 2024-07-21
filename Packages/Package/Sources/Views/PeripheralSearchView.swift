@@ -8,13 +8,13 @@ import PreviewHelper
 
 
 public struct PeripheralSearchView: View {
-    @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
+    @StateObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     private let logger: any LoggerProtocol
     private let modelLogger: PeripheralSearchModelLogger
     
     
     public init(observing model: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
-        self.binding = ViewBinding(source: model.eraseToAny())
+        self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
         self.logger = logger
         self.modelLogger = PeripheralSearchModelLogger(
             observing: model,

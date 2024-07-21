@@ -12,8 +12,8 @@ import SFSymbol
 
 
 public struct PeripheralView: View {
-    @ObservedObject private var peripheralBinding: ViewBinding<PeripheralModelState, AnyAutoRefreshedPeripheralModel>
-    @ObservedObject private var distanceBinding: ViewBinding<PeripheralDistanceState, AnyPeripheralDistanceModel>
+    @StateObject private var peripheralBinding: ViewBinding<PeripheralModelState, AnyAutoRefreshedPeripheralModel>
+    @StateObject private var distanceBinding: ViewBinding<PeripheralDistanceState, AnyPeripheralDistanceModel>
     private let peripheralLogger: PeripheralModelLogger
     private let distanceLogger: PeripheralDistanceModelLogger
     private let deps: DependencyBag
@@ -28,9 +28,9 @@ public struct PeripheralView: View {
         observing distanceModel: any PeripheralDistanceModelProtocol,
         holding deps: DependencyBag
     ) {
-        self.peripheralBinding = ViewBinding(source: peripheralModel.eraseToAny())
+        self._peripheralBinding = StateObject(wrappedValue: ViewBinding(source: peripheralModel.eraseToAny()))
         self.peripheralLogger = PeripheralModelLogger(observing: peripheralModel, loggingBy: deps.logger)
-        self.distanceBinding = ViewBinding(source: distanceModel.eraseToAny())
+        self._distanceBinding = StateObject(wrappedValue: ViewBinding(source: distanceModel.eraseToAny()))
         self.distanceLogger = PeripheralDistanceModelLogger(observing: distanceModel, loggingBy: deps.logger)
         self.txPower = Int(distanceModel.state.txPower)
         self.deps = deps

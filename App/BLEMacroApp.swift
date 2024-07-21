@@ -20,7 +20,7 @@ public struct BLEMacroApp: App {
 #else
 @main
 internal struct BLEMacroApp: App {
-    @ObservedObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
+    @StateObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     @Environment(\.scenePhase) private var scenePhase
     private let searchModel: any PeripheralSearchModelProtocol
     private let logger: any LoggerProtocol
@@ -48,13 +48,13 @@ internal struct BLEMacroApp: App {
             initialSearchQuery: SearchQuery(rawValue: "")
         )
         self.searchModel = searchModel
-        self.binding = ViewBinding(source: searchModel.eraseToAny())
+        self._binding = StateObject(wrappedValue: ViewBinding(source: searchModel.eraseToAny()))
     }
     
     
     public init(searchModel: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
         self.searchModel = searchModel
-        self.binding = ViewBinding(source: searchModel.eraseToAny())
+        self._binding = StateObject(wrappedValue: ViewBinding(source: searchModel.eraseToAny()))
         self.logger = logger
     }
     

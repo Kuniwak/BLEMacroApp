@@ -6,11 +6,11 @@ import PreviewHelper
 
 
 public struct ServiceRow: View {
-    @ObservedObject private var binding: ViewBinding<ServiceModelState, AnyServiceModel>
+    @StateObject private var binding: ViewBinding<ServiceModelState, AnyServiceModel>
     
     
     public init(observing model: any ServiceModelProtocol) {
-        self.binding = ViewBinding(source: model.eraseToAny())
+        self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
     }
     
     

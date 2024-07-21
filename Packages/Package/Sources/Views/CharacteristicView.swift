@@ -8,7 +8,7 @@ import PreviewHelper
 
 
 public struct CharacteristicView: View {
-    @ObservedObject private var characteristicBinding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
+    @StateObject private var characteristicBinding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
     @State public var isDialogPresent: Bool = false
     @State public var hexString: String = ""
     private let characteristicLogger: CharacteristicModelLogger
@@ -16,7 +16,7 @@ public struct CharacteristicView: View {
 
     
     public init(of characteristicModel: any CharacteristicModelProtocol, holding deps: DependencyBag) {
-        self.characteristicBinding = ViewBinding(source: characteristicModel.eraseToAny())
+        self._characteristicBinding = StateObject(wrappedValue: ViewBinding(source: characteristicModel.eraseToAny()))
         self.characteristicLogger = CharacteristicModelLogger(
             observing: characteristicModel,
             loggingBy: deps.logger
