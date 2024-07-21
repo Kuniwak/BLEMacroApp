@@ -18,7 +18,6 @@ public struct ServiceRow: View {
         VStack(alignment: .leading, spacing: 10) {
             if let name = binding.state.name {
                 Text(name)
-                    .foregroundStyle(Color(.normal))
             } else {
                 Text("(no name)")
                     .foregroundStyle(Color(.weak))

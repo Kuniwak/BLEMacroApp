@@ -30,6 +30,7 @@ public struct PeripheralRow: View {
                         Text(name)
                     } else {
                         Text("(no name)")
+                            .foregroundStyle(Color(.weak))
                     }
                 case .failure(let error):
                     Text("E: \(error.description)")

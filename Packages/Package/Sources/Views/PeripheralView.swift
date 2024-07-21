@@ -61,7 +61,7 @@ public struct PeripheralView: View {
                     }
                 }
                 
-                if !peripheralBinding.state.connection.isConnected {
+                if peripheralBinding.state.connection.canConnect {
                     Button("Connect to Refresh RSSI") {
                         peripheralBinding.source.connect()
                     }
