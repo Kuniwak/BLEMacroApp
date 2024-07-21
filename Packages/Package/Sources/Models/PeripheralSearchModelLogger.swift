@@ -12,11 +12,5 @@ public final actor PeripheralSearchModelLogger {
                 logger.debug("PeripheralSearchModel#stateDidChange: \(state)")
             }
             .store(in: &cancellables)
-        
-        searchModel.searchQuery
-            .sink { query in
-                logger.debug("PeripheralSearchModel#searchQuery: \(query)")
-            }
-            .store(in: &cancellables)
     }
 }

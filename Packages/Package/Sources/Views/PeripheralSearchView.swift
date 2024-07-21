@@ -9,6 +9,7 @@ import PreviewHelper
 
 public struct PeripheralSearchView: View {
     @StateObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
+    @State private var searchQuery: String = ""
     @Environment(\.scenePhase) private var scenePhase
     private let logger: any LoggerProtocol
     private let modelLogger: PeripheralSearchModelLogger
@@ -102,15 +103,17 @@ public struct PeripheralSearchView: View {
             }
         }
         .searchable(
-            text: ProjectedValueSubjectBinding(binding.source.searchQuery)
-                .mapBind(\.rawValue, SearchQuery.init(rawValue:)),
+            text: $searchQuery,
             prompt: "Name or UUID or Manufacturer Name"
         )
+        .onChange(of: searchQuery) { _, newQuery in
+            binding.source.updateSearchQuery(to: SearchQuery(rawValue: newQuery))
+        }
         .onDisappear { binding.source.stopScan() }
         .onAppear {
             binding.source.startScan()
         }
-        .onChange(of: scenePhase) { newPhase, oldPhase in
+        .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .background, .inactive:
                 binding.source.stopScan()

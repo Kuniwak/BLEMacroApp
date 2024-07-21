@@ -9,20 +9,17 @@ public final actor StubPeripheralSearchModel: PeripheralSearchModelProtocol {
     nonisolated public let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
-    nonisolated public let searchQuery: ConcurrentValueSubject<SearchQuery, Never>
-    
     
     public init(state: State = .makeStub()) {
         let stateDidChangeSubject = ConcurrentValueSubject<State, Never>(state)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
-        
-        self.searchQuery = ConcurrentValueSubject<SearchQuery, Never>(state.searchQuery)
     }
     
     
     nonisolated public func startScan() {}
     nonisolated public func stopScan() {}
+    nonisolated public func updateSearchQuery(to searchQuery: SearchQuery) {}
 }
 
 

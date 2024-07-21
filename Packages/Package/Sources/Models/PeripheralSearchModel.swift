@@ -35,52 +35,38 @@ public struct SearchQuery: RawRepresentable, Equatable, Codable, ExpressibleBySt
         
         switch state.name {
         case .success(.some(let name)):
-            if name.uppercased().contains(searchQuery) {
+            if name.contains(searchQuery) {
                 return true
             }
         case .failure, .success(.none):
             break
         }
         
-        switch state.manufacturerData {
-        case .some(.knownName(let manufacturer, let data)):
-            if manufacturer.name.uppercased().contains(searchQuery) {
-                return true
-            }
-            if HexEncoding.upper.encode(data: data).contains(searchQuery) {
-                return true
-            }
-        case .some(.data(let data)):
-            if HexEncoding.upper.encode(data: data).contains(searchQuery) {
-                return true
-            }
-        case .none:
-            break
-        }
-        
         return false
     }
+
     
-    
-    public static func filter(state: PeripheralDiscoveryModelState, bySearchQuery searchQuery: SearchQuery) async -> PeripheralDiscoveryModelState {
-        switch state {
+    public static func filter(peripherals: [AnyPeripheralModel], bySearchQuery searchQuery: SearchQuery) -> [AnyPeripheralModel] {
+        return peripherals
+            .filter { searchQuery.match(state: $0.state) }
+    }
+}
+
+
+extension PeripheralDiscoveryModelState {
+    public func filter(bySearchQuery searchQuery: SearchQuery) -> Self {
+        switch self {
         case .idle(requestedDiscovery: let requestedDiscovery):
             return .idle(requestedDiscovery: requestedDiscovery)
         case .ready:
             return .ready
         case .discovering(let peripherals, let discovered):
-            return .discovering(await filter(peripherals: peripherals, bySearchQuery: searchQuery), discovered)
+            return .discovering(SearchQuery.filter(peripherals: peripherals, bySearchQuery: searchQuery), discovered)
         case .discovered(let peripherals, let discovered):
-            return .discovered(await filter(peripherals: peripherals, bySearchQuery: searchQuery), discovered)
+            return .discovered(SearchQuery.filter(peripherals: peripherals, bySearchQuery: searchQuery), discovered)
         case .discoveryFailed(let error):
             return .discoveryFailed(error)
         }
-    }
-
-    
-    private static func filter(peripherals: [AnyPeripheralModel], bySearchQuery searchQuery: SearchQuery) async -> [AnyPeripheralModel] {
-        return peripherals
-            .filter { searchQuery.match(state: $0.state) }
     }
 }
 
@@ -98,6 +84,14 @@ public struct PeripheralSearchModelState {
     public init(discovery: PeripheralDiscoveryModelState, searchQuery: SearchQuery) {
         self.discovery = discovery
         self.searchQuery = searchQuery
+    }
+    
+    
+    public static func from(discovery: PeripheralDiscoveryModelState, searchQuery: SearchQuery) -> Self {
+        .init(
+            discovery: discovery.filter(bySearchQuery: searchQuery),
+            searchQuery: searchQuery
+        )
     }
     
     
@@ -125,9 +119,9 @@ extension PeripheralSearchModelState: CustomDebugStringConvertible {
 
 
 public protocol PeripheralSearchModelProtocol: StateMachineProtocol<PeripheralSearchModelState> {
-    nonisolated var searchQuery: ConcurrentValueSubject<SearchQuery, Never> { get }
     nonisolated func startScan()
     nonisolated func stopScan()
+    nonisolated func updateSearchQuery(to searchQuery: SearchQuery)
 }
 
 
@@ -143,7 +137,6 @@ public final actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
     
     nonisolated public var state: State { base.state }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
-    nonisolated public var searchQuery: ConcurrentValueSubject<SearchQuery, Never> { base.searchQuery }
    
     
     public init(_ base: any PeripheralSearchModelProtocol) {
@@ -158,28 +151,31 @@ public final actor AnyPeripheralSearchModel: PeripheralSearchModelProtocol {
     nonisolated public func stopScan() {
         base.stopScan()
     }
+    
+    nonisolated public func updateSearchQuery(to searchQuery: SearchQuery) {
+        base.updateSearchQuery(to: searchQuery)
+    }
 }
 
 
 public final actor PeripheralSearchModel: PeripheralSearchModelProtocol {
     nonisolated public var state: State {
-        .init(discovery: discoveryModel.state, searchQuery: searchQuery.value)
+        .init(discovery: discoveryModel.state, searchQuery: searchQuerySubject.value)
     }
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
-    nonisolated public let searchQuery: ConcurrentValueSubject<SearchQuery, Never>
+    nonisolated private let searchQuerySubject: ConcurrentValueSubject<SearchQuery, Never>
     
     private let discoveryModel: any PeripheralDiscoveryModelProtocol
     
     
     public init(observing discoveryModel: any PeripheralDiscoveryModelProtocol, initialSearchQuery: SearchQuery) {
-        self.searchQuery = ConcurrentValueSubject<SearchQuery, Never>(initialSearchQuery)
-        
+        let searchQuerySubject = ConcurrentValueSubject<SearchQuery, Never>(initialSearchQuery)
+        self.searchQuerySubject = searchQuerySubject
         self.discoveryModel = discoveryModel
-        
-        stateDidChange = discoveryModel.stateDidChange
-            .combineLatest(searchQuery)
+        self.stateDidChange = discoveryModel.stateDidChange
+            .combineLatest(searchQuerySubject)
             .map { (discovery, searchQuery) in
-                PeripheralSearchModelState(discovery: discovery, searchQuery: searchQuery)
+                return PeripheralSearchModelState.from(discovery: discovery, searchQuery: searchQuery)
             }
             .eraseToAnyPublisher()
     }
@@ -192,5 +188,12 @@ public final actor PeripheralSearchModel: PeripheralSearchModelProtocol {
     
     nonisolated public func stopScan() {
         discoveryModel.stopScan()
+    }
+    
+    
+    nonisolated public func updateSearchQuery(to searchQuery: SearchQuery) {
+        Task {
+            await self.searchQuerySubject.change { _ in searchQuery }
+        }
     }
 }

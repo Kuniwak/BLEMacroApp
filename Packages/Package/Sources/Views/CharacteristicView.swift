@@ -215,7 +215,7 @@ public struct CharacteristicView: View {
             TextField("Enter Hex Data", text: $hexString)
                 .autocapitalization(.none)
                 .keyboardType(.asciiCapable)
-                .onChange(of: hexString) { newValue, oldValue in
+                .onChange(of: hexString) { _, newValue in
                     hexString = newValue.filter { $0.isHexDigit }.uppercased()
                     characteristicBinding.source.update(byString: hexString)
                 }

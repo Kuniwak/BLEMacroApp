@@ -134,7 +134,7 @@ public struct PeripheralView: View {
                         Stepper(value: $txPower, in: -100...100, step: 1) {
                             Text(String(format: "%d dBm", txPower))
                         }
-                        .onChange(of: txPower) { newValue, oldValue in
+                        .onChange(of: txPower) { _, newValue in
                             distanceBinding.source.update(txPowerTo: Double(newValue))
                         }
                     }
@@ -148,7 +148,7 @@ public struct PeripheralView: View {
                         Stepper(value: $environmentalFactor, in: 0...40, step: 1) {
                             Text(String(format: "%.1f", Double(environmentalFactor) / 10.0))
                         }
-                        .onChange(of: environmentalFactor) { newValue, oldValue in
+                        .onChange(of: environmentalFactor) { _, newValue in
                             distanceBinding.source.update(environmentalFactorTo: Double(newValue) / 10.0)
                         }
                     }
