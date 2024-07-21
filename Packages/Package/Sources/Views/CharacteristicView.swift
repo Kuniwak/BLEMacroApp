@@ -170,9 +170,9 @@ public struct CharacteristicView: View {
                     case .notConnectable:
                         HStack {
                             Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
-                                .foregroundStyle(Color(.error))
+                                .foregroundStyle(Color(.weak))
                             Text("Not Connectable")
-                                .foregroundStyle(Color(.error))
+                                .foregroundStyle(Color(.weak))
                         }
                     case .connected, .connecting, .connectionFailed, .disconnected, .disconnecting:
                         if let descriptors = characteristicBinding.state.discovery.values {
@@ -237,16 +237,18 @@ public struct CharacteristicView: View {
     
     private var trailingNavigationBarItem: some View {
         Group {
-            if characteristicBinding.state.connection.canConnect {
-                Button("Connect") {
-                    characteristicBinding.source.connect()
-                }
-            } else if characteristicBinding.state.connection.isConnected {
+            switch characteristicBinding.state.connection {
+            case .connecting, .disconnecting:
+                ProgressView()
+            case .connected:
                 Button("Disconnect") {
                     characteristicBinding.source.disconnect()
                 }
-            } else {
-                ProgressView()
+            case .notConnectable, .disconnected, .connectionFailed:
+                Button("Connect") {
+                    characteristicBinding.source.connect()
+                }
+                .disabled(!characteristicBinding.state.connection.canConnect)
             }
         }
     }

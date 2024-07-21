@@ -60,9 +60,9 @@ public struct ServiceView: View {
                 case .notConnectable:
                     HStack {
                         Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
-                            .foregroundStyle(Color(.error))
+                            .foregroundStyle(Color(.weak))
                         Text("Not Connectable")
-                            .foregroundStyle(Color(.error))
+                            .foregroundStyle(Color(.weak))
                     }
                 case .connected, .connecting, .connectionFailed, .disconnected, .disconnecting:
                     if let characteristics = binding.state.discovery.values {
@@ -105,16 +105,18 @@ public struct ServiceView: View {
     
     private var trailingNavigationBarItem: some View {
         Group {
-            if binding.state.connection.canConnect {
-                Button("Connect") {
-                    binding.source.connect()
-                }
-            } else if binding.state.connection.isConnected {
+            switch binding.state.connection {
+            case .connecting, .disconnecting:
+                ProgressView()
+            case .connected:
                 Button("Disconnect") {
                     binding.source.disconnect()
                 }
-            } else {
-                ProgressView()
+            case .notConnectable, .disconnected, .connectionFailed:
+                Button("Connect") {
+                    binding.source.connect()
+                }
+                .disabled(!binding.state.connection.canConnect)
             }
         }
     }

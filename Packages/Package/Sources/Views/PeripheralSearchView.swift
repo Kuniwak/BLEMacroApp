@@ -63,7 +63,7 @@ public struct PeripheralSearchView: View {
                     ForEach(peripherals) { peripheral in
                         NavigationLink(destination: peripheralView(peripheral)) {
                             PeripheralRow(observing: peripheral)
-                        }.disabled(!peripheral.state.connection.canConnect)
+                        }
                     }
                 }
             case .discoveryFailed(.unspecified(let error)):

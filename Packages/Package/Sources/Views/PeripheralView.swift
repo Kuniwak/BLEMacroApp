@@ -171,9 +171,9 @@ public struct PeripheralView: View {
                 case .notConnectable:
                     HStack {
                         Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
-                            .foregroundStyle(Color(.error))
+                            .foregroundStyle(Color(.weak))
                         Text("Not Connectable")
-                            .foregroundStyle(Color(.error))
+                            .foregroundStyle(Color(.weak))
                     }
                 case .connected, .connecting, .connectionFailed, .disconnected, .disconnecting:
                     if let services = peripheralBinding.state.discovery.values {
@@ -235,16 +235,18 @@ public struct PeripheralView: View {
     
     private var trailingNavigationBarItem: some View {
         Group {
-            if peripheralBinding.state.connection.canConnect {
-                Button("Connect") {
-                    peripheralBinding.source.connect()
-                }
-            } else if peripheralBinding.state.connection.isConnected {
+            switch peripheralBinding.state.connection {
+            case .connecting, .disconnecting:
+                ProgressView()
+            case .connected:
                 Button("Disconnect") {
                     peripheralBinding.source.disconnect()
                 }
-            } else {
-                ProgressView()
+            case .notConnectable, .disconnected, .connectionFailed:
+                Button("Connect") {
+                    peripheralBinding.source.connect()
+                }
+                .disabled(!peripheralBinding.state.connection.canConnect)
             }
         }
     }

@@ -28,10 +28,8 @@ public struct PeripheralRow: View {
                 case .success(let name):
                     if let name {
                         Text(name)
-                            .foregroundStyle(Color(.normal))
                     } else {
                         Text("(no name)")
-                            .foregroundStyle(Color(.weak))
                     }
                 case .failure(let error):
                     Text("E: \(error.description)")
