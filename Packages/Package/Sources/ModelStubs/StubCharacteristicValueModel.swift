@@ -6,17 +6,19 @@ extension CharacteristicValueState {
     public static func makeStub(
         properties: CBCharacteristicProperties = [],
         value: Data = Data(),
+        isNotifying: Bool = false,
         error: CharacteristicValueModelFailure? = .init(description: "TEST")
     ) -> Self {
-        .init(properties: properties, value: value, error: error)
+        .init(properties: properties, value: value, isNotifying: isNotifying, error: error)
     }
     
     
     public static func makeSuccessfulStub(
         properties: CBCharacteristicProperties = [.read, .write],
-        value: Data = Data()
+        value: Data = Data(),
+        isNotifying: Bool = false
     ) -> Self {
-        .init(properties: properties, value: value, error: nil)
+        .init(properties: properties, value: value, isNotifying: isNotifying, error: nil)
     }
 }
 

@@ -32,16 +32,19 @@ public struct CharacteristicStringValueFailure: Error, Equatable, Sendable, Cust
 public struct CharacteristicStringValueState: Equatable, Sendable {
     public let properties: CBCharacteristicProperties
     public let data: Data
+    public let isNotifying: Bool
     public let error: CharacteristicStringValueFailure?
     
     
     public init(
         properties: CBCharacteristicProperties,
         data: Data,
+        isNotifying: Bool,
         error: CharacteristicStringValueFailure?
     ) {
         self.properties = properties
         self.data = data
+        self.isNotifying = isNotifying
         self.error = error
     }
 }
@@ -132,20 +135,22 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
         switch hexDataModel.state {
         case .failure(let error):
             return .init(
-                properties: characterisitcModel.state.properties,
-                data: characterisitcModel.state.value,
+                properties: valueModel.state.properties,
+                data: valueModel.state.value,
+                isNotifying: valueModel.state.isNotifying,
                 error: .init(wrapping: error)
             )
         case .success:
             return .init(
-                properties: characterisitcModel.state.properties,
-                data: characterisitcModel.state.value,
-                error: .init(wrapping: characterisitcModel.state.error)
+                properties: valueModel.state.properties,
+                data: valueModel.state.value,
+                isNotifying: valueModel.state.isNotifying,
+                error: .init(wrapping: valueModel.state.error)
             )
         }
     }
     nonisolated public let stateDidChange: AnyPublisher<CharacteristicStringValueState, Never>
-    nonisolated private let characterisitcModel: any CharacteristicValueModelProtocol
+    nonisolated private let valueModel: any CharacteristicValueModelProtocol
     nonisolated private let hexDataModel: any HexDataModelProtocol
     
     
@@ -165,10 +170,11 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
             result = .failure(.init(wrapping: e))
         }
         
-        self.characterisitcModel = CharacteristicValueModel(
+        self.valueModel = CharacteristicValueModel(
             startsWith: .init(
                 properties: characteristic.properties,
                 value: data,
+                isNotifying: characteristic.isNotifying,
                 error: nil
             ),
             operatingOn: peripheral,
@@ -178,22 +184,24 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
         
         self.stateDidChange = Publishers
             .CombineLatest(
-                characterisitcModel.stateDidChange,
+                valueModel.stateDidChange,
                 hexDataModel.stateDidChange
             )
-            .map { (characteristic, hexData) in
+            .map { (value, hexData) in
                 switch hexData {
                 case .failure(let error):
                     return .init(
-                        properties: characteristic.properties,
-                        data: characteristic.value,
+                        properties: value.properties,
+                        data: value.value,
+                        isNotifying: value.isNotifying,
                         error: .init(wrapping: error)
                     )
                 case .success:
                     return .init(
-                        properties: characteristic.properties,
-                        data: characteristic.value,
-                        error: .init(wrapping: characteristic.error)
+                        properties: value.properties,
+                        data: value.value,
+                        isNotifying: value.isNotifying,
+                        error: .init(wrapping: value.error)
                     )
                 }
             }
@@ -202,7 +210,7 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
     
     
     nonisolated public func read() {
-        characterisitcModel.read()
+        valueModel.read()
     }
     
     
@@ -212,7 +220,7 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
             return
             
         case .success(let data):
-            characterisitcModel.write(value: data, type: type)
+            valueModel.write(value: data, type: type)
         }
     }
     
@@ -223,6 +231,6 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
     
     
     nonisolated public func setNotify(_ enabled: Bool) {
-        characterisitcModel.setNotify(enabled)
+        valueModel.setNotify(enabled)
     }
 }

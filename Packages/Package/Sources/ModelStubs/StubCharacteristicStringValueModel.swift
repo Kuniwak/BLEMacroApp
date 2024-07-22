@@ -33,16 +33,18 @@ extension CharacteristicStringValueState {
     public static func makeStub(
         properties: CBCharacteristicProperties = [],
         data: Data = Data(),
+        isNotifying: Bool = false,
         error: CharacteristicStringValueFailure? = .init(description: "TEST")
     ) -> Self {
-        .init(properties: properties, data: data, error: error)
+        .init(properties: properties, data: data, isNotifying: isNotifying, error: error)
     }
     
     
     public static func makeSuccessfulStub(
         properties: CBCharacteristicProperties = [.read, .write],
-        data: Data = Data()
+        data: Data = Data(),
+        isNotifying: Bool = false
     ) -> Self {
-        .init(properties: properties, data: data, error: nil)
+        .init(properties: properties, data: data, isNotifying: isNotifying, error: nil)
     }
 }

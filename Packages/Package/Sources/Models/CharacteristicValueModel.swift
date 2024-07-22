@@ -33,22 +33,25 @@ public struct CharacteristicValueModelFailure: Error, Equatable {
 public struct CharacteristicValueState: Equatable {
     public let properties: CBCharacteristicProperties
     public let value: Data
+    public let isNotifying: Bool
     public let error: CharacteristicValueModelFailure?
     
     
     public init(
         properties: CBCharacteristicProperties,
         value: Data,
+        isNotifying: Bool,
         error: CharacteristicValueModelFailure?
     ) {
         self.properties = properties
         self.value = value
+        self.isNotifying = isNotifying
         self.error = error
     }
     
     
-    public static func initialState(properties: CBCharacteristicProperties) -> CharacteristicValueState {
-        return CharacteristicValueState(properties: properties, value: Data(), error: nil)
+    public static func initialState(properties: CBCharacteristicProperties, isNotifying: Bool) -> CharacteristicValueState {
+        return CharacteristicValueState(properties: properties, value: Data(), isNotifying: isNotifying, error: nil)
     }
 }
 
@@ -128,6 +131,23 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                         return .init(
                             properties: characteristic.properties,
                             value: characteristic.value ?? Data(),
+                            isNotifying: characteristic.isNotifying,
+                            error: error.map { CharacteristicValueModelFailure(wrapping: $0) }
+                        )
+                    }
+                }
+            }
+            .store(in: &mutableCancellables)
+        
+        peripheral.didUpdateNotificationStateForCharacteristic
+            .sink { [weak self] (characteristic, error) in
+                guard let self, characteristic.uuid == self.uuid else { return }
+                Task {
+                    await self.stateDidChangeSubject.change { _ in
+                        return .init(
+                            properties: characteristic.properties,
+                            value: characteristic.value ?? Data(),
+                            isNotifying: characteristic.isNotifying,
                             error: error.map { CharacteristicValueModelFailure(wrapping: $0) }
                         )
                     }
@@ -155,6 +175,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                     return .init(
                         properties: prev.properties,
                         value: prev.value,
+                        isNotifying: prev.isNotifying,
                         error: .init(description: "Read not supported")
                     )
                 }
@@ -175,6 +196,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                         return .init(
                             properties: prev.properties,
                             value: prev.value,
+                            isNotifying: prev.isNotifying,
                             error: .init(description: "Write not supported")
                         )
                     }
@@ -186,6 +208,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                         return .init(
                             properties: prev.properties,
                             value: prev.value,
+                            isNotifying: prev.isNotifying,
                             error: .init(description: "Write not supported")
                         )
                     }
@@ -193,6 +216,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                     return .init(
                         properties: prev.properties,
                         value: prev.value,
+                        isNotifying: prev.isNotifying,
                         error: .init(description: "Unknown write type: \(type)")
                     )
                 }
@@ -211,6 +235,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                     return .init(
                         properties: prev.properties,
                         value: prev.value,
+                        isNotifying: prev.isNotifying,
                         error: .init(description: "Notify not supported")
                     )
                 }

@@ -84,10 +84,17 @@ public struct CharacteristicView: View {
                 }
                 
                 if characteristicBinding.state.value.properties.contains(.notify) {
-                    Button("Subscribe") {
-                        characteristicBinding.source.setNotify(true)
+                    if characteristicBinding.state.value.isNotifying {
+                        Button("Unsubscribe") {
+                            characteristicBinding.source.setNotify(false)
+                        }
+                        .disabled(!characteristicBinding.state.connection.isConnected)
+                    } else {
+                        Button("Subscribe") {
+                            characteristicBinding.source.setNotify(true)
+                        }
+                        .disabled(!characteristicBinding.state.connection.isConnected)
                     }
-                    .disabled(!characteristicBinding.state.connection.isConnected)
                 }
                 
                 if !characteristicBinding.state.connection.isConnected {
