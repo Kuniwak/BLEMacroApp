@@ -4,6 +4,7 @@ import ModelStubs
 import BLEInternal
 import ViewFoundation
 import PreviewHelper
+import SFSymbol
 
 
 public struct DescriptorView: View {
@@ -72,6 +73,16 @@ public struct DescriptorView: View {
                     isDialogPresent = true
                 }
                 .disabled(!binding.state.connection.isConnected || !binding.state.value.canWrite)
+                
+                if !binding.state.value.canWrite {
+                    HStack(alignment: .top) {
+                        Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
+                        Text("CoreBluetooth does not support writing to CCCD. Use \"Subscribe\" instead.")
+                            .font(.caption)
+                    }
+                    .padding([.top, .bottom], 4)
+                    .foregroundColor(Color(.weak))
+                }
                 
                 if !binding.state.connection.isConnected {
                     Button("Connect") {
@@ -161,12 +172,19 @@ private func stubsForPreview() -> [Previewable<AnyDescriptorModel>] {
             connection: .connected
         )
     }
+    
+    let states3: [DescriptorModelState] = [
+        .makeSuccessfulStub(
+            value: .makeSuccessfulStub(canWrite: false),
+            connection: .connected
+        ),
+    ]
 
-    let states3: [DescriptorModelState] = connections.map { connection in
+    let states4: [DescriptorModelState] = connections.map { connection in
         .makeSuccessfulStub(connection: connection)
     }
     
-    return (states1 + states2 + states3)
+    return (states1 + states2 + states3 + states4)
         .map { state in
             return Previewable(
                 StubDescriptorModel(state: state).eraseToAny(),

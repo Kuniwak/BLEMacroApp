@@ -171,14 +171,14 @@ public struct DescriptorValueModelState: Equatable {
 
 extension DescriptorValueModelState: CustomStringConvertible {
     public var description: String {
-        return "(value: \(value?.description ?? "nil"), error: \(error?.description ?? "nil")"
+        return "(value: \(value?.description ?? "nil"), error: \(error?.description ?? "nil"), canWrite: \(canWrite))"
     }
 }
 
 
 extension DescriptorValueModelState: CustomDebugStringConvertible {
     public var debugDescription: String {
-        return "(value: \(value?.debugDescription ?? "nil"), error: \(error == nil ? ".none" : ".some")"
+        return "(value: \(value?.debugDescription ?? "nil"), error: \(error == nil ? ".none" : ".some"), canWrite: \(canWrite))"
     }
 }
 

@@ -77,17 +77,16 @@ public struct PeripheralView: View {
                     
                     HStack(alignment: .top) {
                         Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
-                            .foregroundStyle(Color(.weak))
 
                         Text(
                             """
                             For some unknown reason, CoreBluetooth cannot get manufacturer data even though the device provides it.
                             """
                         )
-                        .foregroundStyle(Color(.weak))
                         .font(.caption)
                     }
-                    
+                    .foregroundStyle(Color(.weak))
+
                 case .some(.knownName(let name, let data)):
                     LabeledContent("Manufacturer Name") {
                         ScrollableText(name.description)
