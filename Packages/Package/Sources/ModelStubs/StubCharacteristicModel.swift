@@ -60,7 +60,7 @@ extension CharacteristicModelState {
         uuid: CBUUID = CBUUID(nsuuid: StubUUID.zero),
         name: String? = "Example",
         value: CharacteristicStringValueState = .makeSuccessfulStub(),
-        connection: ConnectionModelState = .makeStub(),
+        connection: ConnectionModelState = .makeSuccessfulStub(),
         discovery: DiscoveryModelState<AnyDescriptorModel, CharacteristicModelFailure> = .discovered([
             StubDescriptorModel().eraseToAny(),
             StubDescriptorModel().eraseToAny(),

@@ -60,7 +60,7 @@ extension ServiceModelState {
             StubCharacteristicModel().eraseToAny(),
             StubCharacteristicModel().eraseToAny(),
         ]),
-        connection: ConnectionModelState = .makeStub()
+        connection: ConnectionModelState = .makeSuccessfulStub()
     ) -> Self {
         .init(
             uuid: uuid,

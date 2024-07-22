@@ -36,6 +36,6 @@ extension ConnectionModelState {
     
     
     public static func makeSuccessfulStub() -> Self {
-        .disconnected
+        .connected
     }
 }
