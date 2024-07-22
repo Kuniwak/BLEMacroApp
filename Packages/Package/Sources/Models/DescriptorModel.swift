@@ -1,97 +1,64 @@
+import Foundation
 import Combine
-import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
 import Catalogs
 import ModelFoundation
-import MirrorDiffKit
 
 
-public struct DescriptorModelFailure: Error, CustomStringConvertible, Equatable {
-    public let description: String
-    
-    
-    public init(description: String) {
-        self.description = description
-    }
-    
-    
-    public init(wrapping error: any Error) {
-        self.description = "\(error)"
-    }
-    
-    
-    public init(wrapping error: (any Error)?) {
-        if let error = error {
-            self.description = "\(error)"
-        } else {
-            self.description = "nil"
-        }
-    }
-}
-
-
-public struct DescriptorModelState {
+public struct DescriptorModelState: Equatable {
     public let uuid: CBUUID
     public let name: String?
-    public var value: Result<Any?, DescriptorModelFailure>
-
+    public let value: DescriptorValueModelState
+    public let connection: ConnectionModelState
     
-    public init(uuid: CBUUID, name: String?, value: Result<Any?, DescriptorModelFailure>) {
+    public init(
+        uuid: CBUUID,
+        name: String?,
+        value: DescriptorValueModelState,
+        connection: ConnectionModelState
+    ) {
         self.uuid = uuid
         self.name = name
         self.value = value
+        self.connection = connection
     }
     
     
-    public static func initialState(fromDescriptorUUID cbuuid: CBUUID) -> Self {
-        DescriptorModelState(
-            uuid: cbuuid,
-            name: DescriptorCatalog.from(cbuuid: cbuuid)?.name,
-            value: .success(nil)
+    public static func initialState(
+        descriptor: any DescriptorProtocol,
+        connection: ConnectionModelState
+    ) -> Self {
+        return .init(
+            uuid: descriptor.uuid,
+            name: DescriptorCatalog.from(cbuuid: descriptor.uuid)?.name,
+            value: .initialState(uuid: descriptor.uuid, value: nil),
+            connection: connection
         )
-    }
-}
-
-
-extension DescriptorModelState: Equatable {
-    public static func == (lhs: DescriptorModelState, rhs: DescriptorModelState) -> Bool {
-        lhs.uuid == rhs.uuid && lhs.name == rhs.name && lhs.value =~ rhs.value
     }
 }
 
 
 extension DescriptorModelState: CustomStringConvertible {
     public var description: String {
-        let valueDescription: String
-        switch value {
-        case .success(let value):
-            valueDescription = ".success(\(value ?? "nil"))"
-        case .failure(let error):
-            valueDescription = ".failure(\(error.description))"
-        }
-        return "(value: \(valueDescription), uuid: \(uuid.uuidString), name: \(name ?? "nil"))"
+        "(uuid: \(uuid.uuidString), name: \(name ?? "nil"), value: \(value.description), connection: \(connection.description))"
     }
 }
 
 
 extension DescriptorModelState: CustomDebugStringConvertible {
     public var debugDescription: String {
-        let valueDescription: String
-        switch value {
-        case .success(let value):
-            valueDescription = ".success(\(value == nil ? ".none" : ".some"))"
-        case .failure:
-            valueDescription = ".failure"
-        }
-        return "(value: \(valueDescription), uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name == nil ? ".none" : ".some"))"
+        "(uuid: \(uuid.uuidString.prefix(2))...\(uuid.uuidString.suffix(2)), name: \(name == nil ? ".none" : ".some"), value: \(value.debugDescription), connection: \(connection.debugDescription))"
     }
 }
 
 
-public protocol DescriptorModelProtocol: StateMachineProtocol<DescriptorModelState>, Identifiable<CBUUID>, CustomStringConvertible {
+public protocol DescriptorModelProtocol: StateMachineProtocol, Identifiable where State == DescriptorModelState {
     nonisolated func read()
-    nonisolated func write(value: Data)
+    nonisolated func write()
+    nonisolated func updateHexString(with string: String)
+    nonisolated func connect()
+    nonisolated func disconnect()
 }
 
 
@@ -103,27 +70,33 @@ extension DescriptorModelProtocol {
 
 
 public final actor AnyDescriptorModel: DescriptorModelProtocol {
-    nonisolated public var state: DescriptorModelState { base.state }
-    
-    nonisolated public var id: CBUUID { base.id }
-    nonisolated public var description: String { base.description }
-
     private let base: any DescriptorModelProtocol
-
+    
+    nonisolated public var state: State { base.state }
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
+    
     public init(_ base: any DescriptorModelProtocol) {
         self.base = base
-    }
-    
-    nonisolated public var stateDidChange: AnyPublisher<State, Never> {
-        base.stateDidChange
     }
     
     nonisolated public func read() {
         base.read()
     }
     
-    nonisolated public func write(value: Data) {
-        base.write(value: value)
+    nonisolated public func write() {
+        base.write()
+    }
+    
+    nonisolated public func updateHexString(with string: String) {
+        base.updateHexString(with: string)
+    }
+    
+    nonisolated public func connect() {
+        base.connect()
+    }
+    
+    nonisolated public func disconnect() {
+        base.disconnect()
     }
 }
 
@@ -135,74 +108,74 @@ extension AnyDescriptorModel: Equatable {
 }
 
 
-public final actor DescriptorModel: DescriptorModelProtocol {
-    private let descriptor: any DescriptorProtocol
-    private let peripheral: any PeripheralProtocol
-    nonisolated public let id: CBUUID
-    
-    nonisolated public var state: DescriptorModelState { stateDidChangeSubject.value }
-    nonisolated private let stateDidChangeSubject: ConcurrentValueSubject<DescriptorModelState, Never>
-    nonisolated public let stateDidChange: AnyPublisher<DescriptorModelState, Never>
-
-    private var cancellables = Set<AnyCancellable>()
-    
-    public init(
-        startsWith initialState: DescriptorModelState,
-        representing descriptor: any DescriptorProtocol,
-        onPeripheral peripheral: any PeripheralProtocol
-   ) {
-       self.descriptor = descriptor
-       self.peripheral = peripheral
-       self.id = descriptor.uuid
-       
-       let stateDidChangeSubject = ConcurrentValueSubject<DescriptorModelState, Never>(initialState)
-       self.stateDidChangeSubject = stateDidChangeSubject
-       self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
-       
-       var mutableCancellables = Set<AnyCancellable>()
-       
-       peripheral.didUpdateValueForDescriptor
-           .sink { [weak self] descriptor, error in
-               guard let self = self else { return }
-               Task {
-                   await self.stateDidChangeSubject.change { prev in
-                       var new = prev
-                       if let error {
-                           new.value = .failure(.init(wrapping: error))
-                       } else {
-                           new.value = .success(descriptor.value)
-                       }
-                       return new
-                   }
-               }
-           }
-           .store(in: &mutableCancellables)
-       
-       let cancellables = mutableCancellables
-       Task { await self.store(cancellables: cancellables) }
-    }
-    
-    
-    private func store(cancellables: Set<AnyCancellable>) {
-        self.cancellables.formUnion(cancellables)
-    }
-    
-    
-    nonisolated public func read() {
-        Task {
-            await peripheral.readValue(for: descriptor)
-        }
-    }
-    
-    
-    nonisolated public func write(value: Data) {
-        Task {
-            await peripheral.writeValue(value, for: descriptor)
-        }
-    }
+extension AnyDescriptorModel: CustomStringConvertible {
+    nonisolated public var description: String { state.description }
 }
 
 
-extension DescriptorModel: CustomStringConvertible {
-    nonisolated public var description: String { state.description }
+public actor DescriptorModel: DescriptorModelProtocol {
+    private let value: any DescriptorStringValueModelProtocol
+    private let connection: any ConnectionModelProtocol
+    
+    nonisolated public var state: State {
+        DescriptorModelState(
+            uuid: id,
+            name: name,
+            value: value.state,
+            connection: connection.state
+        )
+    }
+    
+    nonisolated public let id: CBUUID
+    nonisolated public let name: String?
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
+    
+    public init(
+        identifiedBy uuid: CBUUID,
+        operateingBy value: any DescriptorStringValueModelProtocol,
+        connectingBy connection: any ConnectionModelProtocol
+    ) {
+        self.id = uuid
+        self.value = value
+        self.connection = connection
+        
+        let name = DescriptorCatalog.from(cbuuid: uuid)?.name
+        self.name = name
+        
+        let stateDidChange = Publishers
+            .CombineLatest(
+                value.stateDidChange,
+                connection.stateDidChange
+            )
+            .map { value, connection in
+                DescriptorModelState(
+                    uuid: uuid,
+                    name: name,
+                    value: value,
+                    connection: connection
+                )
+            }
+        
+        self.stateDidChange = stateDidChange.eraseToAnyPublisher()
+    }
+    
+    nonisolated public func read() {
+        value.read()
+    }
+    
+    nonisolated public func write() {
+        value.write()
+    }
+    
+    nonisolated public func updateHexString(with string: String) {
+        value.updateHexString(with: string)
+    }
+    
+    nonisolated public func connect() {
+        connection.connect()
+    }
+    
+    nonisolated public func disconnect() {
+        connection.disconnect()
+    }
 }

@@ -19,7 +19,7 @@ public final actor StubCharacteristicStringValueModel: CharacteristicStringValue
     
     nonisolated public func read() {}
     nonisolated public func write(type: CBCharacteristicWriteType) {}
-    nonisolated public func update(byString string: String) {}
+    nonisolated public func updateHexString(with string: String) {}
     nonisolated public func setNotify(_ enabled: Bool) {}
     
     

@@ -77,7 +77,7 @@ public protocol CharacteristicModelProtocol: StateMachineProtocol<Characteristic
     nonisolated func disconnect()
     nonisolated func read()
     nonisolated func write(type: CBCharacteristicWriteType)
-    nonisolated func update(byString string: String)
+    nonisolated func updateHexString(with string: String)
     nonisolated func setNotify(_ enabled: Bool)
 }
 
@@ -128,8 +128,8 @@ public final actor AnyCharacteristicModel: CharacteristicModelProtocol {
     }
     
     
-    nonisolated public func update(byString string: String) {
-        base.update(byString: string)
+    nonisolated public func updateHexString(with string: String) {
+        base.updateHexString(with: string)
     }
     
     
@@ -174,11 +174,12 @@ public final actor CharacteristicModel: CharacteristicModelProtocol {
         let discoveryModel = DiscoveryModel<AnyDescriptorModel, CharacteristicModelFailure>(
             discoveringBy: descriptorDiscoveryStrategy(
                 forCharacteristic: characteristic,
-                onPeripheral: peripheral
+                onPeripheral: peripheral,
+                connectingBy: connectionModel
             )
         )
         
-        let connectableDiscoveryModel = ConnectableDiscoveryModel(
+        let connectableDiscoveryModel = ConnectableDiscoveryModel<AnyDescriptorModel, CharacteristicModelFailure>(
             discoveringBy: discoveryModel,
             connectingBy: connectionModel
         )
@@ -228,8 +229,8 @@ public final actor CharacteristicModel: CharacteristicModelProtocol {
         valueModel.write(type: type)
     }
     
-    nonisolated public func update(byString string: String) {
-        valueModel.update(byString: string)
+    nonisolated public func updateHexString(with string: String) {
+        valueModel.updateHexString(with: string)
     }
     
     nonisolated public func setNotify(_ enabled: Bool) {
@@ -240,17 +241,22 @@ public final actor CharacteristicModel: CharacteristicModelProtocol {
 
 private func descriptorDiscoveryStrategy(
     forCharacteristic characteristic: any CharacteristicProtocol,
-    onPeripheral peripheral: any PeripheralProtocol
+    onPeripheral peripheral: any PeripheralProtocol,
+    connectingBy connectionModel: any ConnectionModelProtocol
 ) -> () async -> Result<[AnyDescriptorModel], CharacteristicModelFailure> {
     return {
         await DiscoveryTask
             .discoverDescriptors(forCharacteristic: characteristic, onPeripheral: peripheral)
             .map { descriptors in
                 descriptors.map { descriptor in
-                    DescriptorModel(
-                        startsWith: .initialState(fromDescriptorUUID: descriptor.uuid),
-                        representing: descriptor,
-                        onPeripheral: peripheral
+                    return DescriptorModel(
+                        identifiedBy: descriptor.uuid,
+                        operateingBy: DescriptorStringValueModel(
+                            startsWith: "",
+                            representing: descriptor,
+                            onPeripheral: peripheral
+                        ),
+                        connectingBy: connectionModel
                     ).eraseToAny()
                 }
             }

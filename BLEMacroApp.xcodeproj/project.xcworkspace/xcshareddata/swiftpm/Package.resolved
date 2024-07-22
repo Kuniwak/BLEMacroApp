@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/core-bluetooth-testable.git",
       "state" : {
-        "revision" : "1b69c37b6a62ac08665ee33c593af66fdb2ba428",
-        "version" : "5.0.1"
+        "revision" : "01a857a359a9e5c37849b9305b25ab203cf2564a",
+        "version" : "6.0.0"
       }
     },
     {
@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/swift-ble-macro.git",
       "state" : {
-        "revision" : "66d9fa8b97401818ec78090737c9d681b97efc44",
-        "version" : "3.0.0"
+        "revision" : "74878879a07679f58132e9a3bb122c5d9852a971",
+        "version" : "4.0.0"
       }
     },
     {

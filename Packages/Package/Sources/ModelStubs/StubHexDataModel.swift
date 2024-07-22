@@ -17,5 +17,5 @@ public final actor StubHexDataModel: HexDataModelProtocol {
     }
     
     
-    nonisolated public func update(byString string: String) {}
+    nonisolated public func updateHexString(with string: String) {}
 }

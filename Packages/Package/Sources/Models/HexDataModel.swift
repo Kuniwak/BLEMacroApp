@@ -30,7 +30,7 @@ public struct HexDataModelFailure: Error, CustomStringConvertible, Equatable, Se
 
 
 public protocol HexDataModelProtocol: StateMachineProtocol<Result<Data, HexDataModelFailure>> {
-    nonisolated func update(byString string: String)
+    nonisolated func updateHexString(with string: String)
 }
 
 
@@ -53,8 +53,8 @@ public final actor AnyHexDataModel: HexDataModelProtocol {
     }
     
     
-    nonisolated public func update(byString string: String) {
-        base.update(byString: string)
+    nonisolated public func updateHexString(with string: String) {
+        base.updateHexString(with: string)
     }
 }
 
@@ -72,7 +72,7 @@ public final actor HexDataModel: HexDataModelProtocol {
     }
     
     
-    nonisolated public func update(byString string: String) {
+    nonisolated public func updateHexString(with string: String) {
         Task {
             await stateDidChangeSubject.change { _ in
                 switch HexEncoding.decode(hexString: string) {

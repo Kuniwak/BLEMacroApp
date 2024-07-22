@@ -82,7 +82,7 @@ extension CharacteristicStringValueState: CustomDebugStringConvertible {
 public protocol CharacteristicStringValueModelProtocol: StateMachineProtocol<CharacteristicStringValueState> {
     nonisolated func read()
     nonisolated func write(type: CBCharacteristicWriteType)
-    nonisolated func update(byString string: String)
+    nonisolated func updateHexString(with string: String)
     nonisolated func setNotify(_ enabled: Bool)
 }
 
@@ -116,8 +116,8 @@ public final actor AnyCharacteristicStringValueModel: CharacteristicStringValueM
     }
     
     
-    nonisolated public func update(byString string: String) {
-        base.update(byString: string)
+    nonisolated public func updateHexString(with string: String) {
+        base.updateHexString(with: string)
     }
     
     
@@ -217,8 +217,8 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
     }
     
     
-    nonisolated public func update(byString string: String) {
-        hexDataModel.update(byString: string)
+    nonisolated public func updateHexString(with string: String) {
+        hexDataModel.updateHexString(with: string)
     }
     
     
