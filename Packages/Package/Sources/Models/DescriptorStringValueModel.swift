@@ -17,15 +17,6 @@ public struct DescriptorStringValueFailure: Error, Equatable, Sendable, CustomSt
     public init(wrapping error: any Error) {
         self.description = "\(error)"
     }
-    
-    
-    public init(wrapping error: (any Error)?) {
-        if let error = error {
-            self.description = "\(error)"
-        } else {
-            self.description = "nil"
-        }
-    }
 }
 
 

@@ -30,13 +30,10 @@ public final actor SendableCentralManager: SendableCentralManagerProtocol {
     nonisolated private let centralManager: CentralManager
     
     
-    public init(options: [String: Any]?, severity: LogSeverity) {
+    public init(options: [String: Any]?, loggingBy logger: any LoggerProtocol) {
         let centralManager = CentralManager(
             options: options,
-            loggingBy: Logger(
-                severity: severity,
-                writer: OSLogWriter(OSLog(subsystem: "com.kuniwak.BLEMacroApp", category: "BLE"))
-            )
+            loggingBy: logger
         )
             
         self.centralManager = centralManager

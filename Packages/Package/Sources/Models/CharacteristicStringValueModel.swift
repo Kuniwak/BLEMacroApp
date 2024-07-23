@@ -17,15 +17,6 @@ public struct CharacteristicStringValueFailure: Error, Equatable, Sendable, Cust
     public init(wrapping error: any Error) {
         self.description = "\(error)"
     }
-    
-    
-    public init(wrapping error: (any Error)?) {
-        if let error = error {
-            self.description = "\(error)"
-        } else {
-            self.description = "nil"
-        }
-    }
 }
 
 
@@ -63,7 +54,7 @@ extension CBCharacteristicProperties {
         if contains(.extendedProperties) { components.append("extendedProperties") }
         if contains(.notifyEncryptionRequired) { components.append("notifyEncryptionRequired") }
         if contains(.indicateEncryptionRequired) { components.append("indicateEncryptionRequired") }
-        return components.joined(separator: "/")
+        return "[\(components.joined(separator: "/"))]"
     }
 }
 
@@ -77,7 +68,7 @@ extension CharacteristicStringValueState: CustomStringConvertible {
 
 extension CharacteristicStringValueState: CustomDebugStringConvertible {
     public var debugDescription: String {
-        "(properties: \(properties), data: \(data.count) bytes, error: \(error == nil ? ".none" : ".some"))"
+        "(properties: \(properties.description), data: \(data.count) bytes, error: \(error == nil ? ".none" : ".some"))"
     }
 }
 
@@ -145,7 +136,7 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
                 properties: valueModel.state.properties,
                 data: valueModel.state.value,
                 isNotifying: valueModel.state.isNotifying,
-                error: .init(wrapping: valueModel.state.error)
+                error: valueModel.state.error.map(CharacteristicStringValueFailure.init(wrapping:))
             )
         }
     }
@@ -201,7 +192,7 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
                         properties: value.properties,
                         data: value.value,
                         isNotifying: value.isNotifying,
-                        error: .init(wrapping: value.error)
+                        error: value.error.map(CharacteristicStringValueFailure.init(wrapping:))
                     )
                 }
             }

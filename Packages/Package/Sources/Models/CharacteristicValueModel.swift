@@ -18,15 +18,6 @@ public struct CharacteristicValueModelFailure: Error, Equatable {
     public init(wrapping error: any Error) {
         self.description = "\(error)"
     }
-    
-    
-    public init(wrapping error: (any Error)?) {
-        if let error = error {
-            self.description = "\(error)"
-        } else {
-            self.description = "nil"
-        }
-    }
 }
 
 
@@ -132,7 +123,23 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                             properties: characteristic.properties,
                             value: characteristic.value ?? Data(),
                             isNotifying: characteristic.isNotifying,
-                            error: error.map { CharacteristicValueModelFailure(wrapping: $0) }
+                            error: error.map(CharacteristicValueModelFailure.init(wrapping:))
+                        )
+                    }
+                }
+            }
+            .store(in: &mutableCancellables)
+        
+        peripheral.didWriteValueForCharacteristic
+            .sink { [weak self] (characteristic, error) in
+                guard let self, characteristic.uuid == self.uuid else { return }
+                Task {
+                    await self.stateDidChangeSubject.change { _ in
+                        return .init(
+                            properties: characteristic.properties,
+                            value: characteristic.value ?? Data(),
+                            isNotifying: characteristic.isNotifying,
+                            error: error.map(CharacteristicValueModelFailure.init(wrapping:))
                         )
                     }
                 }
@@ -148,7 +155,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                             properties: characteristic.properties,
                             value: characteristic.value ?? Data(),
                             isNotifying: characteristic.isNotifying,
-                            error: error.map { CharacteristicValueModelFailure(wrapping: $0) }
+                            error: error.map(CharacteristicValueModelFailure.init(wrapping:))
                         )
                     }
                 }
@@ -176,7 +183,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                         properties: prev.properties,
                         value: prev.value,
                         isNotifying: prev.isNotifying,
-                        error: .init(description: "Read not supported")
+                        error: .init(description: "Not readable")
                     )
                 }
             }
@@ -197,7 +204,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                             properties: prev.properties,
                             value: prev.value,
                             isNotifying: prev.isNotifying,
-                            error: .init(description: "Write not supported")
+                            error: .init(description: "Not writable with response")
                         )
                     }
                 case .withoutResponse:
@@ -209,7 +216,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                             properties: prev.properties,
                             value: prev.value,
                             isNotifying: prev.isNotifying,
-                            error: .init(description: "Write not supported")
+                            error: .init(description: "Not writable without response")
                         )
                     }
                 default:
@@ -236,7 +243,7 @@ public final actor CharacteristicValueModel: CharacteristicValueModelProtocol {
                         properties: prev.properties,
                         value: prev.value,
                         isNotifying: prev.isNotifying,
-                        error: .init(description: "Notify not supported")
+                        error: .init(description: "Not subscribable")
                     )
                 }
             }

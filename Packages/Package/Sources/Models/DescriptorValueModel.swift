@@ -128,15 +128,6 @@ public struct DescriptorValueModelFailure: Error, CustomStringConvertible, Equat
     public init(wrapping error: any Error) {
         self.description = "\(error)"
     }
-    
-    
-    public init(wrapping error: (any Error)?) {
-        if let error = error {
-            self.description = "\(error)"
-        } else {
-            self.description = "nil"
-        }
-    }
 }
 
 
@@ -280,6 +271,31 @@ public final actor DescriptorValueModel: DescriptorValueModelProtocol {
            }
            .store(in: &mutableCancellables)
        
+       peripheral.didWriteValueForDescriptor
+           .sink { [weak self] descriptor, error in
+               guard let self = self else { return }
+               Task {
+                   await self.stateDidChangeSubject.change { prev in
+                       var new = prev
+                       if let value = descriptor.value {
+                           switch DescriptorValue.from(uuid: descriptor.uuid, value: value) {
+                           case .success(let value):
+                               new.value = value
+                               new.error = nil
+                           case .failure(let error):
+                               new.value = nil
+                               new.error = error
+                           }
+                       } else {
+                           new.value = nil
+                           new.error = error.map(DescriptorValueModelFailure.init(wrapping:))
+                       }
+                       return new
+                   }
+               }
+           }
+           .store(in: &mutableCancellables)
+
        let cancellables = mutableCancellables
        Task { await self.store(cancellables: cancellables) }
     }

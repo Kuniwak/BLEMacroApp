@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreBluetooth
 import BLEInternal
 import Models
 import ModelStubs
@@ -11,6 +12,7 @@ public struct CharacteristicView: View {
     @StateObject private var characteristicBinding: ViewBinding<CharacteristicModelState, AnyCharacteristicModel>
     @State public var isDialogPresent: Bool = false
     @State public var hexString: String = ""
+    @State public var hadWrote: Bool = false
     private let characteristicLogger: CharacteristicModelLogger
     private let deps: DependencyBag
 
@@ -22,12 +24,6 @@ public struct CharacteristicView: View {
             loggingBy: deps.logger
         )
         self.deps = deps
-    }
-    
-    
-    public func presentAlert() -> some View {
-        isDialogPresent.toggle()
-        return self
     }
     
     
@@ -57,30 +53,59 @@ public struct CharacteristicView: View {
                         }
                     }
                     
-                    LabeledContent("ASCII") {
-                        if characteristicBinding.state.value.data.isEmpty {
-                            Text("No Data")
-                        } else if let ascii = String(data: characteristicBinding.state.value.data, encoding: .ascii) {
-                            ScrollableText(ascii)
-                        } else {
-                            ScrollableText("E: Invalid ASCII")
-                                .foregroundStyle(Color(.error))
+                    if !characteristicBinding.state.value.data.isEmpty,
+                       let string = String(data: characteristicBinding.state.value.data, encoding: .utf8),
+                       doesNotContainControlCharactersExceptWhitespacesAndNewLines(string: string) {
+                        LabeledContent("UTF-8 Text") {
+                            ScrollableText(string)
                         }
                     }
-                }
-                
-                if characteristicBinding.state.value.properties.contains(.read) {
+                    
                     Button("Refresh") {
                         characteristicBinding.source.read()
                     }
                     .disabled(!characteristicBinding.state.connection.isConnected)
+                    
+                    if !characteristicBinding.state.connection.isConnected {
+                        Button("Connect to Refresh") {
+                            characteristicBinding.source.connect()
+                        }
+                    }
+                } else {
+                    Text("Not Readable")
+                        .foregroundStyle(Color(.weak))
+                }
+            }
+            
+            Section(header: Text("Actions")) {
+                if !characteristicBinding.state.value.properties.contains(.write) &&
+                    !characteristicBinding.state.value.properties.contains(.writeWithoutResponse) &&
+                    !characteristicBinding.state.value.properties.contains(.notify) {
+                    Text("No Available Actions")
+                        .foregroundStyle(Color(.weak))
                 }
                 
-                if characteristicBinding.state.value.properties.contains(.write) {
+                if characteristicBinding.state.value.properties.contains(.write) || characteristicBinding.state.value.properties.contains(.writeWithoutResponse) {
                     Button("Write") {
                         isDialogPresent = true
                     }
                     .disabled(!characteristicBinding.state.connection.isConnected)
+                    
+                    if hadWrote {
+                        if let error = characteristicBinding.state.value.error {
+                            LabeledContent("Result") {
+                                Text("Failed")
+                            }
+                            
+                            LabeledContent("Error") {
+                                ScrollableText(error.description, foregroundColor: Color(.error))
+                            }
+                        } else {
+                            LabeledContent("Result") {
+                                Text("Success")
+                            }
+                        }
+                    }
                 }
                 
                 if characteristicBinding.state.value.properties.contains(.notify) {
@@ -97,8 +122,11 @@ public struct CharacteristicView: View {
                     }
                 }
                 
-                if !characteristicBinding.state.connection.isConnected {
-                    Button("Connect") {
+                if !characteristicBinding.state.value.properties.contains(.write) &&
+                    !characteristicBinding.state.value.properties.contains(.writeWithoutResponse) &&
+                    !characteristicBinding.state.value.properties.contains(.notify) &&
+                    !characteristicBinding.state.connection.isConnected {
+                    Button("Connect to Write or Notify") {
                         characteristicBinding.source.connect()
                     }
                 }
@@ -107,6 +135,7 @@ public struct CharacteristicView: View {
             Section(header: Text("Properties")) {
                 if characteristicBinding.state.value.properties.isEmpty {
                     Text("No Properties")
+                        .foregroundStyle(Color(.weak))
                 } else {
                     if characteristicBinding.state.value.properties.contains(.broadcast) {
                         LabeledContent("Broadcast") {
@@ -123,6 +152,11 @@ public struct CharacteristicView: View {
                             Text("Yes")
                         }
                     }
+                    if characteristicBinding.state.value.properties.contains(.writeWithoutResponse) {
+                        LabeledContent("Write Without Response") {
+                            Text("Yes")
+                        }
+                    }
                     if characteristicBinding.state.value.properties.contains(.notify) {
                         LabeledContent("Notify") {
                             Text("Yes")
@@ -130,11 +164,6 @@ public struct CharacteristicView: View {
                     }
                     if characteristicBinding.state.value.properties.contains(.indicate) {
                         LabeledContent("Indicate") {
-                            Text("Yes")
-                        }
-                    }
-                    if characteristicBinding.state.value.properties.contains(.writeWithoutResponse) {
-                        LabeledContent("Write Without Response") {
                             Text("Yes")
                         }
                     }
@@ -158,11 +187,6 @@ public struct CharacteristicView: View {
                             Text("Yes")
                         }
                     }
-                    if characteristicBinding.state.value.properties.contains(.notifyEncryptionRequired) {
-                        LabeledContent("Notify Encryption Required") {
-                            Text("Yes")
-                        }
-                    }
                     if characteristicBinding.state.value.properties.contains(.indicateEncryptionRequired) {
                         LabeledContent("Indicate Encryption Required") {
                             Text("Yes")
@@ -176,10 +200,9 @@ public struct CharacteristicView: View {
                 case .notConnectable:
                     HStack {
                         Image(systemName: SFSymbol5.Exclamationmark.circle.rawValue)
-                            .foregroundStyle(Color(.weak))
                         Text("Not Connectable")
-                            .foregroundStyle(Color(.weak))
                     }
+                    .foregroundStyle(Color(.weak))
                 case .connected, .connecting, .connectionFailed, .disconnected, .disconnecting:
                     if let descriptors = characteristicBinding.state.discovery.values {
                         if descriptors.isEmpty {
@@ -227,15 +250,21 @@ public struct CharacteristicView: View {
                     characteristicBinding.source.updateHexString(with: hexString)
                 }
             
-            Button("Request") {
-                characteristicBinding.source.write(type: .withResponse)
+            if characteristicBinding.state.value.properties.contains(.write) {
+                Button("Request") {
+                    characteristicBinding.source.write(type: .withResponse)
+                    hadWrote = true
+                }
+                .disabled(hexString.isEmpty)
             }
-            .disabled(hexString.isEmpty)
             
-            Button("Command") {
-                characteristicBinding.source.write(type: .withoutResponse)
+            if characteristicBinding.state.value.properties.contains(.writeWithoutResponse) {
+                Button("Command") {
+                    characteristicBinding.source.write(type: .withoutResponse)
+                    hadWrote = true
+                }
+                .disabled(hexString.isEmpty)
             }
-            .disabled(hexString.isEmpty)
             
             Button("Cancel", role: .cancel) {}
         }
@@ -270,7 +299,17 @@ private func stubsForPreview() -> [Previewable<AnyCharacteristicModel>] {
     
     let values: [Data] = [
         Data(),
-        Data([0x01, 0x02, 0x03]),
+        Data([0x01, 0x02]),
+        Data("Hello, World!".utf8),
+    ]
+    
+    let properties: [CBCharacteristicProperties] = [
+        [],
+        [.read],
+        [.write],
+        [.writeWithoutResponse],
+        [.read, .notify],
+        [.read, .write, .writeWithoutResponse, .notify],
     ]
     
     let discovery: [DescriptorDiscoveryModelState] = [
@@ -295,22 +334,35 @@ private func stubsForPreview() -> [Previewable<AnyCharacteristicModel>] {
     let states2: [CharacteristicModelState] = values.map { value in
         .makeSuccessfulStub(value: .makeSuccessfulStub(data: value))
     }
+    
+    let states3: [CharacteristicModelState] = properties.map { properties in
+        .makeSuccessfulStub(value: .makeSuccessfulStub(properties: properties))
+    }
 
-    let states3: [CharacteristicModelState] = discovery.map { discovery in
+    let states4: [CharacteristicModelState] = discovery.map { discovery in
         .makeSuccessfulStub(discovery: discovery)
     }
     
-    let states4: [CharacteristicModelState] = connections.map { connection in
+    let states5: [CharacteristicModelState] = connections.map { connection in
         .makeSuccessfulStub(connection: connection)
     }
     
-    return (states1 + states2 + states3 + states4)
+    return (states1 + states2 + states3 + states4 + states5)
         .map { state in
             return Previewable(
                 StubCharacteristicModel(state: state).eraseToAny(),
                 describing: "\(state.debugDescription)"
             )
         }
+}
+
+
+fileprivate let controlCharactersExceptWhitespacesAndNewLines = CharacterSet.controlCharacters.subtracting(.whitespacesAndNewlines)
+
+
+fileprivate func doesNotContainControlCharactersExceptWhitespacesAndNewLines(string: String) -> Bool {
+    return string.unicodeScalars.allSatisfy { !controlCharactersExceptWhitespacesAndNewLines.contains($0)
+    }
 }
 
 
@@ -322,7 +374,6 @@ internal struct CharacteristicView_Previews: PreviewProvider {
                     of: wrapper.value,
                     holding: .makeStub()
                 )
-                .presentAlert()
             }
             .previewDisplayName(wrapper.description)
             .previewLayout(.sizeThatFits)

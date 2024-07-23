@@ -1,8 +1,10 @@
+import Foundation
 import Combine
+import CoreBluetooth
 import CoreBluetoothTestable
 
 
-public struct DiscoveryTaskFailure: Error, CustomStringConvertible {
+public struct TaskFailure: Error, CustomStringConvertible {
     public let description: String
     
     
@@ -27,7 +29,7 @@ public struct DiscoveryTaskFailure: Error, CustomStringConvertible {
 
 
 public enum DiscoveryTask {
-    public static func discoverServices(onPeripheral peripheral: any PeripheralProtocol) async -> Result<[any ServiceProtocol], DiscoveryTaskFailure> {
+    public static func discoverServices(onPeripheral peripheral: any PeripheralProtocol) async -> Result<[any ServiceProtocol], TaskFailure> {
         return await withCheckedContinuation { continuation in
             var cancellable: AnyCancellable?
             cancellable = peripheral.didDiscoverServices
@@ -49,7 +51,7 @@ public enum DiscoveryTask {
     public static func discoverCharacteristics(
         forService service: any ServiceProtocol,
         onPeripheral peripheral: any PeripheralProtocol
-    ) async -> Result<[any CharacteristicProtocol], DiscoveryTaskFailure> {
+    ) async -> Result<[any CharacteristicProtocol], TaskFailure> {
         return await withCheckedContinuation { continuation in
             var cancellable: AnyCancellable?
             cancellable = peripheral.didDiscoverCharacteristicsForService
@@ -72,7 +74,7 @@ public enum DiscoveryTask {
     public static func discoverDescriptors(
         forCharacteristic characteristic: any CharacteristicProtocol,
         onPeripheral peripheral: any PeripheralProtocol
-    ) async -> Result<[any DescriptorProtocol], DiscoveryTaskFailure> {
+    ) async -> Result<[any DescriptorProtocol], TaskFailure> {
         return await withCheckedContinuation { continuation in
             var cancellable: AnyCancellable?
             cancellable = peripheral.didDiscoverDescriptorsForCharacteristic
@@ -88,6 +90,31 @@ public enum DiscoveryTask {
                 }
             
             peripheral.discoverDescriptors(for: characteristic)
+        }
+    }
+    
+    
+    public static func write(
+        toCharacteristic characteristic: any CharacteristicProtocol,
+        value: Data,
+        type: CBCharacteristicWriteType,
+        onPeripheral peripheral: any PeripheralProtocol
+    ) async -> Result<Void, TaskFailure> {
+        return await withCheckedContinuation { continuation in
+            var cancellable: AnyCancellable?
+            cancellable = peripheral.didWriteValueForCharacteristic
+                .sink { resp in
+                    guard resp.characteristic.uuid == characteristic.uuid else { return }
+                    defer { cancellable?.cancel() }
+                    
+                    if resp.error == nil {
+                        continuation.resume(returning: .success(()))
+                    } else {
+                        continuation.resume(returning: .failure(.init(wrapping: resp.error)))
+                    }
+                }
+            
+            peripheral.writeValue(value, for: characteristic, type: type)
         }
     }
 }

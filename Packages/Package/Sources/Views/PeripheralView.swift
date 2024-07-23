@@ -138,7 +138,7 @@ public struct PeripheralView: View {
                         }
                     }
                     
-                    Button("Assume TX Power to -50 dBm") {
+                    Button("Assume TX Power as -50 dBm") {
                         txPower = -50
                         distanceBinding.source.update(environmentalFactorTo: Double(txPower))
                     }

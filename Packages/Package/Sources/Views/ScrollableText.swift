@@ -4,10 +4,12 @@ import EditMenu
 
 public struct ScrollableText: View {
     private let text: String
+    private let foregroundColor: Color
 
     
-    public init(_ text: String) {
+    public init(_ text: String, foregroundColor: Color? = nil) {
         self.text = text
+        self.foregroundColor = foregroundColor ?? Color(.weak)
     }
 
     
@@ -15,9 +17,10 @@ public struct ScrollableText: View {
         GeometryReader { geometry in
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(text)
-                    .foregroundStyle(Color(.weak))
                     .lineLimit(1)
                     .background(Color(.secondarySystemGroupedBackground))
+                    // XXX: For unknown reasons, modifiers do not apply on views inside editMenu.
+                    .foregroundColor(foregroundColor)
                     .editMenu {
                         EditMenuItem("Copy") {
                             UIPasteboard.general.string = text
@@ -52,8 +55,7 @@ public struct ScrollableText: View {
             }
 
             LabeledContent("Colored") {
-                ScrollableText("This is a long text that is going to be scrolled.")
-                    .foregroundStyle(Color(.error))
+                ScrollableText("This is a long text that is going to be scrolled.", foregroundColor: Color(.error))
             }
         }
     }

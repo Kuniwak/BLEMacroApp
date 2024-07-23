@@ -11,6 +11,7 @@ public struct DescriptorView: View {
     @StateObject private var binding: ViewBinding<DescriptorModelState, AnyDescriptorModel>
     @State private var isDialogPresent: Bool = false
     @State private var hexString: String = ""
+    @State private var hadWrote: Bool = false
     
     
     public init(observing model: any DescriptorModelProtocol) {
@@ -63,12 +64,14 @@ public struct DescriptorView: View {
                         Text("No Data")
                     }
                 }
-
+                
                 Button("Refresh") {
                     binding.source.read()
                 }
                 .disabled(!binding.state.connection.isConnected)
-                
+            }
+            
+            Section(header: Text("Actions")) {
                 Button("Write") {
                     isDialogPresent = true
                 }
@@ -84,8 +87,24 @@ public struct DescriptorView: View {
                     .foregroundColor(Color(.weak))
                 }
                 
+                if hadWrote {
+                    if let error = binding.state.value.error {
+                        LabeledContent("Result") {
+                            Text("Failed")
+                        }
+                        
+                        LabeledContent("Error") {
+                            ScrollableText(error.description)
+                        }
+                    } else {
+                        LabeledContent("Result") {
+                            Text("Success")
+                        }
+                    }
+                }
+                
                 if !binding.state.connection.isConnected {
-                    Button("Connect") {
+                    Button("Connect to Write") {
                         binding.source.connect()
                     }
                 }
