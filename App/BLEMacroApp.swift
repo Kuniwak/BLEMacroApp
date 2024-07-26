@@ -19,7 +19,7 @@ public struct BLEMacroApp: App {
 internal struct BLEMacroApp: App {
     public var body: some Scene {
         WindowGroup {
-            RootView.compose(logConfigurations: .default)
+            RootView(logConfigurations: .default)
         }
     }
 }

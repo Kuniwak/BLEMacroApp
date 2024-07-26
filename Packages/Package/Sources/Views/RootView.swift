@@ -26,8 +26,15 @@ public struct RootView: View {
     }
     
     
-    public static func compose(logConfigurations: LogConfigurations) -> RootView {
-        return .init(
+    public init(searchModel: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
+        self.searchModel = searchModel
+        self._binding = StateObject(wrappedValue: ViewBinding(source: searchModel.eraseToAny()))
+        self.logger = logger
+    }
+    
+    
+    public init(logConfigurations: LogConfigurations) {
+        self.init(
             searchModel: PeripheralSearchModel(
                 observing: PeripheralDiscoveryModel(
                     observing: SendableCentralManager(
@@ -50,14 +57,7 @@ public struct RootView: View {
             )
         )
     }
-    
-    
-    public init(searchModel: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
-        self.searchModel = searchModel
-        self._binding = StateObject(wrappedValue: ViewBinding(source: searchModel.eraseToAny()))
-        self.logger = logger
-    }
-    
+
     
     public var body: some View {
         TabView {
