@@ -22,7 +22,7 @@ let package = Package(
         .package(url: "https://github.com/Kuniwak/swift-logger.git", .upToNextMajor(from: "2.0.0")),
         .package(url: "https://github.com/Kuniwak/swift-ble-assigned-numbers.git", .upToNextMajor(from: "2.0.0")),
         .package(url: "https://github.com/Kuniwak/core-bluetooth-testable.git", .upToNextMajor(from: "6.1.0")),
-        .package(url: "https://github.com/Kuniwak/swift-ble-macro.git", .upToNextMajor(from: "4.0.0")),
+        .package(url: "https://github.com/Kuniwak/swift-ble-macro.git", .upToNextMajor(from: "5.0.1")),
         .package(url: "https://github.com/cezheng/Fuzi.git", .upToNextMajor(from: "3.1.3")),
         .package(url: "https://github.com/Kuniwak/MirrorDiffKit.git", .upToNextMajor(from: "6.0.0")),
         .package(url: "https://github.com/Nirma/SFSymbol.git", .upToNextMajor(from: "2.3.0")),
@@ -48,13 +48,6 @@ let package = Package(
                 .catalogs,
                 .bleAssignedNumbers,
                 .testing,
-            ],
-            swiftSettings: SwiftSetting.allCases
-        ),
-        .target(
-            name: "CoreBluetoothTasks",
-            dependencies: [
-                .coreBluetoothTestable,
             ],
             swiftSettings: SwiftSetting.allCases
         ),
@@ -95,7 +88,7 @@ let package = Package(
                 .concurrentCombine,
                 .taskExtensions,
                 .coreBluetoothTestable,
-                .coreBluetoothTasks,
+                .bleTasks,
                 .bleAssignedNumbers,
                 .bleMacro,
                 .bleMacroCompiler,
@@ -175,7 +168,7 @@ private extension Target.Dependency {
     static let logger: Self = .product(name: "Logger", package: "swift-logger")
     static let coreBluetoothTestable: Self = .product(name: "CoreBluetoothTestable", package: "core-bluetooth-testable")
     static let coreBluetoothStub: Self = .product(name: "CoreBluetoothStub", package: "core-bluetooth-testable")
-    static let coreBluetoothTasks: Self = "CoreBluetoothTasks"
+    static let bleTasks: Self = .product(name: "BLETasks", package: "swift-ble-macro")
     static let concurrentCombine: Self = "ConcurrentCombine"
     static let taskExtensions: Self = "TaskExtensions"
     static let bleAssignedNumbers: Self = .product(name: "BLEAssignedNumbers", package: "swift-ble-assigned-numbers")

@@ -59,8 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Kuniwak/swift-ble-macro.git",
       "state" : {
-        "revision" : "74878879a07679f58132e9a3bb122c5d9852a971",
-        "version" : "4.0.0"
+        "revision" : "184a9fc6bc9f883dc3e17081d3c4587989cb8a5b",
+        "version" : "5.0.1"
       }
     },
     {

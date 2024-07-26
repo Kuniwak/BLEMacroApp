@@ -3,7 +3,7 @@ import Combine
 import ConcurrentCombine
 import CoreBluetooth
 import CoreBluetoothTestable
-import CoreBluetoothTasks
+import BLETasks
 import ModelFoundation
 import Catalogs
 import MirrorDiffKit
@@ -362,8 +362,8 @@ private func serviceDiscoveryStrategy(
     connectingBy connectionModel: any ConnectionModelProtocol
 ) -> () async -> Result<[AnyServiceModel], PeripheralModelFailure> {
     return {
-        await DiscoveryTask
-            .discoverServices(onPeripheral: peripheral)
+        await PeripheralTasks(peripheral: peripheral)
+            .discoverServices()
             .map { services in
                 services.map { service in
                     ServiceModel(
