@@ -9,7 +9,11 @@ public final actor CharacteristicModelLogger {
     public init(observing characteristicModel: any CharacteristicModelProtocol, loggingBy logger: any LoggerProtocol) {
         characteristicModel.stateDidChange
             .sink { state in
-                logger.debug("CharacteristicModel#stateDidChange: \(state)")
+                if state.isFailed {
+                    logger.notice("CharacteristicModel#stateDidChange: \(state)")
+                } else {
+                    logger.debug("CharacteristicModel#stateDidChange: \(state)")
+                }
             }
             .store(in: &cancellables)
     }

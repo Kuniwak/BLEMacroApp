@@ -9,7 +9,12 @@ public final actor ConnectionModelLogger {
     public init(observing connectionModel: any ConnectionModelProtocol, loggingBy logger: any LoggerProtocol) {
         connectionModel.stateDidChange
             .sink { state in
-                logger.debug("ConnectionModel#stateDidChange: \(state)")
+                switch state {
+                case .connectionFailed(let error):
+                    logger.notice("ConnectionModel#stateDidChange: \(state)")
+                default:
+                    logger.debug("ConnectionModel#stateDidChange: \(state)")
+                }
             }
             .store(in: &cancellables)
     }

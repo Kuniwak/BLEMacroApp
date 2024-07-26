@@ -9,7 +9,11 @@ public final actor PeripheralSearchModelLogger {
     public init(observing searchModel: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
         searchModel.stateDidChange
             .sink { state in
-                logger.debug("PeripheralSearchModel#stateDidChange: \(state)")
+                if state.isFailed {
+                    logger.notice("PeripheralSearchModel#stateDidChange: \(state)")
+                } else {
+                    logger.debug("PeripheralSearchModel#stateDidChange: \(state)")
+                }
             }
             .store(in: &cancellables)
     }

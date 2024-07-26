@@ -30,6 +30,17 @@ public enum DiscoveryModelState<Value, Failure: Error> {
             return false
         }
     }
+    
+    
+    public var isFailed: Bool {
+        switch self {
+        case .discoveryFailed:
+            return true
+        case .discovered, .notDiscoveredYet, .discovering:
+            return false
+        }
+    }
+    }
 }
 
 

@@ -79,6 +79,16 @@ public enum ConnectionModelState: Equatable {
             return false
         }
     }
+    
+    
+    public var isFailed: Bool {
+        switch self {
+        case .connectionFailed:
+            return true
+        case .disconnected, .connecting, .disconnecting, .notConnectable, .connected:
+            return false
+        }
+    }
 }
 
 

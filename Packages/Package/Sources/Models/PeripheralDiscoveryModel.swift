@@ -116,6 +116,16 @@ public enum PeripheralDiscoveryModelState: Equatable {
             return true
         }
     }
+    
+    
+    public var isFailed: Bool {
+        switch self {
+        case .discoveryFailed:
+            return true
+        case .idle, .ready, .discovering, .discovered:
+            return false
+        }
+    }
 }
 
 

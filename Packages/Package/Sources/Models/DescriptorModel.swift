@@ -25,6 +25,11 @@ public struct DescriptorModelState: Equatable {
     }
     
     
+    public var isFailed: Bool {
+        value.error != nil || connection.isFailed
+    }
+    
+    
     public static func initialState(
         descriptor: any DescriptorProtocol,
         connection: ConnectionModelState

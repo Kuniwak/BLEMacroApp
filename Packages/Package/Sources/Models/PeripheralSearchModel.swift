@@ -87,6 +87,11 @@ public struct PeripheralSearchModelState {
     }
     
     
+    public var isFailed: Bool {
+        discovery.isFailed
+    }
+
+    
     public static func from(discovery: PeripheralDiscoveryModelState, searchQuery: SearchQuery) -> Self {
         .init(
             discovery: discovery.filter(bySearchQuery: searchQuery),

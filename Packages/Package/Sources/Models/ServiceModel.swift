@@ -1,7 +1,7 @@
 import Combine
 import CoreBluetooth
 import CoreBluetoothTestable
-import CoreBluetoothTasks
+import BLETasks
 import ModelFoundation
 import Catalogs
 
@@ -53,6 +53,11 @@ public struct ServiceModelState: Equatable {
         self.isPrimary = isPrimary
         self.connection = connection
         self.discovery = discovery
+    }
+    
+    
+    public var isFailed: Bool {
+        connection.isFailed || discovery.isFailed
     }
 }
 
@@ -199,8 +204,8 @@ private func characteristicDiscoveryStrategy(
     connectingBy connectionModel: any ConnectionModelProtocol
 ) -> () async -> Result<[AnyCharacteristicModel], ServiceModelFailure> {
     return {
-        await DiscoveryTask
-            .discoverCharacteristics(forService: Service, onPeripheral: peripheral)
+        await PeripheralTasks(peripheral: peripheral)
+            .discoverCharacteristics(forService: Service)
             .map { characteristics in
                 characteristics.map { characteristic in
                     CharacteristicModel(

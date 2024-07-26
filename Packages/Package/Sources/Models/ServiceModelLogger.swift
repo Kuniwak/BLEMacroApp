@@ -9,7 +9,11 @@ public final actor ServiceModelLogger {
     public init(observing serviceModel: any ServiceModelProtocol, loggingBy logger: any LoggerProtocol) {
         serviceModel.stateDidChange
             .sink { state in
-                logger.debug("ServiceModel#stateDidChange: \(state)")
+                if state.isFailed {
+                    logger.notice("ServiceModel#stateDidChange: \(state)")
+                } else {
+                    logger.debug("ServiceModel#stateDidChange: \(state)")
+                }
             }
             .store(in: &cancellables)
     }

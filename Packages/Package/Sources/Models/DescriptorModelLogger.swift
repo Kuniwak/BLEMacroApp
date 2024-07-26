@@ -9,7 +9,11 @@ public final actor DescriptorModelLogger {
     public init(observing descriptorModel: any DescriptorModelProtocol, loggingBy logger: any LoggerProtocol) {
         descriptorModel.stateDidChange
             .sink { state in
-                logger.debug("DescriptorModel#stateDidChange: \(state.description)")
+                if state.isFailed {
+                    logger.notice("DescriptorModel#stateDidChange: \(state.description)")
+                } else {
+                    logger.debug("DescriptorModel#stateDidChange: \(state.description)")
+                }
             }
             .store(in: &cancellables)
     }
