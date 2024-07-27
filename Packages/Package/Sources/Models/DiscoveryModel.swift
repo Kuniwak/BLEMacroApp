@@ -40,7 +40,6 @@ public enum DiscoveryModelState<Value, Failure: Error> {
             return false
         }
     }
-    }
 }
 
 
@@ -136,6 +135,27 @@ public final actor AnyDiscoveryModel<Value, Failure: Error>: DiscoveryModelProto
 }
 
 
+// ```marmaid
+// stateDiagram-v2
+//     state ".notDiscoveredYet" as notDiscoveredYet
+//     state ".discovering(nil)" as discovering_nil
+//     state ".discovered([Value])" as discovered
+//     state ".discoveryFailed(Failure, nil)" as discoveryFailed_nil
+//     state ".discovering([Value])" as discovering_some
+//     state ".discoveryFailed(Failure, [Value])" as discoveryFailed_some
+//
+//     [*] --> notDiscoveredYet: T1
+//     notDiscoveredYet --> discovering_nil: T2 discover
+//     discovering_nil --> discovering_nil: T3 discover
+//     discovering_nil --> discovered: T4 tau
+//     discovering_nil --> discoveryFailed_nil: T5 tau
+//     discoveryFailed_nil --> discovering_nil: T6 discover
+//     discovered --> discovering_some: T7 discover
+//     discovering_some --> discovering_some: T8 discover
+//     discovering_some --> discovered: T9 tau
+//     discovering_some --> discoveryFailed_some: T10 tau
+//     discoveryFailed_some --> discovering_some: T11 discover
+// ```
 public final actor DiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol {
     private let discoverStrategy: () async -> Result<[Value], Failure>
     
@@ -145,30 +165,33 @@ public final actor DiscoveryModel<Value, Failure: Error>: DiscoveryModelProtocol
     
 
     public init(discoveringBy discoverStrategy: @escaping () async -> Result<[Value], Failure>) {
-        self.stateDidChangeSubject = ConcurrentValueSubject(.notDiscoveredYet)
+        self.stateDidChangeSubject = ConcurrentValueSubject(.notDiscoveredYet) // T1
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
         self.discoverStrategy = discoverStrategy
     }
     
     
     nonisolated public func discover() {
-        Task {
+        Task { await discoverInternal() }
+    }
+    
+    
+    private func discoverInternal() async {
+        await self.stateDidChangeSubject.change { prev in
+            guard !prev.isDiscovering else { return prev } // T3, T8
+            return .discovering(prev.values) // T2, T6, T7, T11
+        }
+        
+        switch await self.discoverStrategy() {
+        case .success(let values):
             await self.stateDidChangeSubject.change { prev in
-                guard !prev.isDiscovering else { return prev }
-                return .discovering(prev.values)
+                guard case .discovering = prev else { return prev }
+                return .discovered(values) // T4, T9
             }
-            
-            switch await self.discoverStrategy() {
-            case .success(let values):
-                await self.stateDidChangeSubject.change { prev in
-                    guard case .discovering = prev else { return prev }
-                    return .discovered(values)
-                }
-            case .failure(let error):
-                await self.stateDidChangeSubject.change { prev in
-                    guard case .discovering = prev else { return prev }
-                    return .discoveryFailed(error, prev.values)
-                }
+        case .failure(let error):
+            await self.stateDidChangeSubject.change { prev in
+                guard case .discovering = prev else { return prev }
+                return .discoveryFailed(error, prev.values) // T5, T10
             }
         }
     }

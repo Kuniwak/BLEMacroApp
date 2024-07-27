@@ -45,7 +45,7 @@ private struct TestCase {
         description: "Empty search query match by manufacturer name",
         peripheral: .makeStub(
             name: .success(nil),
-            manufacturerData: .knownName("EXAMPLE", Data())
+            manufacturerData: .knownName(.init(name: "EXAMPLE", 0x01, 0x23), Data())
         ),
         searchQuery: "",
         expected: true
@@ -72,7 +72,7 @@ private struct TestCase {
         description: "Match by Manufacture Name",
         peripheral: .makeStub(
             name: .success(nil),
-            manufacturerData: .knownName("__MANUFACTURER__", Data())
+            manufacturerData: .knownName(.init(name: "__MANUFACTURER__", 0x01, 0x23), Data())
         ),
         searchQuery: "MANUFACTURER",
         expected: true

@@ -10,7 +10,7 @@ public final actor ConnectionModelLogger {
         connectionModel.stateDidChange
             .sink { state in
                 switch state {
-                case .connectionFailed(let error):
+                case .connectionFailed:
                     logger.notice("ConnectionModel#stateDidChange: \(state)")
                 default:
                     logger.debug("ConnectionModel#stateDidChange: \(state)")

@@ -170,20 +170,20 @@ public final actor AnyConnectionModel: ConnectionModelProtocol {
 
 // ```marmaid
 // stateDiagram-v2
-//     state ".notConnectable" as notconnectable
+//     state ".notConnectable" as notConnectable
 //     state ".disconnected" as disconnected
-//     state ".connectionFailed(error)" as connectionfailed
+//     state ".connectionFailed(error)" as connectionFailed
 //     state ".connecting" as connecting
 //     state ".connected" as connected
 //
-//     [*] --> notconnectable: T1 tau
-//     [*] --> disconnected: T2 tau
-//     disconnected --> connecting: T3 connect()
-//     connecting --> connected: T4 tau
-//     connecting --> connectionfailed: T5 tau
-//     connectionfailed --> connecting: T6 connect()
-//     connected --> disconnecting: T7 disconnect()
-//     disconnecting --> disconnected: T8 tau
+//     [*] --> notConnectable: t1 tau
+//     [*] --> disconnected: t2 tau
+//     disconnected --> connecting: t3 connect
+//     connecting --> connected: t4 tau
+//     connecting --> connectionFailed: t5 tau
+//     connectionFailed --> connecting: t6 connect
+//     connected --> disconnecting: t7 disconnect
+//     disconnecting --> disconnected: t8 tau
 // ```
 public final actor ConnectionModel: ConnectionModelProtocol {
     private let peripheral: any PeripheralProtocol
@@ -208,7 +208,7 @@ public final actor ConnectionModel: ConnectionModelProtocol {
         self.peripheral = peripheral
         self.id = peripheral.identifier
         
-        let initialState: State = .initialState(isConnectable: isConnectable) // T1, T2
+        let initialState: State = .initialState(isConnectable: isConnectable) // t1, t2
         self.initialState = initialState
         let didUpdateSubject = ConcurrentValueSubject<ConnectionModelState, Never>(initialState)
         self.stateDidChangeSubject = didUpdateSubject
@@ -221,13 +221,7 @@ public final actor ConnectionModel: ConnectionModelProtocol {
                 guard let self else { return }
                 guard peripheral.identifier == self.id else { return }
                 
-                Task {
-                    await self.stateDidChangeSubject.change { prev in
-                        guard case .connecting = prev else { return prev }
-                        // T4
-                        return .connected
-                    }
-                }
+                Task { await self.didConnect() }
             }
             .store(in: &mutableCancellables)
         
@@ -236,13 +230,7 @@ public final actor ConnectionModel: ConnectionModelProtocol {
                 guard let self else { return }
                 guard resp.peripheral.identifier == self.id else { return }
                 
-                Task {
-                    await self.stateDidChangeSubject.change { prev in
-                        guard case .connecting = prev else { return prev }
-                        // T5
-                        return.connectionFailed(.init(wrapping: resp.error))
-                    }
-                }
+                Task { await self.didFailToConnect(error: resp.error) }
             }
             .store(in: &mutableCancellables)
         
@@ -251,12 +239,7 @@ public final actor ConnectionModel: ConnectionModelProtocol {
                 guard let self else { return }
                 guard resp.peripheral.identifier == self.id else { return }
                 
-                Task {
-                    await self.stateDidChangeSubject.change { prev in
-                        // T8
-                        return .disconnected
-                    }
-                }
+                Task { await self.didDisconnect(error: resp.error) }
             }
             .store(in: &mutableCancellables)
         
@@ -275,10 +258,9 @@ public final actor ConnectionModel: ConnectionModelProtocol {
             await stateDidChangeSubject.change { prev in
                 switch prev {
                 case .disconnected, .connectionFailed:
-                    // T3, T6
-                    return .connecting
+                    return .connecting // t3, t6
                 default:
-                    return prev
+                    return prev // r1
                 }
             }
             await centralManager.connect(peripheral)
@@ -291,13 +273,39 @@ public final actor ConnectionModel: ConnectionModelProtocol {
             await stateDidChangeSubject.change { prev in
                 switch prev {
                 case .connected:
-                    // T7
-                    return .disconnecting
+                    return .disconnecting // t7
                 default:
-                    return prev
+                    return prev // r2
                 }
             }
             await centralManager.cancelPeripheralConnection(peripheral)
+        }
+    }
+    
+    
+    private func didConnect() async {
+        await stateDidChangeSubject.change { prev in
+            guard case .connecting = prev else { return prev }
+            return .connected // t4
+        }
+    }
+    
+    
+    private func didFailToConnect(error: (any Error)?) async {
+        await stateDidChangeSubject.change { prev in
+            guard case .connecting = prev else { return prev }
+            return .connectionFailed(.init(wrapping: error)) // t5
+        }
+    }
+    
+    
+    private func didDisconnect(error: (any Error)?) async {
+        await stateDidChangeSubject.change { prev in
+            if let error {
+                return .connectionFailed(.init(wrapping: error)) // t5
+            } else {
+                return .disconnected // t8
+            }
         }
     }
 }

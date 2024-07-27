@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "80E289FD-8643-4EE0-8B24-DBB5AF4E9F7E",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "TaskExtensionTests",
+        "name" : "TaskExtensionTests"
+      }
+    }
+  ],
+  "version" : 1
+}

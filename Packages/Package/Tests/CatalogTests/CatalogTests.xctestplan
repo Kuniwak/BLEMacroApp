@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "DADC0D1B-9AF5-4C20-9420-D7B78FBF08CB",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "CatalogTests",
+        "name" : "CatalogTests"
+      }
+    }
+  ],
+  "version" : 1
+}

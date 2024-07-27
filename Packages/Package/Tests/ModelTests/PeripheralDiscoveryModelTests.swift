@@ -1,5 +1,4 @@
 import Testing
-import XCTest
 import CoreBluetooth
 import ConcurrentCombine
 import CoreBluetoothStub
@@ -10,71 +9,65 @@ import ModelStubs
 private struct TestCase {
     let discoveryState: PeripheralDiscoveryModelState
     let centralManagerState: CBManagerState
-    let action: ((StubCentralManager, PeripheralDiscoveryModel) async -> Void)?
+    let action: ((StubSendableCentralManager, PeripheralDiscoveryModel) -> Void)?
     let expected: [PeripheralDiscoveryModelState]
     let sourceLocation: SourceLocation
 }
 
 
-private func testCases() -> [TestCase]{
+private func testCases() -> [String: TestCase] {
     return [
-        // t0
-        TestCase(
+        "t0": TestCase(
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
             action: nil,
             expected: [.idle(requestedDiscovery: false)],
             sourceLocation: SourceLocation()
         ),
-        // t1
-        TestCase(
+        "t1": TestCase(
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .unknown,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOn },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOn },
             expected: [
                 .idle(requestedDiscovery: true),
-                .discovering([]),
+                .discovering([], []),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t2
-        TestCase(
+        "t2": TestCase(
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
-            action: { _, discovery async in await discovery.startScan() },
+            action: { _, discovery in discovery.startScan() },
             expected: [
                 .idle(requestedDiscovery: false),
                 .idle(requestedDiscovery: true),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t3
-        TestCase(
+        "t3": TestCase(
             discoveryState: .ready,
             centralManagerState: .poweredOn,
-            action: { _, discovery async in await discovery.startScan() },
+            action: { _, discovery in discovery.startScan() },
             expected: [
                 .ready,
-                .discovering([]),
+                .discovering([], []),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t4
-        TestCase(
+        "t4": TestCase(
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .poweredOn,
-            action: { centralmanager, _ async in centralmanager.didUpdateStateSubject.value = .poweredOn },
+            action: { centralmanager, _ in centralmanager.didUpdateStateSubject.value = .poweredOn },
             expected: [
                 .idle(requestedDiscovery: true),
-                .discovering([]),
+                .discovering([], []),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t5
-        TestCase(
-            discoveryState: .discovering([]),
+        "t5": TestCase(
+            discoveryState: .discovering([], []),
             centralManagerState: .poweredOn,
-            action: { centralmanager, _ async in
+            action: { centralmanager, _ in
                 centralmanager.didDiscoverPeripheralSubject
                     .send((
                         peripheral: StubPeripheral(
@@ -87,135 +80,125 @@ private func testCases() -> [TestCase]{
                     ))
             },
             expected: [
-                .discovering([]),
+                .discovering([], []),
                 .discovering([
                     StubPeripheralModel(state: .init(
                         uuid: StubUUID.from(byte: 1),
                         name: .success("Example"),
                         rssi: .success(-50),
                         manufacturerData: nil,
+                        advertisementData: [:],
                         connection: .disconnected,
                         discovery: .notDiscoveredYet
                     )).eraseToAny(),
-                ]),
+                ], [StubUUID.from(byte: 1)]),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t6
-        TestCase(
-            discoveryState: .discovering([]),
+        "t6": TestCase(
+            discoveryState: .discovering([], []),
             centralManagerState: .poweredOn,
-            action: { _, discoveryModel async in await discoveryModel.stopScan() },
+            action: { _, discoveryModel in discoveryModel.stopScan() },
             expected: [
-                .discovering([]),
-                .discovered([]),
+                .discovering([], []),
+                .discovered([], []),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t7
-        TestCase(
-            discoveryState: .discovered([]),
+        "t7": TestCase(
+            discoveryState: .discovered([], []),
             centralManagerState: .poweredOn,
-            action: { _, discoveryModel async in await discoveryModel.startScan() },
+            action: { _, discoveryModel in discoveryModel.startScan() },
             expected: [
-                .discovered([]),
-                .discovering([]),
+                .discovered([], []),
+                .discovering([], []),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t8
-        TestCase(
+        "t8": TestCase(
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .unsupported },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .unsupported },
             expected: [
                 .idle(requestedDiscovery: false),
                 .discoveryFailed(.unsupported),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t9
-        TestCase(
+        "t9": TestCase(
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .unknown,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .unsupported },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .unsupported },
             expected: [
                 .idle(requestedDiscovery: true),
                 .discoveryFailed(.powerOff),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t10
-        TestCase(
+        "t10": TestCase(
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOff },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
             expected: [
                 .idle(requestedDiscovery: false),
                 .discoveryFailed(.powerOff),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t11
-        TestCase(
+        "t11": TestCase(
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .unknown,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOff },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
             expected: [
                 .idle(requestedDiscovery: true),
                 .discoveryFailed(.powerOff),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t12
-        TestCase(
+        "t12": TestCase(
             discoveryState: .ready,
             centralManagerState: .poweredOn,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOff },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
             expected: [
                 .ready,
                 .discoveryFailed(.powerOff),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t13
-        TestCase(
-            discoveryState: .discovering([]),
+        "t13": TestCase(
+            discoveryState: .discovering([], []),
             centralManagerState: .poweredOn,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOff },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
             expected: [
-                .discovering([]),
+                .discovering([], []),
                 .discoveryFailed(.powerOff),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t14
-        TestCase(
-            discoveryState: .discovered([]),
+        "t14": TestCase(
+            discoveryState: .discovered([], []),
             centralManagerState: .poweredOn,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOff },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
             expected: [
-                .discovered([]),
+                .discovered([], []),
                 .discoveryFailed(.powerOff),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t15
-        TestCase(
+        "t15": TestCase(
             discoveryState: .discoveryFailed(.unauthorized),
             centralManagerState: .poweredOff,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOff },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
             expected: [
                 .discoveryFailed(.unauthorized),
                 .discoveryFailed(.powerOff),
             ],
             sourceLocation: SourceLocation()
         ),
-        // t16
-        TestCase(
+        "t16": TestCase(
             discoveryState: .discoveryFailed(.unauthorized),
             centralManagerState: .poweredOff,
-            action: { centralManager, _ async in centralManager.didUpdateStateSubject.value = .poweredOn },
+            action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOn },
             expected: [
                 .discoveryFailed(.unauthorized),
                 .ready
@@ -227,17 +210,16 @@ private func testCases() -> [TestCase]{
 
 
 @Test(arguments: testCases())
-private func testPeripheralDiscoveryModel(testCase: TestCase) async throws {
-    let centralManager = StubCentralManager(state: testCase.centralManagerState)
+private func testPeripheralDiscoveryModel(pair: (String, TestCase)) async throws {
+    let (label, testCase) = pair
+    let centralManager = StubSendableCentralManager(state: testCase.centralManagerState)
     let discovery = PeripheralDiscoveryModel(observing: centralManager, startsWith: testCase.discoveryState)
     let recorder = Recorder(observing: discovery.stateDidChange.prefix(testCase.expected.count))
     
     if let action = testCase.action {
-        Task {
-            await action(centralManager, discovery)
-        }
+        action(centralManager, discovery)
     }
     
     let actual = try await recorder.values(timeout: 1)
-    #expect(actual == testCase.expected, sourceLocation: testCase.sourceLocation)
+    #expect(actual == testCase.expected, .init(rawValue: label), sourceLocation: testCase.sourceLocation)
 }

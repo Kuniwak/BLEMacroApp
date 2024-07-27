@@ -1,8 +1,8 @@
 {
   "configurations" : [
     {
-      "id" : "2A60B3F4-EB76-4706-91B0-3B533C50C785",
-      "name" : "Test Scheme Action",
+      "id" : "75641BA1-1623-4167-A376-5356CFA2A021",
+      "name" : "Configuration 1",
       "options" : {
 
       }
@@ -13,11 +13,10 @@
   },
   "testTargets" : [
     {
-      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:",
-        "identifier" : "ModelTests",
-        "name" : "ModelTests"
+        "identifier" : "ConcurrentCombineTests",
+        "name" : "ConcurrentCombineTests"
       }
     }
   ],

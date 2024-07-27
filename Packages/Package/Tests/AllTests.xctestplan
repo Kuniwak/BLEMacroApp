@@ -1,0 +1,52 @@
+{
+  "configurations" : [
+    {
+      "id" : "310CF3AA-1ADE-44A6-9961-0E961F97AADC",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/Package",
+        "identifier" : "ConcurrentCombineTests",
+        "name" : "ConcurrentCombineTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/Package",
+        "identifier" : "ModelTests",
+        "name" : "ModelTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/Package",
+        "identifier" : "TaskExtensionTests",
+        "name" : "TaskExtensionTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:BLEMacroApp.xcodeproj",
+        "identifier" : "62E4E3C92C16629C00C41789",
+        "name" : "BLEMacroAppTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Packages\/Package",
+        "identifier" : "CatalogTests",
+        "name" : "CatalogTests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -1,30 +1,37 @@
 import Combine
 import CoreBluetooth
 import ModelFoundation
+import ConcurrentCombine
 
 
 public struct ConnectableDiscoveryModelState<Value, Failure: Error> {
     public let discovery: DiscoveryModelState<Value, Failure>
     public let connection: ConnectionModelState
+    public let discoveryRequested: Bool
     
     
-    public init(discovery: DiscoveryModelState<Value, Failure>, connection: ConnectionModelState) {
+    public init(
+        discovery: DiscoveryModelState<Value, Failure>,
+        connection: ConnectionModelState,
+        discoveryRequested: Bool
+    ) {
         self.discovery = discovery
         self.connection = connection
+        self.discoveryRequested = discoveryRequested
     }
 }
 
 
 extension ConnectableDiscoveryModelState where Value: CustomStringConvertible, Failure: CustomStringConvertible {
     public var description: String {
-        "(discovery: \(discovery.description), connection: \(connection.description))"
+        "(discovery: \(discovery.description), connection: \(connection.description), discoveryRequested: \(discoveryRequested))"
     }
 }
 
 
 extension ConnectableDiscoveryModelState where Value: CustomDebugStringConvertible, Failure: CustomDebugStringConvertible {
     public var description: String {
-        "(discovery: \(discovery.debugDescription), connection: \(connection.debugDescription))"
+        "(discovery: \(discovery.debugDescription), connection: \(connection.debugDescription), discoveryRequested: \(discoveryRequested))"
     }
 }
 
@@ -90,12 +97,13 @@ public final actor ConnectableDiscoveryModel<Value, Failure: Error>: Connectable
 
     nonisolated private let discovery: any DiscoveryModelProtocol<Value, Failure>
     nonisolated public let connection: any ConnectionModelProtocol
-    private var discoveryRequested = false
+    nonisolated private let discoveryRequestedSubject: ConcurrentValueSubject<Bool, Never>
     
     nonisolated public var state: State {
         ConnectableDiscoveryModelState(
             discovery: discovery.state,
-            connection: connection.state
+            connection: connection.state,
+            discoveryRequested: discoveryRequestedSubject.value
         )
     }
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
@@ -108,12 +116,16 @@ public final actor ConnectableDiscoveryModel<Value, Failure: Error>: Connectable
         self.discovery = discovery
         self.connection = connection
         
+        let discoveryRequestedSubject = ConcurrentValueSubject<Bool, Never>(false)
+        self.discoveryRequestedSubject = discoveryRequestedSubject
+        
         let stateDidChange = discovery.stateDidChange
-            .combineLatest(connection.stateDidChange)
-            .map { discoveryState, connection in
+            .combineLatest(connection.stateDidChange, discoveryRequestedSubject)
+            .map { discoveryState, connection, discoveryRequested in
                 ConnectableDiscoveryModelState(
                     discovery: discoveryState,
-                    connection: connection
+                    connection: connection,
+                    discoveryRequested: discoveryRequested
                 )
             }
         
@@ -122,12 +134,13 @@ public final actor ConnectableDiscoveryModel<Value, Failure: Error>: Connectable
         var mutableCancellables = Set<AnyCancellable>()
         
         stateDidChange
-            .sink { [weak self] state in
-                guard let self = self else { return }
-                
+            .sink { state in
                 Task {
-                    guard await self.shouldDiscovery(state) else { return }
-                    self.discovery.discover()
+                    let shouldDiscover = state.discoveryRequested && !state.discovery.isDiscovering && state.connection.isConnected
+                    if shouldDiscover {
+                        await discoveryRequestedSubject.change { _ in false }
+                        discovery.discover()
+                    }
                 }
             }
             .store(in: &mutableCancellables)
@@ -164,16 +177,7 @@ public final actor ConnectableDiscoveryModel<Value, Failure: Error>: Connectable
     }
     
     
-    private func requestDiscovery() {
-        discoveryRequested = true
-    }
-
-    
-    private func shouldDiscovery(_ state: ConnectableDiscoveryModelState<Value, Failure>) -> Bool {
-        let result = discoveryRequested && !state.discovery.isDiscovering && state.connection.isConnected
-        if result {
-            discoveryRequested = false
-        }
-        return result
+    private func requestDiscovery() async {
+        await discoveryRequestedSubject.change { _ in true }
     }
 }

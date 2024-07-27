@@ -76,9 +76,10 @@ extension ServiceModelState {
 extension ConnectableDiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> {
     public static func makeStub(
         discovery: DiscoveryModelState<AnyCharacteristicModel, ServiceModelFailure> = .discoveryFailed(.init(description: "TEST"), nil),
-        connection: ConnectionModelState = .makeStub()
+        connection: ConnectionModelState = .makeStub(),
+        discoveryRequested: Bool = false
     ) -> Self {
-        .init(discovery: discovery, connection: connection)
+        .init(discovery: discovery, connection: connection, discoveryRequested: discoveryRequested)
     }
     
     
@@ -87,8 +88,9 @@ extension ConnectableDiscoveryModelState<AnyCharacteristicModel, ServiceModelFai
             StubCharacteristicModel().eraseToAny(),
             StubCharacteristicModel().eraseToAny(),
         ]),
-        connection: ConnectionModelState = .makeStub()
+        connection: ConnectionModelState = .makeStub(),
+        discoveryRequested: Bool = false
     ) -> Self {
-        .init(discovery: discovery, connection: connection)
+        .init(discovery: discovery, connection: connection, discoveryRequested: discoveryRequested)
     }
 }
