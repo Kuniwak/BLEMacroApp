@@ -2,9 +2,15 @@
   "configurations" : [
     {
       "id" : "75641BA1-1623-4167-A376-5356CFA2A021",
-      "name" : "Configuration 1",
+      "name" : "ConcurrentCombine",
       "options" : {
-
+        "maximumTestRepetitions" : 100,
+        "nsZombieEnabled" : true,
+        "testExecutionOrdering" : "random",
+        "testRepetitionMode" : "fixedIterations",
+        "testTimeoutsEnabled" : true,
+        "threadSanitizerEnabled" : true,
+        "undefinedBehaviorSanitizerEnabled" : true
       }
     }
   ],

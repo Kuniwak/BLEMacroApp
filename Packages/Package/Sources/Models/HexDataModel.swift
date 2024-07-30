@@ -29,7 +29,37 @@ public struct HexDataModelFailure: Error, CustomStringConvertible, Equatable, Se
 }
 
 
-public protocol HexDataModelProtocol: StateMachineProtocol<Result<Data, HexDataModelFailure>> {
+public enum HexDataModelState: Equatable, Sendable {
+    case success(Data)
+    case failure(HexDataModelFailure)
+}
+
+
+extension HexDataModelState: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .success(let data):
+            return ".success(\(data))"
+        case .failure(let error):
+            return ".failure(\(error.description))"
+        }
+    }
+}
+
+
+extension HexDataModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        switch self {
+        case .success(let data):
+            return ".success"
+        case .failure(let error):
+            return ".failure"
+        }
+    }
+}
+
+
+public protocol HexDataModelProtocol: StateMachineProtocol<HexDataModelState> {
     nonisolated func updateHexString(with string: String)
 }
 
@@ -44,8 +74,8 @@ extension HexDataModelProtocol {
 public final actor AnyHexDataModel: HexDataModelProtocol {
     private let base: any HexDataModelProtocol
     
-    nonisolated public var state: Result<Data, HexDataModelFailure> { base.state }
-    nonisolated public var stateDidChange: AnyPublisher<Result<Data, HexDataModelFailure>, Never> { base.stateDidChange }
+    nonisolated public var state: State { base.state }
+    nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
     
     
     public init(_ base: any HexDataModelProtocol) {
@@ -60,13 +90,13 @@ public final actor AnyHexDataModel: HexDataModelProtocol {
 
 
 public final actor HexDataModel: HexDataModelProtocol {
-    nonisolated public var state: Result<Data, HexDataModelFailure> { stateDidChangeSubject.value }
-    nonisolated public let stateDidChange: AnyPublisher<Result<Data, HexDataModelFailure>, Never>
-    nonisolated public let stateDidChangeSubject: ConcurrentValueSubject<Result<Data, HexDataModelFailure>, Never>
+    nonisolated public var state: State { stateDidChangeSubject.value }
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
+    nonisolated public let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
     
     
     public init(startsWith initialState: State) {
-        let stateDidChangeSubject = ConcurrentValueSubject<Result<Data, HexDataModelFailure>, Never>(initialState)
+        let stateDidChangeSubject = ConcurrentValueSubject<State, Never>(initialState)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }

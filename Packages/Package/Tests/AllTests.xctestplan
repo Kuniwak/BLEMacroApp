@@ -1,10 +1,16 @@
 {
   "configurations" : [
     {
-      "id" : "310CF3AA-1ADE-44A6-9961-0E961F97AADC",
-      "name" : "Configuration 1",
+      "id" : "D34C7D7A-E635-40D8-ADDE-1002E036119D",
+      "name" : "Configuration",
       "options" : {
-
+        "addressSanitizer" : {
+          "enabled" : false
+        },
+        "mainThreadCheckerEnabled" : true,
+        "nsZombieEnabled" : true,
+        "threadSanitizerEnabled" : true,
+        "undefinedBehaviorSanitizerEnabled" : true
       }
     }
   ],
@@ -13,6 +19,7 @@
   },
   "testTargets" : [
     {
+      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:Packages\/Package",
         "identifier" : "ConcurrentCombineTests",
@@ -20,6 +27,7 @@
       }
     },
     {
+      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:Packages\/Package",
         "identifier" : "ModelTests",
@@ -27,6 +35,7 @@
       }
     },
     {
+      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:Packages\/Package",
         "identifier" : "TaskExtensionTests",
@@ -34,6 +43,7 @@
       }
     },
     {
+      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:BLEMacroApp.xcodeproj",
         "identifier" : "62E4E3C92C16629C00C41789",
@@ -41,6 +51,7 @@
       }
     },
     {
+      "parallelizable" : true,
       "target" : {
         "containerPath" : "container:Packages\/Package",
         "identifier" : "CatalogTests",

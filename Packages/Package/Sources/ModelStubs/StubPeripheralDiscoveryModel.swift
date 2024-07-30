@@ -31,11 +31,10 @@ extension PeripheralDiscoveryModelState {
     
     public static func makeSuccessfulStub() -> Self {
         .discovered(
-            [
-                StubPeripheralModel(identifiedBy: StubUUID.one).eraseToAny(),
-                StubPeripheralModel(identifiedBy: StubUUID.two).eraseToAny()
-            ],
-            Set<UUID>([StubUUID.one, StubUUID.two])
+            .init(ordered: [
+                .init(peripheral: StubPeripheralModel(state: .makeStub(uuid: StubUUID.one)), connection: StubConnectionModel()),
+                .init(peripheral: StubPeripheralModel(state: .makeStub(uuid: StubUUID.two)), connection: StubConnectionModel()),
+            ])
         )
     }
 }

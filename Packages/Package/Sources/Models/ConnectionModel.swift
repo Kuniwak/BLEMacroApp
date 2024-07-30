@@ -54,9 +54,9 @@ public enum ConnectionModelState: Equatable {
     
     public static func initialState(isConnectable: Bool) -> Self {
         if isConnectable {
-            return .disconnected
+            return .disconnected // t1
         } else {
-            return .notConnectable
+            return .notConnectable // t2
         }
     }
     
@@ -168,23 +168,24 @@ public final actor AnyConnectionModel: ConnectionModelProtocol {
 }
 
 
-// ```marmaid
-// stateDiagram-v2
-//     state ".notConnectable" as notConnectable
-//     state ".disconnected" as disconnected
-//     state ".connectionFailed(error)" as connectionFailed
-//     state ".connecting" as connecting
-//     state ".connected" as connected
-//
-//     [*] --> notConnectable: t1 tau
-//     [*] --> disconnected: t2 tau
-//     disconnected --> connecting: t3 connect
-//     connecting --> connected: t4 tau
-//     connecting --> connectionFailed: t5 tau
-//     connectionFailed --> connecting: t6 connect
-//     connected --> disconnecting: t7 disconnect
-//     disconnecting --> disconnected: t8 tau
-// ```
+
+/// ```marmaid
+/// stateDiagram-v2
+///     state ".notConnectable" as notConnectable
+///     state ".disconnected" as disconnected
+///     state ".connectionFailed(error)" as connectionFailed
+///     state ".connecting" as connecting
+///     state ".connected" as connected
+///
+///     [*] --> notConnectable: t1 tau
+///     [*] --> disconnected: t2 tau
+///     disconnected --> connecting: t3 connect
+///     connecting --> connected: t4 tau
+///     connecting --> connectionFailed: t5 tau
+///     connectionFailed --> connecting: t6 connect
+///     connected --> disconnecting: t7 disconnect
+///     disconnecting --> disconnected: t8 tau
+/// ```
 public final actor ConnectionModel: ConnectionModelProtocol {
     private let peripheral: any PeripheralProtocol
     private let centralManager: any SendableCentralManagerProtocol
@@ -202,13 +203,12 @@ public final actor ConnectionModel: ConnectionModelProtocol {
     public init(
         centralManager: any SendableCentralManagerProtocol,
         peripheral: any PeripheralProtocol,
-        isConnectable: Bool
+        initialState: State
     ) {
         self.centralManager = centralManager
         self.peripheral = peripheral
         self.id = peripheral.identifier
         
-        let initialState: State = .initialState(isConnectable: isConnectable) // t1, t2
         self.initialState = initialState
         let didUpdateSubject = ConcurrentValueSubject<ConnectionModelState, Never>(initialState)
         self.stateDidChangeSubject = didUpdateSubject

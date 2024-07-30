@@ -66,8 +66,8 @@ extension PeripheralDiscoveryModelFailure: CustomStringConvertible {
 public enum PeripheralDiscoveryModelState: Equatable {
     case idle(requestedDiscovery: Bool)
     case ready
-    case discovering([AnyPeripheralModel], Set<UUID>)
-    case discovered([AnyPeripheralModel], Set<UUID>)
+    case discovering(PeripheralEntries)
+    case discovered(PeripheralEntries)
     case discoveryFailed(PeripheralDiscoveryModelFailure)
 
     
@@ -76,10 +76,10 @@ public enum PeripheralDiscoveryModelState: Equatable {
     }
 
 
-    public var models: Result<[AnyPeripheralModel]?, PeripheralDiscoveryModelFailure> {
+    public var models: Result<PeripheralEntries?, PeripheralDiscoveryModelFailure> {
         switch self {
-        case .discovering(let peripherals, _), .discovered(let peripherals, _):
-            return .success(peripherals)
+        case .discovering(let entries), .discovered(let entries):
+            return .success(entries)
         case .idle, .ready:
             return .success(nil)
         case .discoveryFailed(let error):
@@ -129,6 +129,24 @@ public enum PeripheralDiscoveryModelState: Equatable {
 }
 
 
+extension PeripheralDiscoveryModelState {
+    public func filter(bySearchQuery searchQuery: SearchQuery) -> Self {
+        switch self {
+        case .idle(requestedDiscovery: let requestedDiscovery):
+            return .idle(requestedDiscovery: requestedDiscovery)
+        case .ready:
+            return .ready
+        case .discovering(let entries):
+            return .discovering(entries.filter { searchQuery.match(state: $0.peripheral.state) })
+        case .discovered(let entries):
+            return .discovered(entries.filter { searchQuery.match(state: $0.peripheral.state) })
+        case .discoveryFailed(let error):
+            return .discoveryFailed(error)
+        }
+    }
+}
+
+
 extension PeripheralDiscoveryModelState: CustomStringConvertible {
     public var description: String {
         switch self {
@@ -136,10 +154,10 @@ extension PeripheralDiscoveryModelState: CustomStringConvertible {
             return ".idle(requestedDiscovery: \(flag))"
         case .ready:
             return ".ready"
-        case .discovering(let peripherals, _):
-            return ".discovering(\(peripherals.map(\.state.description).joined(separator: ", "))"
-        case .discovered(let peripherals, _):
-            return ".discovered([\(peripherals.map(\.state.description).joined(separator: ", "))])"
+        case .discovering(let peripherals):
+            return ".discovering(\(peripherals.description))"
+        case .discovered(let peripherals):
+            return ".discovered(\(peripherals.description))"
         case .discoveryFailed(let error):
             return ".discoveryFailed(\(error.description))"
         }
@@ -154,10 +172,10 @@ extension PeripheralDiscoveryModelState: CustomDebugStringConvertible {
             return ".idle(requestedDiscovery: \(flag))"
         case .ready:
             return ".ready"
-        case .discovering(let peripherals, _):
-            return ".discovering([\(peripherals.count) peripherals])"
-        case .discovered(let peripherals, _):
-            return ".discovered([\(peripherals.count) peripherals])"
+        case .discovering(let entries):
+            return ".discovering(\(entries.debugDescription))"
+        case .discovered(let entries):
+            return ".discovered(\(entries.debugDescription))"
         case .discoveryFailed(let error):
             return ".discoveryFailed(\(error.description))"
         }
@@ -271,28 +289,22 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                         switch prev {
                         case .idle, .ready, .discoveryFailed:
                             return prev
-                        case .discovering(let models, let discovered), .discovered(let models, let discovered):
-                            let newModel = PeripheralModel(
+                        case .discovering(let entries), .discovered(let entries):
+                            let newConnection = ConnectionModel(
+                                centralManager: centralManager,
+                                peripheral: resp.peripheral,
+                                initialState: .initialState(isConnectable: isConnectable(fromAdvertisementData: resp.advertisementData))
+                            )
+                            let newPeripheral = PeripheralModel(
                                 representing: resp.peripheral,
                                 withRSSI: resp.rssi,
                                 withAdvertisementData: resp.advertisementData,
-                                connectingWith: ConnectionModel(
-                                    centralManager: centralManager,
-                                    peripheral: resp.peripheral,
-                                    isConnectable: isConnectable(fromAdvertisementData: resp.advertisementData)
-                                )
+                                connectingWith: newConnection
                             )
 
-                            if discovered.contains(resp.peripheral.identifier) {
-                                var newModels = models
-                                let index = newModels.firstIndex(where: { $0.id == resp.peripheral.identifier })!
-                                newModels[index] = newModel.eraseToAny()
-                                return .discovering(newModels, discovered)
-                            } else {
-                                var newModels = models
-                                newModels.append(newModel.eraseToAny())
-                                return .discovering(newModels, discovered.union([resp.peripheral.identifier]))
-                            }
+                            var newEntries = entries
+                            newEntries.append(.init(peripheral: newPeripheral, connection: newConnection))
+                            return .discovering(newEntries)
                         }
                     }
                 }
@@ -312,7 +324,7 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                     return .ready
                 case (.poweredOn, .idle(requestedDiscovery: true)):
                     self.scan()
-                    return .discovering([], Set())
+                    return .discovering(.empty)
                 case (.poweredOn, .discoveryFailed(.powerOff)), (.poweredOn, .discoveryFailed(.unauthorized)):
                     return .ready
                 case (.poweredOff, _):
@@ -347,7 +359,7 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 switch prev {
                 case .ready, .discovered, .discoveryFailed:
                     self.scan()
-                    return .discovering([], Set())
+                    return .discovering(.empty)
                 case .idle(requestedDiscovery: false):
                     return .idle(requestedDiscovery: true)
                 case .idle(requestedDiscovery: true), .discovering:
@@ -369,9 +381,9 @@ public final actor PeripheralDiscoveryModel: PeripheralDiscoveryModelProtocol {
                 switch prev {
                 case .idle, .ready, .discoveryFailed, .discovered:
                     return prev
-                case .discovering(let models, let discovered):
+                case .discovering(let entries):
                     self.centralManager.stopScan()
-                    return .discovered(models, discovered)
+                    return .discovered(entries)
                 }
             }
         }

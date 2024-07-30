@@ -4,6 +4,7 @@ import ConcurrentCombine
 import CoreBluetoothStub
 import Models
 import ModelStubs
+import MirrorDiffKit
 
 
 private struct TestError: Error, CustomStringConvertible {
@@ -11,18 +12,21 @@ private struct TestError: Error, CustomStringConvertible {
 }
 
 
-private struct TestCase {
+private struct TestCase: CustomStringConvertible {
+    let description: String
     let connection: ConnectionModelState
     let action: ((ConnectionModel, StubSendableCentralManager) -> Void)?
     let expected: [ConnectionModelState]
     let sourceLocation: SourceLocation
     
     public init(
+        description: String,
         connection: ConnectionModelState,
         action: ((ConnectionModel, StubSendableCentralManager) -> Void)? = nil,
         expected: [ConnectionModelState],
-        sourceLocation: SourceLocation = SourceLocation()
+        sourceLocation: SourceLocation
     ) {
+        self.description = description
         self.connection = connection
         self.action = action
         self.expected = expected
@@ -31,78 +35,101 @@ private struct TestCase {
 }
 
 
-private func testCases() -> [String: TestCase] {
+private func testCases() -> [TestCase] {
     return [
-        "t1": TestCase(
+        TestCase(
+            description: "t1",
             connection: .initialState(isConnectable: false),
-            expected: [.notConnectable]
+            expected: [.notConnectable],
+            sourceLocation: SourceLocation()
         ),
-        "t2": TestCase(
+        TestCase(
+            description: "t2",
             connection: .initialState(isConnectable: true),
-            expected: [.disconnected]
+            expected: [.disconnected],
+            sourceLocation: SourceLocation()
         ),
-        "t3": TestCase(
+        TestCase(
+            description: "t3",
             connection: .disconnected,
             action: { connection, _ in connection.connect() },
-            expected: [.disconnected, .connecting]
+            expected: [.disconnected, .connecting],
+            sourceLocation: SourceLocation()
         ),
-        "refuse disconnect on disconnected": TestCase(
+        TestCase(
+            description: "refuse disconnect on disconnected",
             connection: .disconnected,
             action: { connection, _ in connection.disconnect() },
-            expected: [.disconnected, .disconnected]
+            expected: [.disconnected, .disconnected],
+            sourceLocation: SourceLocation()
         ),
-        "refuse connect on connecting": TestCase(
+        TestCase(
+            description: "refuse connect on connecting",
             connection: .connecting,
             action: { connection, _ in connection.connect() },
-            expected: [.connecting, .connecting]
+            expected: [.connecting, .connecting],
+            sourceLocation: SourceLocation()
         ),
-        "refuse disconnect on connecting": TestCase(
+        TestCase(
+            description: "refuse disconnect on connecting",
             connection: .connecting,
             action: { connection, _ in connection.connect() },
-            expected: [.connecting, .connecting]
+            expected: [.connecting, .connecting],
+            sourceLocation: SourceLocation()
         ),
-        "t4": TestCase(
+        TestCase(
+            description: "t4",
             connection: .connecting,
             action: { _, peripheral in peripheral.didConnectPeripheralSubject.send(StubPeripheral()) },
-            expected: [.connecting, .connected]
+            expected: [.connecting, .connected],
+            sourceLocation: SourceLocation()
         ),
-        "t5": TestCase(
+        TestCase(
+            description: "t5",
             connection: .connecting,
             action: { _, peripheral in peripheral.didFailToConnectPeripheralSubject.send((peripheral: StubPeripheral(), error: TestError())) },
-            expected: [.connecting, .connectionFailed(.init(description: "TEST"))]
+            expected: [.connecting, .connectionFailed(.init(description: "TEST"))],
+            sourceLocation: SourceLocation()
         ),
-        "refuse connect connected": TestCase(
+        TestCase(
+            description: "refuse connect connected",
             connection: .connected,
             action: { connection, _ in connection.connect() },
-            expected: [.connected, .connected]
+            expected: [.connected, .connected],
+            sourceLocation: SourceLocation()
         ),
-        "t6": TestCase(
+        TestCase(
+            description: "t6",
             connection: .connectionFailed(.init(description: "TEST")),
             action: { connection, _ in connection.connect() },
-            expected: [.connectionFailed(.init(description: "TEST")), .connecting]
+            expected: [.connectionFailed(.init(description: "TEST")), .connecting],
+            sourceLocation: SourceLocation()
         ),
-        "t7": TestCase(
+        TestCase(
+            description: "t7",
             connection: .connected,
             action: { connection, _ in connection.disconnect() },
-            expected: [.connected, .disconnecting]
+            expected: [.connected, .disconnecting],
+            sourceLocation: SourceLocation()
         ),
-        "t8": TestCase(
+        TestCase(
+            description: "t8",
             connection: .disconnecting,
             action: { _, peripheral in peripheral.didDisconnectPeripheralSubject.send((peripheral: StubPeripheral(), error: nil)) },
-            expected: [.connected, .disconnecting]
+            expected: [.disconnecting, .disconnected],
+            sourceLocation: SourceLocation()
         ),
     ]
 }
 
 
 @Test(arguments: testCases())
-private func testConnectionModel(pair: (String, TestCase)) async throws {
-    let (label, testCase) = pair
+private func testConnectionModel(testCase: TestCase) async throws {
     let centralManager = StubSendableCentralManager(state: .poweredOn)
     let connection = ConnectionModel(
         centralManager: centralManager,
         peripheral: StubPeripheral(),
-        isConnectable: testCase.connection != .notConnectable
+        initialState: testCase.connection
     )
     let recorder = Recorder(observing: connection.stateDidChange.prefix(testCase.expected.count))
     
@@ -111,5 +138,5 @@ private func testConnectionModel(pair: (String, TestCase)) async throws {
     }
     
     let actual = try await recorder.values(timeout: 1)
-    #expect(actual == testCase.expected, .init(rawValue: label), sourceLocation: testCase.sourceLocation)
+    #expect(actual == testCase.expected, sourceLocation: testCase.sourceLocation)
 }

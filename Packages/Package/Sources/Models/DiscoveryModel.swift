@@ -43,7 +43,7 @@ public enum DiscoveryModelState<Value, Failure: Error> {
 }
 
 
-extension DiscoveryModelState: CustomStringConvertible where Value: CustomStringConvertible, Failure: CustomStringConvertible {
+extension DiscoveryModelState: CustomStringConvertible {
     public var description: String {
         switch self {
         case .notDiscoveredYet:
@@ -51,13 +51,13 @@ extension DiscoveryModelState: CustomStringConvertible where Value: CustomString
         case .discovering(.none):
             return ".discovering(nil)"
         case .discovering(.some(let models)):
-            return ".discovering([\(models.map(\.description).joined(separator: ", "))])"
+            return ".discovering([\(models.map(String.init(describing:)).joined(separator: ", "))])"
         case .discovered(let models):
-            return ".discovered([\(models.map(\.description).joined(separator: ", "))])"
+            return ".discovered([\(models.map(String.init(describing:)).joined(separator: ", "))])"
         case .discoveryFailed(let error, .some(let models)):
-            return ".discoveryFailed(\(error.description), [\(models.map(\.description).joined(separator: ", "))])"
+            return ".discoveryFailed(\(error), [\(models.map(String.init(describing:)).joined(separator: ", "))])"
         case .discoveryFailed(let error, .none):
-            return ".discoveryFailed(\(error.description), nil)"
+            return ".discoveryFailed(\(error), nil)"
         }
     }
 }

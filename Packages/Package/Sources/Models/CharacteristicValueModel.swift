@@ -47,6 +47,20 @@ public struct CharacteristicValueState: Equatable {
 }
 
 
+extension CharacteristicValueState: CustomStringConvertible {
+    public var description: String {
+        return "(properties: \(properties), value: \(value), isNotifying: \(isNotifying), error: \(error?.description ?? "nil"))"
+    }
+}
+
+
+extension CharacteristicValueState: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        return "CharacteristicValueState(properties: \(properties), value: \(value), isNotifying: \(isNotifying), error: \(error == nil ? ".none" : ".some"))"
+    }
+}
+
+
 public protocol CharacteristicValueModelProtocol: StateMachineProtocol<CharacteristicValueState> {
     nonisolated func read()
     nonisolated func write(value: Data, type: CBCharacteristicWriteType)

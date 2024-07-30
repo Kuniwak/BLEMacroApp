@@ -5,13 +5,13 @@ import Models
 
 
 public final actor StubHexDataModel: HexDataModelProtocol {
-    nonisolated public var state: Result<Data, Models.HexDataModelFailure> { stateDidChangeSubject.value }
-    nonisolated public let stateDidChange: AnyPublisher<Result<Data, Models.HexDataModelFailure>, Never>
-    nonisolated public let stateDidChangeSubject: CurrentValueSubject<Result<Data, HexDataModelFailure>, Never>
+    nonisolated public var state: State { stateDidChangeSubject.value }
+    nonisolated public let stateDidChange: AnyPublisher<State, Never>
+    nonisolated public let stateDidChangeSubject: CurrentValueSubject<State, Never>
     
     
     public init(startsWith initialState: State) {
-        let stateDidChangeSubject = CurrentValueSubject<Result<Data, HexDataModelFailure>, Never>(initialState)
+        let stateDidChangeSubject = CurrentValueSubject<State, Never>(initialState)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()
     }

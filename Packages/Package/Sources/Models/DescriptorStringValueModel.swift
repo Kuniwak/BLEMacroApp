@@ -89,7 +89,7 @@ public final actor DescriptorStringValueModel: DescriptorStringValueModelProtoco
         representing descriptor: any DescriptorProtocol,
         onPeripheral peripheral: any PeripheralProtocol
     ) {
-        let result: Result<Data, HexDataModelFailure>
+        let result: HexDataModelState
         switch HexEncoding.decode(hexString: initialState) {
         case .success((let d, _)):
             result = .success(d)

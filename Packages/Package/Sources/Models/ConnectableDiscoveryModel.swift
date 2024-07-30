@@ -22,15 +22,15 @@ public struct ConnectableDiscoveryModelState<Value, Failure: Error> {
 }
 
 
-extension ConnectableDiscoveryModelState where Value: CustomStringConvertible, Failure: CustomStringConvertible {
+extension ConnectableDiscoveryModelState: CustomStringConvertible {
     public var description: String {
         "(discovery: \(discovery.description), connection: \(connection.description), discoveryRequested: \(discoveryRequested))"
     }
 }
 
 
-extension ConnectableDiscoveryModelState where Value: CustomDebugStringConvertible, Failure: CustomDebugStringConvertible {
-    public var description: String {
+extension ConnectableDiscoveryModelState: CustomDebugStringConvertible {
+    public var debugDescription: String {
         "(discovery: \(discovery.debugDescription), connection: \(connection.debugDescription), discoveryRequested: \(discoveryRequested))"
     }
 }
@@ -40,7 +40,6 @@ public protocol ConnectableDiscoveryModelProtocol<Value, Failure>: StateMachineP
     associatedtype Value
     associatedtype Failure: Error
     
-    nonisolated var connection: any ConnectionModelProtocol { get }
     nonisolated func discover()
     nonisolated func connect()
     nonisolated func disconnect()
@@ -62,7 +61,6 @@ public final actor AnyConnectableDiscoveryModel<Value, Failure: Error>: Connecta
     
     nonisolated public var state: State { base.state }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
-    nonisolated public var connection: any ConnectionModelProtocol { base.connection }
 
     
     public init(_ base: any ConnectableDiscoveryModelProtocol<Value, Failure>) {
@@ -96,7 +94,7 @@ public final actor ConnectableDiscoveryModel<Value, Failure: Error>: Connectable
     public typealias Failure = Failure
 
     nonisolated private let discovery: any DiscoveryModelProtocol<Value, Failure>
-    nonisolated public let connection: any ConnectionModelProtocol
+    nonisolated private let connection: any ConnectionModelProtocol
     nonisolated private let discoveryRequestedSubject: ConcurrentValueSubject<Bool, Never>
     
     nonisolated public var state: State {

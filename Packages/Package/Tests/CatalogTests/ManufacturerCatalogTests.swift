@@ -13,7 +13,7 @@ private struct TestCase {
     TestCase(
         description: "Matched",
         manufacturer: Data([0xfe, 0xd4, 0x12, 0x34]),
-        expected: .knownName(.init(name: "Apple, Inc.", 0x12, 0x34), Data([0x12, 0x34]))
+        expected: .knownName(.init(name: "Apple, Inc.", 0xfe, 0xd4), Data([0x12, 0x34]))
     ),
     TestCase(
         description: "Not matched",

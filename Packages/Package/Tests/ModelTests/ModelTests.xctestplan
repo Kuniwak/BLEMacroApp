@@ -2,9 +2,9 @@
   "configurations" : [
     {
       "id" : "17D868E4-E217-4DBB-8A58-4622B7ECCC31",
-      "name" : "Configuration 1",
+      "name" : "Model",
       "options" : {
-
+        "testExecutionOrdering" : "random"
       }
     }
   ],

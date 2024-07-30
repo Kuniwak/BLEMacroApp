@@ -7,19 +7,17 @@ import ModelFoundation
 import Catalogs
 
 
-public final actor StubPeripheralModel: PeripheralModelProtocol {
+public final actor StubPeripheralModel: PeripheralModelProtocol, CustomReflectable, CustomStringConvertible, CustomDebugStringConvertible {
     nonisolated public let id: UUID
     
-    nonisolated public let connection: any ConnectionModelProtocol
     nonisolated public var state: State { stateDidChangeSubject.value }
     nonisolated public let stateDidChangeSubject: ConcurrentValueSubject<State, Never>
     nonisolated public let stateDidChange: AnyPublisher<State, Never>
     
     
-    public init(state: State = .makeStub(), identifiedBy uuid: UUID = StubUUID.zero, connection: any ConnectionModelProtocol = StubConnectionModel()) {
-        self.id = uuid
+    public init(state: State = .makeStub(), connection: any ConnectionModelProtocol = StubConnectionModel()) {
+        self.id = state.uuid
         
-        self.connection = connection
         let stateDidChangeSubject = ConcurrentValueSubject<State, Never>(state)
         self.stateDidChangeSubject = stateDidChangeSubject
         self.stateDidChange = stateDidChangeSubject.eraseToAnyPublisher()

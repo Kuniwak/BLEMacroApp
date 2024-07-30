@@ -4,9 +4,11 @@ import ConcurrentCombine
 import CoreBluetoothStub
 import Models
 import ModelStubs
+import MirrorDiffKit
 
 
-private struct TestCase {
+private struct TestCase: CustomStringConvertible {
+    let description: String
     let discoveryState: PeripheralDiscoveryModelState
     let centralManagerState: CBManagerState
     let action: ((StubSendableCentralManager, PeripheralDiscoveryModel) -> Void)?
@@ -15,16 +17,18 @@ private struct TestCase {
 }
 
 
-private func testCases() -> [String: TestCase] {
+private func testCases() -> [TestCase] {
     return [
-        "t0": TestCase(
+        TestCase(
+            description: "t0",
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
             action: nil,
             expected: [.idle(requestedDiscovery: false)],
             sourceLocation: SourceLocation()
         ),
-        "t1": TestCase(
+        TestCase(
+            description: "t1",
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .unknown,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOn },
@@ -34,7 +38,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t2": TestCase(
+        TestCase(
+            description: "t2",
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
             action: { _, discovery in discovery.startScan() },
@@ -44,7 +49,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t3": TestCase(
+        TestCase(
+            description: "t3",
             discoveryState: .ready,
             centralManagerState: .poweredOn,
             action: { _, discovery in discovery.startScan() },
@@ -54,7 +60,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t4": TestCase(
+        TestCase(
+            description: "t4",
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .poweredOn,
             action: { centralmanager, _ in centralmanager.didUpdateStateSubject.value = .poweredOn },
@@ -64,7 +71,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t5": TestCase(
+        TestCase(
+            description: "t5",
             discoveryState: .discovering([], []),
             centralManagerState: .poweredOn,
             action: { centralmanager, _ in
@@ -95,7 +103,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t6": TestCase(
+        TestCase(
+            description: "t6",
             discoveryState: .discovering([], []),
             centralManagerState: .poweredOn,
             action: { _, discoveryModel in discoveryModel.stopScan() },
@@ -105,7 +114,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t7": TestCase(
+        TestCase(
+            description: "t7",
             discoveryState: .discovered([], []),
             centralManagerState: .poweredOn,
             action: { _, discoveryModel in discoveryModel.startScan() },
@@ -115,7 +125,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t8": TestCase(
+        TestCase(
+            description: "t8",
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .unsupported },
@@ -125,17 +136,19 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t9": TestCase(
+        TestCase(
+            description: "t9",
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .unknown,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .unsupported },
             expected: [
                 .idle(requestedDiscovery: true),
-                .discoveryFailed(.powerOff),
+                .discoveryFailed(.unsupported),
             ],
             sourceLocation: SourceLocation()
         ),
-        "t10": TestCase(
+        TestCase(
+            description: "t10",
             discoveryState: .idle(requestedDiscovery: false),
             centralManagerState: .unknown,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
@@ -145,7 +158,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t11": TestCase(
+        TestCase(
+            description: "t11",
             discoveryState: .idle(requestedDiscovery: true),
             centralManagerState: .unknown,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
@@ -155,7 +169,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t12": TestCase(
+        TestCase(
+            description: "t12",
             discoveryState: .ready,
             centralManagerState: .poweredOn,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
@@ -165,7 +180,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t13": TestCase(
+        TestCase(
+            description: "t13",
             discoveryState: .discovering([], []),
             centralManagerState: .poweredOn,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
@@ -175,7 +191,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t14": TestCase(
+        TestCase(
+            description: "t14",
             discoveryState: .discovered([], []),
             centralManagerState: .poweredOn,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
@@ -185,7 +202,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t15": TestCase(
+        TestCase(
+            description: "t15",
             discoveryState: .discoveryFailed(.unauthorized),
             centralManagerState: .poweredOff,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOff },
@@ -195,7 +213,8 @@ private func testCases() -> [String: TestCase] {
             ],
             sourceLocation: SourceLocation()
         ),
-        "t16": TestCase(
+        TestCase(
+            description: "t16",
             discoveryState: .discoveryFailed(.unauthorized),
             centralManagerState: .poweredOff,
             action: { centralManager, _ in centralManager.didUpdateStateSubject.value = .poweredOn },
@@ -210,8 +229,7 @@ private func testCases() -> [String: TestCase] {
 
 
 @Test(arguments: testCases())
-private func testPeripheralDiscoveryModel(pair: (String, TestCase)) async throws {
-    let (label, testCase) = pair
+private func testPeripheralDiscoveryModel(testCase: TestCase) async throws {
     let centralManager = StubSendableCentralManager(state: testCase.centralManagerState)
     let discovery = PeripheralDiscoveryModel(observing: centralManager, startsWith: testCase.discoveryState)
     let recorder = Recorder(observing: discovery.stateDidChange.prefix(testCase.expected.count))
@@ -221,5 +239,5 @@ private func testPeripheralDiscoveryModel(pair: (String, TestCase)) async throws
     }
     
     let actual = try await recorder.values(timeout: 1)
-    #expect(actual == testCase.expected, .init(rawValue: label), sourceLocation: testCase.sourceLocation)
+    #expect(actual == testCase.expected, sourceLocation: testCase.sourceLocation)
 }

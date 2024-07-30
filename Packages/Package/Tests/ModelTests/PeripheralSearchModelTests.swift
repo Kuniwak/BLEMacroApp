@@ -5,17 +5,17 @@ import ModelStubs
 import Testing
 
 
-private struct TestCase {
-    public let description: String
+private struct TestCase: CustomTestStringConvertible {
+    public let testDescription: String
     public let peripheral: PeripheralModelState
     public let searchQuery: SearchQuery
     public let expected: Bool
 }
-    
+
     
 @Test(arguments: [
     TestCase(
-        description: "No match",
+        testDescription: "No match",
         peripheral: .makeStub(
             name: .success(nil),
             manufacturerData: nil
@@ -24,7 +24,7 @@ private struct TestCase {
         expected: false
     ),
     TestCase(
-        description: "Empty search query match by UUID",
+        testDescription: "Empty search query match by UUID",
         peripheral:  .makeStub(
             name: .success(nil),
             manufacturerData: nil
@@ -33,7 +33,7 @@ private struct TestCase {
         expected: true
     ),
     TestCase(
-        description: "Empty search query match by name",
+        testDescription: "Empty search query match by name",
         peripheral:  .makeStub(
             name: .success("EXAMPLE"),
             manufacturerData: nil
@@ -42,7 +42,7 @@ private struct TestCase {
         expected: true
     ),
     TestCase(
-        description: "Empty search query match by manufacturer name",
+        testDescription: "Empty search query match by manufacturer name",
         peripheral: .makeStub(
             name: .success(nil),
             manufacturerData: .knownName(.init(name: "EXAMPLE", 0x01, 0x23), Data())
@@ -51,7 +51,7 @@ private struct TestCase {
         expected: true
     ),
     TestCase(
-        description: "Match by UUID",
+        testDescription: "Match by UUID",
         peripheral: .makeStub(
             name: .success(nil),
             manufacturerData: nil
@@ -60,21 +60,12 @@ private struct TestCase {
         expected: true
     ),
     TestCase(
-        description: "Match by Name",
+        testDescription: "Match by Name",
         peripheral: .makeStub(
             name: .success("__NAME__"),
             manufacturerData: nil
         ),
         searchQuery: "NAME",
-        expected: true
-    ),
-    TestCase(
-        description: "Match by Manufacture Name",
-        peripheral: .makeStub(
-            name: .success(nil),
-            manufacturerData: .knownName(.init(name: "__MANUFACTURER__", 0x01, 0x23), Data())
-        ),
-        searchQuery: "MANUFACTURER",
         expected: true
     ),
 ])

@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreBluetoothStub
 import Logger
 import Models
 import ModelStubs
@@ -53,8 +54,8 @@ public struct PeripheralSearchView: View {
                         .foregroundStyle(.tint)
                     Spacer()
                 }
-            case .discovering(let peripherals, _), .discovered(let peripherals, _):
-               if peripherals.isEmpty {
+            case .discovering(let entries), .discovered(let entries):
+               if entries.isEmpty {
                     HStack {
                         Spacer()
                         Text("No devices found")
@@ -62,9 +63,9 @@ public struct PeripheralSearchView: View {
                     }
                     .foregroundStyle(Color(.weak))
                 } else {
-                    ForEach(peripherals) { peripheral in
-                        NavigationLink(destination: peripheralView(peripheral)) {
-                            PeripheralRow(observing: peripheral)
+                    ForEach(entries.ordered) { entry in
+                        NavigationLink(destination: peripheralView(entry: entry)) {
+                            PeripheralRow(observing: entry.peripheral)
                         }
                     }
                 }
@@ -124,15 +125,15 @@ public struct PeripheralSearchView: View {
     }
     
     
-    private func peripheralView(_ peripheral: any PeripheralModelProtocol) -> some View {
-        let deps = DependencyBag(connectionModel: peripheral.connection, logger: logger)
+    private func peripheralView(entry: PeripheralEntry) -> some View {
+        let deps = DependencyBag(connectionModel: entry.connection, logger: logger)
         return PeripheralView(
             observing: AutoRefreshedPeripheralModel(
-                wrapping: peripheral,
+                wrapping: entry.peripheral,
                 withTimeInterval: 2
             ),
             observing: PeripheralDistanceModel(
-                observing: peripheral,
+                observing: entry.peripheral,
                 withEnvironmentalFactor: 2.0
             ),
             holding: deps
@@ -161,16 +162,28 @@ internal struct PeripheralsView_Previews: PreviewProvider {
             .idle(requestedDiscovery: false),
             .idle(requestedDiscovery: true),
             .ready,
-            .discovering([], Set()),
-            .discovering([
-                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ], Set()),
-            .discovered([], Set()),
-            .discovered([
-                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-                StubPeripheralModel(state: .makeSuccessfulStub()).eraseToAny(),
-            ], Set()),
+            .discovering(.empty),
+            .discovering(.init(ordered: [
+                .init(
+                    peripheral: StubPeripheralModel(state: .makeSuccessfulStub(uuid: StubUUID.one)),
+                    connection: StubConnectionModel(state: .makeSuccessfulStub())
+                ),
+                .init(
+                    peripheral: StubPeripheralModel(state: .makeSuccessfulStub(uuid: StubUUID.two)),
+                    connection: StubConnectionModel(state: .makeSuccessfulStub())
+                ),
+            ])),
+            .discovered(.empty),
+            .discovered(.init(ordered: [
+                .init(
+                    peripheral: StubPeripheralModel(state: .makeSuccessfulStub(uuid: StubUUID.one)),
+                    connection: StubConnectionModel(state: .makeSuccessfulStub())
+                ),
+                .init(
+                    peripheral: StubPeripheralModel(state: .makeSuccessfulStub(uuid: StubUUID.two)),
+                    connection: StubConnectionModel(state: .makeSuccessfulStub())
+                ),
+            ])),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unsupported),
             .discoveryFailed(.unspecified("Something went wrong"))

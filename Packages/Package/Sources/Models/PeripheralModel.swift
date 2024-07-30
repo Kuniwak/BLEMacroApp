@@ -153,7 +153,6 @@ extension PeripheralModelState: CustomDebugStringConvertible {
 
 
 public protocol PeripheralModelProtocol: StateMachineProtocol<PeripheralModelState>, Identifiable<UUID> {
-    nonisolated var connection: any ConnectionModelProtocol { get }
     nonisolated func readRSSI()
     nonisolated func discover()
     nonisolated func connect()
@@ -171,7 +170,6 @@ extension PeripheralModelProtocol {
 public final actor AnyPeripheralModel: PeripheralModelProtocol {
     nonisolated public var state: State { base.state }
     nonisolated public var stateDidChange: AnyPublisher<State, Never> { base.stateDidChange }
-    nonisolated public var connection: any ConnectionModelProtocol { base.connection }
     nonisolated public var id: UUID { base.id }
     
     private let base: any PeripheralModelProtocol
@@ -222,7 +220,6 @@ public final actor PeripheralModel: PeripheralModelProtocol {
             discovery: model.state.discovery
         )
     }
-    nonisolated public var connection: any ConnectionModelProtocol { model.connection }
     nonisolated public let stateDidChange: AnyPublisher<PeripheralModelState, Never>
     
     nonisolated public var id: UUID { peripheral.identifier }

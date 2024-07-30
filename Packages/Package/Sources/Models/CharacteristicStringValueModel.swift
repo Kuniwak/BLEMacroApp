@@ -151,7 +151,7 @@ public final actor CharacteristicStringValueModel: CharacteristicStringValueMode
         representing characteristic: any CharacteristicProtocol
     ) {
         let data: Data
-        let result: Result<Data, HexDataModelFailure>
+        let result: HexDataModelState
         switch HexEncoding.decode(hexString: initialState) {
         case .success((let d, _)):
             data = d

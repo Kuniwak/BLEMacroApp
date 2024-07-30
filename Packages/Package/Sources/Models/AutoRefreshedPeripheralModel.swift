@@ -19,7 +19,6 @@ public final actor AnyAutoRefreshedPeripheralModel: AutoRefreshedPeripheralModel
     nonisolated private let base: any AutoRefreshedPeripheralModelProtocol
     
     nonisolated public var state: PeripheralModelState { base.state }
-    nonisolated public var connection: any ConnectionModelProtocol { base.connection }
     nonisolated public var stateDidChange: AnyPublisher<PeripheralModelState, Never> { base.stateDidChange }
     nonisolated public var id: UUID { base.id }
     
@@ -41,7 +40,6 @@ public final actor AutoRefreshedPeripheralModel: AutoRefreshedPeripheralModelPro
     nonisolated private let base: any PeripheralModelProtocol
     
     nonisolated public var state: PeripheralModelState { base.state }
-    nonisolated public var connection: any ConnectionModelProtocol { base.connection }
     nonisolated public var stateDidChange: AnyPublisher<PeripheralModelState, Never> { base.stateDidChange }
     nonisolated public var id: UUID { base.id }
     private let timer: Timer
