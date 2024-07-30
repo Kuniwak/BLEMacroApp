@@ -126,7 +126,7 @@ public struct PeripheralSearchView: View {
     
     
     private func peripheralView(entry: PeripheralEntry) -> some View {
-        let deps = DependencyBag(connectionModel: entry.connection, logger: logger)
+        let deps = PeripheralDependencyBag(connectionModel: entry.connection, logger: logger)
         return PeripheralView(
             observing: AutoRefreshedPeripheralModel(
                 wrapping: entry.peripheral,

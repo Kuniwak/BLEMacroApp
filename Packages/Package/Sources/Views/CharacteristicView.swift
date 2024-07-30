@@ -14,10 +14,10 @@ public struct CharacteristicView: View {
     @State public var hexString: String = ""
     @State public var hadWrote: Bool = false
     private let characteristicLogger: CharacteristicModelLogger
-    private let deps: DependencyBag
+    private let deps: PeripheralDependencyBag
 
     
-    public init(of characteristicModel: any CharacteristicModelProtocol, holding deps: DependencyBag) {
+    public init(of characteristicModel: any CharacteristicModelProtocol, holding deps: PeripheralDependencyBag) {
         self._characteristicBinding = StateObject(wrappedValue: ViewBinding(source: characteristicModel.eraseToAny()))
         self.characteristicLogger = CharacteristicModelLogger(
             observing: characteristicModel,

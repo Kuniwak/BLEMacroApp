@@ -16,7 +16,7 @@ public struct PeripheralView: View {
     @StateObject private var distanceBinding: ViewBinding<PeripheralDistanceState, AnyPeripheralDistanceModel>
     private let peripheralLogger: PeripheralModelLogger
     private let distanceLogger: PeripheralDistanceModelLogger
-    private let deps: DependencyBag
+    private let deps: PeripheralDependencyBag
     @State private var isAlertPresent: Bool = false
     @State private var environmentalFactor: Int = 20
     @State private var environmentalFactorError: Bool = false
@@ -26,7 +26,7 @@ public struct PeripheralView: View {
     public init(
         observing peripheralModel: any AutoRefreshedPeripheralModelProtocol,
         observing distanceModel: any PeripheralDistanceModelProtocol,
-        holding deps: DependencyBag
+        holding deps: PeripheralDependencyBag
     ) {
         self._peripheralBinding = StateObject(wrappedValue: ViewBinding(source: peripheralModel.eraseToAny()))
         self.peripheralLogger = PeripheralModelLogger(observing: peripheralModel, loggingBy: deps.logger)

@@ -11,12 +11,12 @@ import SFSymbol
 
 public struct ServiceView: View {
     @StateObject private var binding: ViewBinding<ServiceModelState, AnyServiceModel>
-    private let deps: DependencyBag
+    private let deps: PeripheralDependencyBag
     private let logger: ServiceModelLogger
     @State private var isAlertPresent: Bool = false
     
     
-    public init(observing model: any ServiceModelProtocol, holding deps: DependencyBag) {
+    public init(observing model: any ServiceModelProtocol, holding deps: PeripheralDependencyBag) {
         self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
         self.logger = ServiceModelLogger(observing: model, loggingBy: deps.logger)
         self.deps = deps

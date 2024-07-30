@@ -4,15 +4,15 @@ import ModelStubs
 import Logger
 
 
-public struct DependencyBag {
+public struct PeripheralDependencyBag {
     public let connectionModel: any ConnectionModelProtocol
     public let logger: any LoggerProtocol
 }
 
 
-extension DependencyBag {
-    public static func makeStub() -> DependencyBag {
-        DependencyBag(
+extension PeripheralDependencyBag {
+    public static func makeStub() -> PeripheralDependencyBag {
+        PeripheralDependencyBag(
             connectionModel: StubConnectionModel(),
             logger: NullLogger()
         )
