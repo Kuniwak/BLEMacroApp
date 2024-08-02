@@ -13,6 +13,10 @@ let package = Package(
             targets: ["Models"]
         ),
         .library(
+            name: "Documents",
+            targets: ["Documents"]
+        ),
+        .library(
             name: "Views",
             targets: ["Views"]
         ),
@@ -21,7 +25,7 @@ let package = Package(
         .package(url: "https://github.com/Kuniwak/swift-logger.git", .upToNextMajor(from: "2.0.0")),
         .package(url: "https://github.com/Kuniwak/swift-ble-assigned-numbers.git", .upToNextMajor(from: "2.0.0")),
         .package(url: "https://github.com/Kuniwak/core-bluetooth-testable.git", .upToNextMajor(from: "6.1.0")),
-        .package(url: "https://github.com/Kuniwak/swift-ble-macro.git", .upToNextMajor(from: "5.0.1")),
+        .package(url: "https://github.com/Kuniwak/swift-ble-macro.git", .upToNextMajor(from: "6.0.0")),
         .package(url: "https://github.com/cezheng/Fuzi.git", .upToNextMajor(from: "3.1.3")),
         .package(url: "https://github.com/Kuniwak/MirrorDiffKit.git", .upToNextMajor(from: "6.0.0")),
         .package(url: "https://github.com/Nirma/SFSymbol.git", .upToNextMajor(from: "2.3.0")),
@@ -31,6 +35,10 @@ let package = Package(
     targets: [
         .target(
             name: "ModelFoundation",
+            swiftSettings: SwiftSetting.allCases
+        ),
+        .target(
+            name: "Documents",
             swiftSettings: SwiftSetting.allCases
         ),
         .target(
@@ -161,6 +169,7 @@ private extension Target.Dependency {
     static let previewHelper: Self = "PreviewHelper"
     static let viewFoundation: Self = "ViewFoundation"
     static let catalogs: Self = "Catalogs"
+    static let documents: Self = "Documents"
     static let modelFoundation: Self = "ModelFoundation"
     static let models: Self = "Models"
     static let modelStubs: Self = "ModelStubs"

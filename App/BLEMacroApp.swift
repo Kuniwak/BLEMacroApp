@@ -3,6 +3,7 @@ import SwiftUI
 import Logger
 import ViewFoundation
 import Views
+import Documents
 
 // NOTE: The app gets initialized even during testing, which can lead to performance overhead.
 #if canImport(XCTest)
@@ -18,7 +19,7 @@ public struct BLEMacroApp: App {
 @main
 internal struct BLEMacroApp: App {
     public var body: some Scene {
-        WindowGroup {
+        DocumentGroup(newDocument: BLEMacroDocument()) { file in
             RootView(logConfigurations: .default)
         }
     }
