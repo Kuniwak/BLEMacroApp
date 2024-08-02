@@ -1,5 +1,94 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Bluetooth® Low Energy Macro</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.kuniwak.BLEMacro</string>
+			</array>
+			<key>NSDocumentClass</key>
+			<string>Documents.BLEMacroDocument</string>
+		</dict>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.kuniwak.BLEMacroApp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>blemacro</string>
+			</array>
+		</dict>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.xml</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Bluetooth® Low Energy Macro</string>
+			<key>UTTypeIcons</key>
+			<dict/>
+			<key>UTTypeIdentifier</key>
+			<string>com.kuniwak.BLEMacro</string>
+			<key>UTTypeReferenceURL</key>
+			<string>https://github.com/NordicSemiconductor/Android-nRF-Connect/blob/54ed2a491567c18c9de91556efb511b9b0bc3ec8/documentation/Macros/README.md</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>xml</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>text/xml</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.xml</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Bluetooth® Low Energy Macro</string>
+			<key>UTTypeIcons</key>
+			<dict/>
+			<key>UTTypeIdentifier</key>
+			<string>com.kuniwak.BLEMacro</string>
+			<key>UTTypeReferenceURL</key>
+			<string>https://github.com/NordicSemiconductor/Android-nRF-Connect/blob/54ed2a491567c18c9de91556efb511b9b0bc3ec8/documentation/Macros/README.md</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>xml</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>text/xml</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
 </plist>
