@@ -50,9 +50,9 @@ extension HexDataModelState: CustomStringConvertible {
 extension HexDataModelState: CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
-        case .success(let data):
+        case .success:
             return ".success"
-        case .failure(let error):
+        case .failure:
             return ".failure"
         }
     }
