@@ -29,9 +29,9 @@ public struct PeripheralView: View {
         holding deps: PeripheralDependencyBag
     ) {
         self._peripheralBinding = StateObject(wrappedValue: ViewBinding(source: peripheralModel.eraseToAny()))
-        self.peripheralLogger = PeripheralModelLogger(observing: peripheralModel, loggingBy: deps.logger)
+        self.peripheralLogger = PeripheralModelLogger(observing: peripheralModel, loggingBy: deps.global.logger)
         self._distanceBinding = StateObject(wrappedValue: ViewBinding(source: distanceModel.eraseToAny()))
-        self.distanceLogger = PeripheralDistanceModelLogger(observing: distanceModel, loggingBy: deps.logger)
+        self.distanceLogger = PeripheralDistanceModelLogger(observing: distanceModel, loggingBy: deps.global.logger)
         self.txPower = Int(distanceModel.state.txPower)
         self.deps = deps
     }

@@ -13,23 +13,16 @@ public struct RootView: View {
     @StateObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     @Environment(\.scenePhase) private var scenePhase
     private let searchModel: any PeripheralSearchModelProtocol
-    private let logger: any LoggerProtocol
+    private let deps: GlobalDependencyBag
     
     
     public init(
         searchModel: any PeripheralSearchModelProtocol,
-        loggingBy logger: any LoggerProtocol
+        holding deps: GlobalDependencyBag
     ) {
         self.searchModel = searchModel
-        self.logger = logger
+        self.deps = deps
         self._binding = StateObject(wrappedValue: ViewBinding(source: searchModel.eraseToAny()))
-    }
-    
-    
-    public init(searchModel: any PeripheralSearchModelProtocol, logger: any LoggerProtocol) {
-        self.searchModel = searchModel
-        self._binding = StateObject(wrappedValue: ViewBinding(source: searchModel.eraseToAny()))
-        self.logger = logger
     }
     
     
@@ -51,23 +44,28 @@ public struct RootView: View {
                 ),
                 initialSearchQuery: SearchQuery(rawValue: "")
             ),
-            logger: Logger(
-                severity: logConfigurations.severity,
-                writer: OSLogWriter(logConfigurations.app)
-            )
-        )
+            deps: GlobalDependencyBag(
+                logger: Logger(
+                    severity: logConfigurations.severity,
+                    writer: OSLogWriter(logConfigurations.app)
+                )
+                )
+    )
     }
 
     
     public var body: some View {
         TabView {
-            PeripheralSearchView(observing: searchModel, loggingBy: logger)
-                .tabItem {
-                    VStack {
-                        Image(systemName: SFSymbol5.Antenna.radiowavesLeftAndRightCircleFill.rawValue)
-                        Text("Peripherals")
-                    }
+            PeripheralSearchView(
+                observing: searchModel,
+                loggingBy: deps.logger
+            )
+            .tabItem {
+                VStack {
+                    Image(systemName: SFSymbol5.Antenna.radiowavesLeftAndRightCircleFill.rawValue)
+                    Text("Peripherals")
                 }
+            }
             
             MacroView()
                 .tabItem {

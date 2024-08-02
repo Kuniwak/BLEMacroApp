@@ -12,16 +12,19 @@ public struct PeripheralSearchView: View {
     @StateObject private var binding: ViewBinding<PeripheralSearchModelState, AnyPeripheralSearchModel>
     @State private var searchQuery: String = ""
     @Environment(\.scenePhase) private var scenePhase
-    private let logger: any LoggerProtocol
+    private let deps: GlobalDependencyBag
     private let modelLogger: PeripheralSearchModelLogger
     
     
-    public init(observing model: any PeripheralSearchModelProtocol, loggingBy logger: any LoggerProtocol) {
+    public init(
+        observing model: any PeripheralSearchModelProtocol,
+        holding deps: GlobalDependencyBag
+    ) {
         self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
-        self.logger = logger
+        self.deps = deps
         self.modelLogger = PeripheralSearchModelLogger(
             observing: model,
-            loggingBy: logger
+            loggingBy: deps.logger
         )
     }
     
@@ -126,7 +129,10 @@ public struct PeripheralSearchView: View {
     
     
     private func peripheralView(entry: PeripheralEntry) -> some View {
-        let deps = PeripheralDependencyBag(connectionModel: entry.connection, logger: logger)
+        let deps = PeripheralDependencyBag(
+            connectionModel: entry.connection,
+            global: deps
+        )
         return PeripheralView(
             observing: AutoRefreshedPeripheralModel(
                 wrapping: entry.peripheral,
@@ -204,7 +210,7 @@ internal struct PeripheralsView_Previews: PreviewProvider {
                 NavigationStack {
                     PeripheralSearchView(
                         observing: StubPeripheralSearchModel(state: wrapper.value).eraseToAny(),
-                        loggingBy: NullLogger()
+                        holding: .makeStub()
                     )
                 }
                 .previewDisplayName(wrapper.description)

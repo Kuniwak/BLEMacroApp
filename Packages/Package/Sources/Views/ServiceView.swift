@@ -18,7 +18,7 @@ public struct ServiceView: View {
     
     public init(observing model: any ServiceModelProtocol, holding deps: PeripheralDependencyBag) {
         self._binding = StateObject(wrappedValue: ViewBinding(source: model.eraseToAny()))
-        self.logger = ServiceModelLogger(observing: model, loggingBy: deps.logger)
+        self.logger = ServiceModelLogger(observing: model, loggingBy: deps.global.logger)
         self.deps = deps
     }
     
